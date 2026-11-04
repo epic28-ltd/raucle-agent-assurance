@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oaa-ep-aec"
+version = "0.0.1.dev0"
+description = "Open Agent Assurance — EP-AEC-v1 authorization evidence-chain envelope generator + requirement evaluator (EPIC M K1, draft-schrock-ep-authorization-evidence-chain-08)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE.txt"]
+authors = [{ name = "Open Agent Assurance contributors" }]
+dependencies = []  # raucle / oaa-raucle-adapter are OPTIONAL — integration tests skip without them
+
+[project.optional-dependencies]
+raucle = []  # pinned raucle 0.23.5 (git 63edacd) worktree install; see packages/raucle-adapter/README.md
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/oaa_epaec"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "SIM", "RUF", "PLC"]
+ignore = [
+  "E501",  # long prose lines in evidence-derived files, mirroring the repo root
+]
+
+[tool.ruff.lint.per-file-ignores]
+# PLC0415 is deliberate here: raucle and oaa-raucle-adapter are OPTIONAL
+# dependencies imported lazily so raucle-free environments still import.
+"src/oaa_epaec/*.py" = ["PLC0415"]
+"tests/*.py" = ["PLC0415"]
