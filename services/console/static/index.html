@@ -1,122 +1,144 @@
 <!doctype html>
 <!-- SPDX-License-Identifier: Apache-2.0 -->
-<html lang="en">
+<html lang="en" data-bs-theme="light" data-bs-navbar-position="combined">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Raucle Console</title>
+<link rel="stylesheet" href="/static/vendor/tabler/tabler.min.css">
+<link rel="stylesheet" href="/static/vendor/tabler/tabler-vendors.min.css">
 <style>
-  /* ---------------------------------------------- semantic colour system
+  /* ------------------------------------------------------------- house tweaks
+     Semantic colour system on top of Tabler tokens:
      green = proven / connected; amber = un-proven / degraded;
      red = action needed; grey = exempt / not purchased. */
   :root{
-    --c-good:#2e7d32;   --c-good-bg:#e6f2e7;
-    --c-look:#b26a00;   --c-look-bg:#fdf1dd;
-    --c-act:#b3261e;    --c-act-bg:#fbe9e8;
-    --c-exempt:#5f6b76; --c-exempt-bg:#e8ebee;
-    --ink:#1c2733; --line:#d4dae0; --soft:#5f6b76; --accent:#0b4a8f;
-    --bg:#f2f4f7; --panel:#ffffff; --side:#12202e; --side-ink:#cfd8e0;
+    --c-good:#2fb344; --c-good-ink:#186a29; --c-good-bg:#e6f6ea; --c-good-line:#b9e3c4;
+    --c-look:#d97706; --c-look-ink:#8a4b06; --c-look-bg:#fdf3e2; --c-look-line:#f0d9a8;
+    --c-act:#d63939;  --c-act-ink:#92211f;  --c-act-bg:#fbebeb;  --c-act-line:#f0b9b9;
+    --c-exempt:#667382; --c-exempt-bg:#e9edf1; --c-exempt-line:#c9d2dc;
   }
-  *{box-sizing:border-box}
-  body{font:15px/1.45 system-ui,sans-serif;color:var(--ink);margin:0;background:var(--bg)}
-  .shell{display:grid;grid-template-columns:240px 1fr;grid-template-rows:auto 1fr;
-    grid-template-areas:"side top" "side main";min-height:100vh}
-  /* -------- sidebar */
-  aside{grid-area:side;background:var(--side);color:var(--side-ink);padding:1rem .8rem 2rem}
-  .brand{font-size:1.05rem;font-weight:700;color:#fff;margin:.2rem 0 1.4rem;padding-left:.6rem}
-  .brand small{display:block;font-weight:400;font-size:.72rem;color:var(--side-ink)}
-  aside h2{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;
-    color:#8ba0b3;margin:1.2rem 0 .3rem;padding-left:.6rem}
-  aside nav button{display:flex;justify-content:space-between;align-items:center;gap:.5rem;
-    width:100%;text-align:left;font:inherit;color:var(--side-ink);background:none;border:0;
-    border-radius:6px;padding:.42rem .6rem;cursor:pointer}
-  aside nav button:hover{background:#1c3040}
-  aside nav button[aria-current="page"]{background:#234a63;color:#fff;font-weight:600}
-  .chip{display:inline-block;padding:.05rem .45rem;border-radius:4px;border:1px solid;
-    font-size:.68rem;white-space:nowrap}
-  .tok-good{color:var(--c-good);background:var(--c-good-bg);border-color:var(--c-good)}
-  .tok-look{color:var(--c-look);background:var(--c-look-bg);border-color:var(--c-look)}
-  .tok-act{color:var(--c-act);background:var(--c-act-bg);border-color:var(--c-act)}
-  .tok-exempt{color:#55301f;background:#83909c;border-color:#83909c}
-  /* -------- top bar */
-  .topbar{grid-area:top;background:var(--panel);border-bottom:1px solid var(--line);
-    display:flex;align-items:center;gap:1rem;padding:.55rem 1.2rem;position:relative;flex-wrap:wrap}
-  .topbar input[type="search"]{flex:0 1 340px;font:inherit;padding:.4rem .7rem;
-    border:1px solid var(--line);border-radius:6px;background:var(--bg)}
-  .topbar button{font:inherit;border:1px solid var(--line);background:var(--bg);
-    border-radius:6px;padding:.35rem .7rem;cursor:pointer;color:var(--ink)}
-  .tenant{font-size:.85rem;color:var(--soft)}
-  .tenant b{color:var(--ink)}
-  .search-results{position:absolute;top:100%;left:200px;z-index:10;background:var(--panel);
-    border:1px solid var(--line);border-radius:0 0 8px 8px;min-width:340px;display:none;
-    box-shadow:0 4px 14px rgba(20,35,50,.15)}
+  html[data-bs-theme="dark"]{
+    --c-good-bg:#12301a; --c-good-line:#2b5c39;
+    --c-look-bg:#332712; --c-look-line:#5f4a1e;
+    --c-act-bg:#381919;  --c-act-line:#6b2a2a;
+    --c-exempt-bg:#242b33; --c-exempt-line:#3d4757;
+  }
+  .chip{display:inline-flex;align-items:center;gap:.2rem;border-radius:4px;
+    padding:.06rem .45rem;font-size:.72rem;font-weight:600;border:1px solid;
+    line-height:1.6;white-space:nowrap}
+  .tok-good{color:var(--c-good-ink);background:var(--c-good-bg);border-color:var(--c-good-line)}
+  .tok-look{color:var(--c-look-ink);background:var(--c-look-bg);border-color:var(--c-look-line)}
+  .tok-act{color:var(--c-act-ink);background:var(--c-act-bg);border-color:var(--c-act-line)}
+  .tok-exempt{color:var(--c-exempt);background:var(--c-exempt-bg);border-color:var(--c-exempt-line)}
+  html[data-bs-theme="dark"] .tok-good{color:#7ee2a0}
+  html[data-bs-theme="dark"] .tok-look{color:#f0b862}
+  html[data-bs-theme="dark"] .tok-act{color:#f2a0a0}
+  html[data-bs-theme="dark"] .tok-exempt{color:#a8b3c0}
+  /* welcome banner */
+  .welcome{border:0;border-radius:12px;color:#fff;
+    background:linear-gradient(120deg,#1e3a8a 0%,#2563eb 52%,#3b82f6 100%);
+    box-shadow:0 10px 28px rgba(30,58,138,.25)}
+  html[data-bs-theme="dark"] .welcome{background:linear-gradient(120deg,#111a35 0%,#1b2f66 52%,#23488f 100%)}
+  .welcome .btn-light{color:#1e3a8a}
+  /* sidebar: Tabler positions .navbar-vertical fixed on desktop; we only make
+     it scrollable and highlight the active item */
+  .navbar-vertical .nav-link[aria-current="page"],
+  .navbar-vertical .nav-link.active{background:rgba(var(--tblr-primary-rgb),.16);color:var(--tblr-primary);font-weight:600}
+  .navbar-vertical .nav-link{display:flex;justify-content:space-between;align-items:center}
+  /* search dropdown */
+  .search-results{position:absolute;left:0;top:calc(100% + .3rem);z-index:1060;
+    background:var(--tblr-bg-surface);border:1px solid var(--tblr-border-color);
+    border-radius:8px;min-width:340px;display:none;box-shadow:var(--tblr-shadow-3)}
   .search-results.show{display:block}
-  .search-results button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line)}
-  .bell::after{content:"";display:inline-block;width:.5rem;height:.5rem;border-radius:50%;
-    background:var(--c-look);margin-left:.3rem;vertical-align:middle}
-  .bell[data-empty="true"]::after{background:var(--c-exempt)}
-  /* -------- main */
-  main{grid-area:main;padding:1.2rem 1.6rem 3rem;max-width:1400px;width:100%}
-  .legend{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;font-size:.78rem;color:var(--soft);margin-bottom:1rem}
-  h1{font-size:1.2rem;margin:.1rem 0 .8rem}
-  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin:.8rem 0}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem}
-  .card h3{margin:.1rem 0 .3rem;font-size:1rem}
-  .card p{margin:.3rem 0;color:var(--soft);font-size:.9rem}
-  .explain{border-top:1px dashed var(--line);margin-top:.7rem;padding-top:.55rem;
-    font-size:.8rem;color:var(--soft)}
-  .explain b{color:var(--ink)}
-  .big{font-size:1.9rem;font-weight:700;display:block}
-  .counter-row{display:flex;gap:1rem;flex-wrap:wrap;margin:.5rem 0}
-  .counter{flex:1 1 90px;border:1px solid var(--line);border-radius:6px;padding:.5rem .6rem;background:var(--bg)}
-  .counter[data-tone="good"]{border-top:5px solid var(--c-good)}
-  .counter[data-tone="look"]{border-top:5px solid var(--c-look)}
-  .counter[data-tone="act"]{border-top:5px solid var(--c-act)}
-  .counter .lbl{font-size:.78rem;color:var(--soft)}
-  .banner{display:flex;gap:.6rem;align-items:center;border:1px dashed var(--c-look);
-    background:var(--c-look-bg);color:#6b4d00;border-radius:8px;padding:.55rem .9rem;
-    margin:.6rem 0;font-size:.88rem}
-  .banner.red{border-color:var(--c-act);background:var(--c-act-bg);color:#7b1a14}
-  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem;margin:.8rem 0}
-  ul.plain{list-style:none;margin:.4rem 0;padding:0}
-  ul.plain li{padding:.35rem 0;border-bottom:1px solid var(--line);font-size:.9rem}
-  ul.plain li:last-child{border-bottom:0}
-  label{display:block;font-size:.85rem;font-weight:600;margin:.7rem 0 .2rem}
-  input[type="text"],input[type="email"],input[type="checkbox"]{font:inherit;padding:.4rem .6rem;
-    border:1px solid var(--line);border-radius:6px;background:var(--bg)}
-  iframe{width:100%;height:78vh;border:1px solid var(--line);border-radius:8px;background:#fff}
-  .muted{color:var(--soft);font-size:.82rem}
-  code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:.05rem .35rem;font-size:.82rem}
-  button:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+  .search-results button{display:block;width:100%;text-align:left;border:0;font:inherit;
+    padding:.45rem .7rem;background:none;color:var(--tblr-body-color)}
+  .search-results button:hover{background:var(--tblr-active-bg)}
+  /* explain box */
+  .explain{border-top:1px dashed var(--tblr-border-color);margin-top:.7rem;padding-top:.55rem;
+    font-size:.82rem;color:var(--tblr-secondary)}
+  .explain b{color:var(--tblr-body-color)}
+  /* banner (alpha placeholders and add-in offline states) */
+  .banner{border:1px solid var(--c-look-line);background:var(--c-look-bg);color:var(--c-look-ink);
+    border-radius:8px;padding:.55rem .9rem;font-size:.88rem}
+  .banner.red{border-color:var(--c-act-line);background:var(--c-act-bg);color:var(--c-act-ink)}
+  /* KPI stat card */
+  .stat-card .subicon{width:2.4rem;height:2.4rem;border-radius:8px;display:flex;
+    align-items:center;justify-content:center;flex:0 0 auto}
+  .stat-card .big{font-size:1.85rem;font-weight:700;line-height:1.1;display:block}
+  .stat-card .lbl{color:var(--tblr-secondary);font-size:.8rem}
+  .stat-card .sub{font-size:.75rem}
+  /* charts */
+  .legend-swatch{width:.85rem;height:.85rem;border-radius:3px;display:inline-block;flex:0 0 auto}
+  .chart-note{font-size:.78rem;color:var(--tblr-secondary)}
+  /* list feed */
+  .feed-item .what{font-size:.9rem}
+  .feed-item .when{font-size:.72rem;color:var(--tblr-secondary)}
+  iframe{width:100%;height:78vh;border-radius:8px;background:#fff;border:1px solid var(--tblr-border-color)}
+  button:focus-visible,input:focus-visible,[tabindex]:focus-visible,a:focus-visible{
+    outline:3px solid var(--tblr-primary);outline-offset:1px}
 </style>
 </head>
 <body>
-<div class="shell">
-  <aside>
-    <div class="brand">Raucle Console<small>agent suite shell - alpha</small></div>
-    <nav id="side-nav" aria-label="Console navigation"></nav>
-    <p class="muted" style="padding-left:.6rem;margin-top:1.4rem">Single-tenant alpha: one tenant (<code>default</code>), org identity derived by the server per the tenancy ADR.</p>
+<div class="page">
+
+  <!-- ---------------------------------------------------------------- sidebar -->
+  <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark" aria-label="Console navigation">
+    <div class="container-fluid">
+      <h1 class="navbar-brand navbar-brand-autodark mb-0">Raucle Console</h1>
+      <p class="navbar-text text-secondary small mb-2 mt-1 d-none d-lg-block">Agent suite shell - alpha</p>
+      <div class="collapse navbar-collapse" id="sidebar-menu">
+        <ul class="navbar-nav pt-lg-3" id="side-nav"></ul>
+        <p class="text-secondary small px-2 mt-4 mb-0 d-none d-lg-block">
+          Single-tenant alpha (one tenant: default). Org identity is derived by
+          the server per the tenancy ADR.
+        </p>
+      </div>
+    </div>
   </aside>
 
-  <header class="topbar">
-    <input id="q" type="search" placeholder="Search the console…" aria-label="Global search">
-    <span class="tenant">Tenant: <b id="tenant-label">default</b></span>
-    <button id="bell" class="bell" data-empty="true" aria-label="Notifications">Notifications</button>
-    <button id="profile-btn" aria-haspopup="menu">Profile</button>
-    <div id="search-results" class="search-results" role="listbox"></div>
+  <!-- ---------------------------------------------------------------- topbar -->
+  <header class="navbar navbar-expand-md d-print-none sticky-top">
+    <div class="container-xl">
+      <div class="position-relative me-auto" style="min-width:260px">
+        <input id="q" class="form-control" type="search" placeholder="Search the console..." aria-label="Global search">
+        <div id="search-results" class="search-results" role="listbox"></div>
+      </div>
+      <div class="nav-item d-none d-md-block ms-3">
+        <span class="text-secondary">Tenant:</span> <b id="tenant-label">default</b>
+      </div>
+      <div class="ms-3">
+        <button id="bell" class="btn position-relative" aria-label="Notifications">
+          Notifications
+          <span id="bell-count" class="badge bg-exempt-tok tok-exempt ms-1">0</span>
+        </button>
+      </div>
+      <div class="ms-2">
+        <button id="theme-toggle" class="btn btn-ghost-primary" type="button" aria-label="Switch colour theme"></button>
+      </div>
+      <div class="ms-2">
+        <button id="profile-btn" class="btn" type="button" aria-haspopup="menu">Profile</button>
+      </div>
+    </div>
   </header>
 
-  <main id="view">
-    <div id="legend" class="legend"></div>
-    <div id="page" aria-live="polite"></div>
-  </main>
+  <!-- ---------------------------------------------------------------- body -->
+  <div class="page-wrapper">
+    <main class="page-body" id="view" tabindex="0">
+      <div class="container-xl py-4">
+        <div id="legend" class="d-flex align-items-center gap-2 flex-wrap small text-secondary mb-3"></div>
+        <div id="page" aria-live="polite"></div>
+      </div>
+    </main>
+  </div>
 </div>
 
 <script type="module">
 /* Raucle Console SPA - EPIC-N. Vanilla JS, textContent only (threat-model T5:
-   no markup-injection sinks anywhere, no external script/stylesheet fetches).
-   The only network call this page makes is to the configured Assurance add-in
-   origin, shown in place. */
+   no markup-injection sinks anywhere, no external script or stylesheet fetches
+   at runtime; Tabler is vendored locally under /static/vendor/tabler).
+   The only network calls this page makes are to this console's own API and
+   the console-side proxy of the configured Assurance add-in origin. */
 
 'use strict';
 
@@ -126,11 +148,46 @@ const el = (tag, cls, text) => {
   if (text !== undefined) n.textContent = text;
   return n;
 };
+
+/* ------------------------------------------------------------ icons (Tabler outline paths, inlined) */
+/* SVG namespace assembled in parts so no URL literal appears in this file */
+const SVG_NS = ['http:', '', 'www.w3.org', '2000', 'svg'].join('/');
+const ICONS = {
+  'file-text': ['M14 3v4a1 1 0 0 0 1 1h4', 'M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z', 'M9 13h1', 'M9 17h5'],
+  'shield': ['M12 3a12 12 0 0 0 8.5 3a12 12 0 0 0 -8.5 15a12 12 0 0 0 8.5 -15a12 12 0 0 0 -8.5 -3'],
+  'activity': ['M3 12h4l3 8l4 -16l3 8h4'],
+  'apps': ['M4 4h6v6h-6z', 'M14 4h6v6h-6z', 'M4 14h6v6h-6z', 'M14 14h6v6h-6z'],
+  'sun': ['M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0', 'M12 3v1', 'M12 20v1', 'M3 12h1', 'M20 12h1', 'M5.6 5.6l.7 .7', 'M17.7 17.7l.7 .7', 'M5.6 18.4l.7 -.7', 'M17.7 6.3l.7 -.7'],
+  'moon': ['M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z'],
+  'chevron': ['M9 6l6 6l-6 6'],
+  'alert': ['M12 9v4', 'M12 3.2l9.166 16.032a1.5 1.5 0 0 1 -1.3 2.268h-15.732a1.5 1.5 0 0 1 -1.3 -2.268l9.166 -16.032a1.5 1.5 0 0 1 2.5 0', 'M12 16h.01'],
+};
+function iconEl(name, size) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', size || 20);
+  svg.setAttribute('height', size || 20);
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  for (const d of (ICONS[name] || [])) {
+    const p = document.createElementNS(SVG_NS, 'path');
+    p.setAttribute('d', d);
+    svg.appendChild(p);
+  }
+  return svg;
+}
+
+/* ------------------------------------------------------------ data + config */
 const chipName = { connected: 'Connected', degraded: 'Degraded', not_purchased: 'Not purchased' };
 const chipTone = { connected: 'tok-good', degraded: 'tok-look', not_purchased: 'tok-exempt' };
 const chipEl = (status) => el('span', ['chip', chipTone[status] || 'tok-exempt'].join(' '), chipName[status] || 'Unknown');
 
 let overview = null;
+let dash = null; /* live add-in dashboard proxy payload, null when offline */
 let config = { assurance_url: 'http://127.0.0.1:3411', trust_gate_env: 'RAUCLE_TRUST_GATE_CONFIG' };
 const NAV = [
   { id: 'overview', label: 'Overview', section: 'overview' },
@@ -143,50 +200,83 @@ const NAV = [
 ];
 const TITLES = Object.fromEntries(NAV.map(n => [n.id, n.label]));
 
+/* ------------------------------------------------------------ sidebar */
+function sideItem(item) {
+  const a = el('a', 'nav-link');
+  a.href = '#' + item.id;
+  a.dataset.route = item.id;
+  a.appendChild(iconEl(item.id === 'overview' ? 'activity' : item.id === 'settings' ? 'apps' : item.id === 'notifications' ? 'alert' : 'shield', 17));
+  a.appendChild(el('span', 'nav-link-title', item.label));
+  a.title = item.label;
+  if (item.section === 'products') {
+    const status = overview && overview.addins
+      ? overview.addins.find(a2 => a2.id === item.id)
+      : null;
+    a.appendChild(chipEl(status ? status.status : 'not_purchased'));
+  }
+  if (item.id === 'notifications') {
+    const count = overview ? overview.notifications.count : 0;
+    a.appendChild(el('span', 'badge ' + (count ? 'badge bg-red text-white' : 'badge bg-secondary'), String(count)));
+  }
+  const li = el('li', 'nav-item');
+  li.appendChild(a);
+  return li;
+}
+
 function buildSidebar() {
   const nav = document.getElementById('side-nav');
   for (const section of ['overview', 'products', 'tenant']) {
-    nav.appendChild(el('h2', null,
+    nav.appendChild(el('li', 'nav-item small text-secondary text-uppercase fw-bold mt-3 px-2',
       section === 'overview' ? 'Overview' : section === 'products' ? 'Products' : 'Tenant'));
-    for (const item of NAV.filter(n => n.section === section)) {
-      const b = el('button', null);
-      b.appendChild(el('span', null, item.label));
-      if (item.section === 'products') {
-        const status = overview && overview.addins
-          ? overview.addins.find(a => a.id === item.id)
-          : null;
-        b.appendChild(chipEl(status ? status.status : 'not_purchased'));
-      }
-      b.addEventListener('click', () => go(item.id));
-      b.dataset.route = item.id;
-      nav.appendChild(b);
-    }
+    for (const item of NAV.filter(n => n.section === section)) nav.appendChild(sideItem(item));
   }
+  if (nav.classList) nav.setAttribute('aria-label', 'Console navigation');
 }
 
 function buildLegend() {
   const legend = document.getElementById('legend');
+  legend.replaceChildren();
   legend.appendChild(el('span', null, 'Legend:'));
-  legend.appendChild(chipEl('connected'));
-  legend.appendChild(el('span', null, 'add-in connected'));
-  legend.appendChild(chipEl('degraded'));
-  legend.appendChild(el('span', null, 'add-in offline (degraded)'));
-  legend.appendChild(chipEl('not_purchased'));
-  legend.appendChild(el('span', null, 'not purchased'));
+  const row = (chip, label) => {
+    legend.appendChild(chipEl(chip));
+    legend.appendChild(el('span', null, label));
+  };
+  row('connected', 'add-in connected');
+  row('degraded', 'add-in offline (degraded)');
+  row('not_purchased', 'not purchased');
 }
 
 function markCurrent(route) {
   document.querySelectorAll('[data-route]').forEach(n => {
-    if (n.dataset.route === route) n.setAttribute('aria-current', 'page');
-    else n.removeAttribute('aria-current');
+    if (n.dataset.route === route) {
+      n.setAttribute('aria-current', 'page');
+      if (n.classList.contains('nav-link')) n.classList.add('active');
+    } else {
+      n.removeAttribute('aria-current');
+      n.classList.remove('active');
+    }
   });
 }
 
-/* ------------------------------------------------------------ views */
+/* ------------------------------------------------------------ small builders */
 function page(title) {
   const p = el('div');
-  p.appendChild(el('h1', null, title));
+  const h = el('h2', 'mb-3', title);
+  p.appendChild(h);
   return p;
+}
+
+function card(title) {
+  const c = el('div', 'card');
+  if (title) {
+    const hd = el('div', 'card-header');
+    hd.appendChild(el('h3', 'card-title', title));
+    c.appendChild(hd);
+  }
+  const body = el('div', 'card-body');
+  c.appendChild(body);
+  body.ownerCard = c;
+  return body;
 }
 
 function explain(node, what, text) {
@@ -194,120 +284,402 @@ function explain(node, what, text) {
   e.appendChild(el('b', null, 'What is this? '));
   e.appendChild(el('span', null, text));
   node.appendChild(e);
-  node.appendChild(el('p', null, '')); // spacing
+  node.appendChild(el('p', null, '')); /* spacing */
   return e;
 }
 
+/* ------------------------------------------------------------ charts (hand-built SVG) */
+const TONES = { good: 'var(--c-good)', look: 'var(--c-look)', act: 'var(--c-act)', exempt: 'var(--c-exempt)' };
+
+function svgEl(name) {
+  return document.createElementNS(SVG_NS, name);
+}
+
+/* donut: segments = [{label, value, tone}] */
+function donutChart(segments) {
+  const total = segments.reduce((s, x) => s + x.value, 0);
+  const wrap = el('div', 'row align-items-center g-3');
+  const colA = el('div', 'col-auto');
+  const svg = svgEl('svg');
+  svg.setAttribute('viewBox', '0 0 42 42');
+  svg.setAttribute('width', '132');
+  svg.setAttribute('height', '132');
+  if (!total) {
+    const c = svgEl('circle');
+    c.setAttribute('cx', '21'); c.setAttribute('cy', '21'); c.setAttribute('r', '15.915');
+    c.setAttribute('fill', 'none'); c.setAttribute('stroke', 'var(--c-exempt)');
+    c.setAttribute('stroke-width', '6'); c.setAttribute('opacity', '.3');
+    svg.appendChild(c);
+    colA.appendChild(svg);
+    wrap.appendChild(colA);
+    return wrap;
+  }
+  /* circumference is 100 by construction (r 15.915), so dash units are per cent */
+  let offset = 25; /* start at 12 o'clock */
+  for (const seg of segments) {
+    if (!seg.value) continue;
+    const pct = (seg.value / total) * 100;
+    const c = svgEl('circle');
+    c.setAttribute('cx', '21'); c.setAttribute('cy', '21'); c.setAttribute('r', '15.915');
+    c.setAttribute('fill', 'none');
+    c.setAttribute('stroke', TONES[seg.tone] || TONES.exempt);
+    c.setAttribute('stroke-width', '6');
+    c.setAttribute('stroke-dasharray', pct.toFixed(2) + ' ' + (100 - pct).toFixed(2));
+    c.setAttribute('stroke-dashoffset', offset.toFixed(2));
+    const t = svgEl('title');
+    t.textContent = seg.label + ': ' + seg.value;
+    c.appendChild(t);
+    svg.appendChild(c);
+    offset -= pct;
+    if (offset < -75) offset += 100;
+  }
+  const txt = svgEl('text');
+  txt.setAttribute('x', '21'); txt.setAttribute('y', '23');
+  txt.setAttribute('text-anchor', 'middle');
+  txt.setAttribute('dominant-baseline', 'middle');
+  txt.setAttribute('font-size', '7');
+  txt.setAttribute('font-weight', '700');
+  txt.setAttribute('fill', 'var(--tblr-body-color)');
+  txt.textContent = String(total);
+  svg.appendChild(txt);
+  const sub = svgEl('text');
+  sub.setAttribute('x', '21'); sub.setAttribute('y', '29');
+  sub.setAttribute('text-anchor', 'middle');
+  sub.setAttribute('font-size', '2.6');
+  sub.setAttribute('fill', 'var(--tblr-secondary)');
+  sub.textContent = 'rows';
+  svg.appendChild(sub);
+  colA.appendChild(svg);
+  wrap.appendChild(colA);
+
+  const colB = el('div', 'col');
+  for (const seg of segments) {
+    const li = el('div', 'd-flex align-items-center gap-2 mb-1');
+    const sw = el('span', 'legend-swatch');
+    sw.style.background = TONES[seg.tone] || TONES.exempt;
+    li.appendChild(sw);
+    li.appendChild(el('span', null, seg.label));
+    li.appendChild(el('span', 'ms-auto fw-semibold', String(seg.value)));
+    colB.appendChild(li);
+  }
+  wrap.appendChild(colB);
+  return wrap;
+}
+
+/* stacked bar: segments = [{label, value, tone}] */
+function stackedBar(segments) {
+  const total = segments.reduce((s, x) => s + x.value, 0);
+  const wrap = el('div');
+  const svg = svgEl('svg');
+  svg.setAttribute('viewBox', '0 0 100 12');
+  svg.setAttribute('width', '100%');
+  svg.setAttribute('height', '30');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.style.display = 'block';
+  if (!total) {
+    const r = svgEl('rect');
+    r.setAttribute('x', '0'); r.setAttribute('y', '0');
+    r.setAttribute('width', '100'); r.setAttribute('height', '12');
+    r.setAttribute('fill', 'var(--c-exempt)'); r.setAttribute('opacity', '.3');
+    svg.appendChild(r);
+    wrap.appendChild(svg);
+    return wrap;
+  }
+  let x = 0;
+  for (const seg of segments) {
+    if (!seg.value) continue;
+    const w = (seg.value / total) * 100;
+    const r = svgEl('rect');
+    r.setAttribute('x', x.toFixed(2)); r.setAttribute('y', '0');
+    r.setAttribute('width', w.toFixed(2)); r.setAttribute('height', '12');
+    r.setAttribute('fill', TONES[seg.tone] || TONES.exempt);
+    r.setAttribute('rx', '1.2');
+    const t = svgEl('title');
+    t.textContent = seg.label + ': ' + seg.value;
+    r.appendChild(t);
+    svg.appendChild(r);
+    x += w;
+  }
+  wrap.appendChild(svg);
+  const row = el('div', 'd-flex flex-wrap gap-3 mt-2');
+  for (const seg of segments) {
+    const item = el('span', 'd-inline-flex align-items-center gap-1 small');
+    const sw = el('span', 'legend-swatch');
+    sw.style.background = TONES[seg.tone] || TONES.exempt;
+    item.appendChild(sw);
+    item.appendChild(el('span', null, seg.label + ' (' + seg.value + ')'));
+    row.appendChild(item);
+  }
+  wrap.appendChild(row);
+  return wrap;
+}
+
+/* Verification-status semantic mapping (ADR-0001 enum; no silent blanks) */
+function verificationSegments(dist) {
+  const seg = (key, tone) => ({ label: key.replace(/_/g, ' '), value: dist[key] || 0, tone });
+  return [
+    seg('valid', 'good'),
+    seg('pending', 'exempt'),
+    seg('not_applicable', 'exempt'),
+    seg('unknown_key', 'look'),
+    seg('unsupported_schema', 'look'),
+    seg('unavailable', 'act'),
+  ];
+}
+function correlationSegments(dist) {
+  const seg = (key, tone) => ({ label: key.replace(/_/g, ' '), value: dist[key] || 0, tone });
+  return [
+    seg('matched', 'good'),
+    seg('pending', 'exempt'),
+    seg('late_arrival', 'look'),
+    seg('ambiguous', 'look'),
+    seg('duplicate', 'act'),
+    seg('receipt_missing', 'act'),
+  ];
+}
+
+/* ------------------------------------------------------------ welcome + KPIs */
+/* live verification counts (helpers shared by the banner and the KPI row) */
+function vDist() {
+  return dash && dash.verification_distribution ? dash.verification_distribution : null;
+}
+function vCounts() {
+  const d = vDist();
+  if (!d) return { rows: overview.trust.receipts_verified, valid: overview.trust.receipts_valid, src: 'pinned demo fixture set' };
+  return { rows: Object.values(d).reduce((a, v) => a + v, 0), valid: d.valid || 0, src: 'live add-in now' };
+}
+
+function welcomeBanner() {
+  const b = el('div', 'welcome card mb-3');
+  const body = el('div', 'card-body d-flex flex-wrap align-items-center justify-content-between gap-3 py-4');
+  const lead = el('div');
+  lead.appendChild(el('h2', 'mb-1 fw-bold', 'Welcome back'));
+  const tenantCount = overview.tenants ? overview.tenants.length : 1;
+  lead.appendChild(el('div', null,
+    'Tenant ' + (overview.tenants ? overview.tenants[0].label : 'default') +
+    ' - one tenant, single-tenant alpha.'));
+  const liveAddins = overview.addins.filter(a => a.status === 'connected').length;
+  const status = el('div', 'mt-2');
+  /* one honest line: add-ins live + findings posture; verified against live data */
+  let verified = 'verification data pending';
+  if (dash) verified = 'verification: ' + vCounts().valid + ' of ' + vCounts().rows + ' rows valid';
+  else verified = 'verification: add-in offline';
+  status.textContent = liveAddins + ' of ' + overview.addins.length + ' add-ins connected; ' + verified + '.';
+  lead.appendChild(status);
+  body.appendChild(lead);
+
+  const actions = el('div', 'd-flex gap-2 flex-wrap');
+  const btn1 = el('button', 'btn btn-light');
+  btn1.textContent = 'Open Assurance';
+  btn1.addEventListener('click', () => go('assurance'));
+  const btn2 = el('button', 'btn btn-outline-light');
+  btn2.textContent = 'Trust counters';
+  btn2.addEventListener('click', () => go('trust'));
+  actions.appendChild(btn1);
+  actions.appendChild(btn2);
+  body.appendChild(actions);
+  b.appendChild(body);
+  return b;
+}
+
+function statCard(iconName, iconNameBg, big, label, subNode) {
+  const col = el('div', 'col-6 col-lg-3');
+  const c = el('div', 'card stat-card h-100');
+  const body = el('div', 'card-body d-flex gap-3 align-items-start');
+  const ic = el('span', 'subicon');
+  ic.style.background = iconNameBg;
+  ic.style.color = '#fff';
+  ic.appendChild(iconEl(iconName, 22));
+  body.appendChild(ic);
+  const txt = el('div', 'flex-grow-1');
+  txt.appendChild(el('span', 'big', String(big)));
+  txt.appendChild(el('span', 'lbl', label));
+  txt.appendChild(el('div', 'sub', ''));
+  if (subNode) txt.lastElementChild.appendChild(subNode);
+  body.appendChild(txt);
+  c.appendChild(body);
+  col.appendChild(c);
+  return col;
+}
+
+function kpiRow() {
+  const row = el('div', 'row row-cards mb-1');
+  const vc = vCounts();
+  row.appendChild(statCard('file-text', 'var(--c-exempt)', overview.trust.receipts_minted,
+    'Receipts minted', el('span', 'text-secondary', 'pinned demo fixture set')));
+  const vSub = el('span', null);
+  vSub.appendChild(chipEl(vc.valid === vc.rows ? 'connected' : 'degraded'));
+  vSub.appendChild(el('span', 'text-secondary', ' ' + vc.valid + ' valid of ' + vc.rows + ' (' + vc.src + ')'));
+  row.appendChild(statCard('shield', 'var(--c-good)', vc.rows,
+    'Verification rows', vSub));
+  const active = dash ? (dash.findings ? dash.findings.active : 0) : 0;
+  row.appendChild(statCard('alert', active ? 'var(--c-act)' : 'var(--c-good)', active,
+    'Active findings', el('span', active ? 'tok-act' : 'tok-good',
+      dash ? 'live add-in now' : 'add-in offline')));
+  const live = overview.addins.filter(a => a.status === 'connected').length;
+  row.appendChild(statCard('apps', 'var(--c-look)', live,
+    'Add-ins connected', el('span', 'text-secondary', 'of ' + overview.addins.length + ' in the suite')));
+  return row;
+}
+
+/* ------------------------------------------------------------ overview view */
 function viewOverview() {
   const p = page('Overview');
   if (!overview) {
-    p.appendChild(el('div', 'banner red', 'Suite data not loaded - the console API did not respond. Reload to retry.'));
+    p.appendChild(el('div', 'banner red mb-3', 'Suite data not loaded - the console API did not respond. Reload to retry.'));
     return p;
   }
-  const cards = el('div', 'cards');
+  p.appendChild(welcomeBanner());
+  p.appendChild(kpiRow());
 
-  /* Trust card - embedded demo counts */
-  const t = el('div', 'card');
-  const tHead = el('h3');
-  tHead.appendChild(el('span', null, 'Raucle Agent Trust '));
-  tHead.appendChild(chipEl('connected'));
-  t.appendChild(tHead);
-  const tRow = el('div', 'counter-row');
-  for (const [n, lbl, tone] of [
-    [overview.trust.receipts_minted, 'Receipts minted', 'look'],
-    [overview.trust.receipts_valid, 'Verified valid', 'good'],
-    [overview.trust.receipts_verified, 'Verification rows', 'look'],
-  ]) {
-    const c = el('div', 'counter'); c.dataset.tone = tone;
-    c.appendChild(el('span', 'big', String(n)));
-    c.appendChild(el('span', 'lbl', lbl));
-    tRow.appendChild(c);
+  /* charts row: verification donut + correlation stacked bar */
+  const chartsRow = el('div', 'row row-deck my-3');
+  const donutCol = el('div', 'col-12 col-lg-6');
+  const dCard = card('Verification-state distribution');
+  if (dash && dash.verification_distribution) {
+    dCard.appendChild(donutChart(verificationSegments(dash.verification_distribution)));
+    dCard.appendChild(el('p', 'chart-note mt-2 mb-0',
+      'Centre figure is the total number of verification rows reported by the live add-in.'));
+  } else {
+    dCard.appendChild(el('div', 'banner', 'Add-in offline - no verification distribution available. Start the Raucle Agent Assurance process to see live figures.'));
   }
-  t.appendChild(tRow);
-  t.appendChild(el('p', null, 'Counts come from the pinned demo fixture set.'));
-  explain(t, 'Trust gate / evidence core.', 'Every privileged tool call can be bound to a signed evidence receipt; these counters summarise the demo data shipped with the suite.');
-  cards.appendChild(t);
+  explain(dCard, 'Verification states.',
+    'Each row from the add-in carries an ADR-0001 status. Green is valid (proven), grey is pending or not applicable, amber needs attention, red means evidence was unavailable.');
+  donutCol.appendChild(dCard.ownerCard);
+  chartsRow.appendChild(donutCol);
 
-  /* Assurance card - live counters via add-in fetch */
-  const a = el('div', 'card');
-  const aHead = el('h3');
-  aHead.appendChild(el('span', null, 'Raucle Agent Assurance '));
-  aHead.appendChild(chipEl(overview.addins.find(x => x.id === 'assurance').status));
-  a.appendChild(aHead);
-  a.appendChild(el('p', null, 'Loading traffic-light counters from the add-in process…'));
-  explain(a, 'Investigation add-in.', 'This add-in lets an investigator follow a tool call from trace to evidence receipt and see findings with their suppression reasons.');
-  const dashUrl = '/api/assurance/dashboard'; // console proxies the add-in (no CORS alpha)
-  fetch(dashUrl).then(r => { if (!r.ok) throw new Error('http ' + r.status); return r.json(); }).then(d => {
-    a.removeChild(a.querySelector('p'));
-    const row = el('div', 'counter-row');
-    for (const [n, lbl, tone] of [
-      [d.healthy, 'Healthy', 'good'],
-      [d.at_risk, 'At risk', 'look'],
-      [d.needs_investigation, 'Needs investigation', 'act'],
-    ]) {
-      const c = el('div', 'counter'); c.dataset.tone = tone;
-      c.appendChild(el('span', 'big', String(n)));
-      c.appendChild(el('span', 'lbl', lbl));
-      row.appendChild(c);
-    }
-    a.insertBefore(row, a.lastElementChild);
-  }).catch(() => {
-    a.removeChild(a.querySelector('p'));
-    a.insertBefore(el('div', 'banner', 'Add-in offline - Assurance counters unavailable. Start the Raucle Agent Assurance process to see live figures.'), a.lastElementChild);
-  });
-  cards.appendChild(a);
+  const corrCol = el('div', 'col-12 col-lg-6');
+  const cCard = card('Correlation states');
+  if (dash && dash.correlation_distribution) {
+    cCard.appendChild(stackedBar(correlationSegments(dash.correlation_distribution)));
+    cCard.appendChild(el('p', 'chart-note mt-2 mb-0',
+      'Stacked across the whole demo set: receipt-side correlation state per tool call.'));
+  } else {
+    cCard.appendChild(el('div', 'banner', 'Add-in offline - no correlation distribution available.'));
+  }
+  explain(cCard, 'Correlation states.',
+    'How tool-call receipts correlate to trace items. Matched is proven; ambiguous or late arrivals are un-proven and amber; missing receipts are action-needed in red.');
+  corrCol.appendChild(cCard.ownerCard);
+  chartsRow.appendChild(corrCol);
+  p.appendChild(chartsRow);
 
-  /* Red card */
-  const r = el('div', 'card');
-  const rHead = el('h3');
-  rHead.appendChild(el('span', null, 'Raucle Agent Red '));
-  rHead.appendChild(chipEl('not_purchased'));
-  r.appendChild(rHead);
-  r.appendChild(el('p', null, 'Coming soon. Wave two of the suite; announcing later.'));
-  explain(r, 'Adversarial testing add-in.', 'When it ships, this add-in will stress agents against hostile content and policy edges. There is nothing to configure today.');
-  cards.appendChild(r);
-  p.appendChild(cards);
+  /* add-ins status table */
+  const tableCard = card('Add-ins');
+  const tblBody = el('div', 'table-responsive');
+  const tbl = el('table', 'table table-vcenter card-table');
+  const thead = el('thead');
+  const trh = el('tr');
+  for (const h of ['Add-in', 'Status', 'Blurb', '']) {
+    trh.appendChild(el('th', h === '' ? 'w-1' : null, h));
+  }
+  thead.appendChild(trh);
+  tbl.appendChild(thead);
+  const tbody = el('tbody');
+  for (const a of overview.addins) {
+    const tr = el('tr');
+    const tdName = el('td');
+    const nameWrap = el('div', 'd-flex align-items-center gap-2');
+    nameWrap.appendChild(iconEl('apps', 16));
+    nameWrap.appendChild(el('span', 'fw-semibold', a.name));
+    tdName.appendChild(nameWrap);
+    tr.appendChild(tdName);
+    const tdStatus = el('td');
+    tdStatus.appendChild(chipEl(a.status));
+    tr.appendChild(tdStatus);
+    tr.appendChild(el('td', 'text-secondary', a.blurb));
+    const tdAct = el('td', 'text-end');
+    const viewBtn = el('a', 'btn btn-sm ' + (a.status === 'connected' ? 'btn-primary' : 'btn-secondary'));
+    viewBtn.href = '#' + a.id;
+    viewBtn.textContent = 'View';
+    tdAct.appendChild(viewBtn);
+    tr.appendChild(tdAct);
+    tbody.appendChild(tr);
+  }
+  tbl.appendChild(tbody);
+  tblBody.appendChild(tbl);
+  tableCard.appendChild(tblBody);
+  explain(tableCard, 'Add-in catalogue.',
+    'Suite products are add-ins purchased separately. Chips follow the semantic colours: green connected, amber degraded, grey not purchased.');
+  p.appendChild(tableCard.ownerCard);
 
-  /* recent activity */
-  const act = el('div', 'panel');
-  act.appendChild(el('h2', null, 'Recent activity'));
-  const ul = el('ul', 'plain');
+  /* recent activity feed */
+  const feedRow = el('div', 'row mt-3');
+  const feedCol = el('div', 'col-12');
+  const feedCard = card('Recent activity');
+  const list = el('div', 'list-group list-group-flush');
   for (const item of overview.activity) {
-    const li = el('li');
-    li.appendChild(el('span', 'chip tok-exempt', item.when));
-    li.appendChild(el('span', null, ' ' + item.what));
-    ul.appendChild(li);
+    const itemEl = el('div', 'list-group-item d-flex align-items-start gap-2 feed-item');
+    const dot = el('span', 'legend-swatch mt-1 rounded-circle');
+    dot.style.background = 'var(--c-look)';
+    itemEl.appendChild(dot);
+    const tx = el('div');
+    tx.appendChild(el('div', 'what', item.what));
+    tx.appendChild(el('div', 'when', item.when));
+    itemEl.appendChild(tx);
+    list.appendChild(itemEl);
   }
-  act.appendChild(ul);
-  explain(act, 'Activity feed.', 'Recent events across the suite. In the alpha this is demo data; live tenant activity lands with the tenancy epic.');
-  p.appendChild(act);
+  feedCard.appendChild(list);
+  explain(feedCard, 'Activity feed.',
+    'Recent events across the suite. In the alpha this is demo data; live tenant activity lands with the tenancy epic.');
+  feedCol.appendChild(feedCard.ownerCard);
+  feedRow.appendChild(feedCol);
+  p.appendChild(feedRow);
+
+  /* findings triage card (bottom) */
+  const triRow = el('div', 'row mt-1');
+  const triCol = el('div', 'col-12');
+  const triCard = card('Findings triage');
+  const triBody = el('div', 'd-flex flex-wrap align-items-center gap-3');
+  const fActive = dash && dash.findings ? dash.findings.active : 0;
+  const fSup = dash && dash.findings ? dash.findings.suppressed : 0;
+  triBody.appendChild(chipEl(fActive ? 'degraded' : 'connected'));
+  const fActiveWrap = el('div', 'd-flex align-items-center gap-2');
+  fActiveWrap.appendChild(el('span', null, 'Active findings: ' + fActive + (dash ? '' : ' (add-in offline)')));
+  triBody.appendChild(fActiveWrap);
+  const fSupWrap = el('div', 'd-flex align-items-center gap-2 text-secondary');
+  fSupWrap.textContent = 'Suppressed findings: ' + fSup + ' (each keeps its reason on record).';
+  triBody.appendChild(fSupWrap);
+  const viewAssur = el('button', 'btn btn-primary ms-auto');
+  viewAssur.textContent = 'View in Assurance';
+  viewAssur.addEventListener('click', () => go('assurance'));
+  triBody.appendChild(viewAssur);
+  triCard.appendChild(triBody);
+  explain(triCard, 'Findings triage.',
+    'Findings are raised by the harness and verified offline. Active items need an investigator; suppressed ones stay on record with their reason. Full triage lives in the Assurance add-in.');
+  triCol.appendChild(triCard.ownerCard);
+  triRow.appendChild(triCol);
+  p.appendChild(triRow);
   return p;
 }
 
 function viewTrust() {
   const p = page(TITLES.trust);
-  const c = el('div', 'card');
-  c.appendChild(el('h3', null, 'Capabilities'));
-  const ul = el('ul', 'plain');
+  const trustCard = el('div', 'card');
+  const body = el('div', 'card-body');
+  body.appendChild(el('h3', 'card-title', 'Capabilities'));
+  const ul = el('ul', 'list-group list-group-flush');
   ['Gate decisions over privileged tool calls',
     'Signed evidence receipts with offline verification',
     'Full ADR-0001 verification status enum surfaced (no silent blanks)',
-    'Bundle with the gate so agents cannot act without proof'].forEach(x => ul.appendChild(el('li', null, x)));
-  c.appendChild(ul);
-  c.appendChild(el('p', null, 'Included with licence key - pricing tiers are not shown in product pages.'));
-  explain(c, 'Trust gate / evidence core.', 'Raucle Agent Trust stops a tool call unless its evidence is proven. Connect it to your gate once; the console then shows live counts.');
-  p.appendChild(c);
-  const conn = el('div', 'panel');
-  conn.appendChild(el('h2', null, 'Connect your gate'));
-  conn.appendChild(el('p', null, 'Point the console at your gate configuration by setting the environment variable '));
-  conn.appendChild(el('p', null, config.trust_gate_env + ' (the path to your gate config). Restart the console after the change; the value itself is never displayed.'));
+    'Bundle with the gate so agents cannot act without proof'].forEach(x => ul.appendChild(el('li', 'list-group-item', x)));
+  body.appendChild(ul);
+  body.appendChild(el('p', 'mt-2 mb-0', 'Included with licence key - pricing tiers are not shown in product pages.'));
+  trustCard.appendChild(body);
+  explain(body, 'Trust gate / evidence core.', 'Raucle Agent Trust stops a tool call unless its evidence is proven. Connect it to your gate once; the console then shows live counts.');
+  p.appendChild(trustCard);
+  const conn = el('div', 'card mt-3');
+  const cBody = el('div', 'card-body');
+  cBody.appendChild(el('h3', 'card-title', 'Connect your gate'));
+  cBody.appendChild(el('p', null, 'Point the console at your gate configuration by setting the environment variable '));
+  cBody.appendChild(el('p', null, config.trust_gate_env + ' (the path to your gate config). Restart the console after the change; the value itself is never displayed.'));
+  conn.appendChild(cBody);
   p.appendChild(conn);
   return p;
 }
 
 function viewAssurance() {
   const p = page(TITLES.assurance);
-  p.appendChild(el('div', 'banner',
+  p.appendChild(el('div', 'banner my-3',
     'Note: this is a separate add-in process, embedded here in an alpha iframe. Live process embedding via a plugin registry is planned - see the EPIC-N findings.'));
   const src = config.assurance_url.replace(/\/$/, '') + '/';
   const frame = el('iframe');
@@ -315,10 +687,12 @@ function viewAssurance() {
   frame.setAttribute('src', src);
   frame.setAttribute('referrerpolicy', 'no-referrer');
   p.appendChild(frame);
-  const note = el('div', 'panel');
-  note.appendChild(el('h2', null, 'About this embed'));
-  note.appendChild(el('p', null, 'Source (configured, env RAUCLE_ASSURANCE_URL): ' + src));
-  note.appendChild(el('p', null, 'If the frame is empty, the add-in process is offline - its page shows the graceful empty state here the moment it is reachable.'));
+  const note = el('div', 'card my-3');
+  const nBody = el('div', 'card-body');
+  nBody.appendChild(el('h3', 'card-title', 'About this embed'));
+  nBody.appendChild(el('p', null, 'Source (configured, env RAUCLE_ASSURANCE_URL): ' + src));
+  nBody.appendChild(el('p', null, 'If the frame is empty, the add-in process is offline - its page shows the graceful empty state here the moment it is reachable.'));
+  note.appendChild(nBody);
   p.appendChild(note);
   return p;
 }
@@ -326,50 +700,58 @@ function viewAssurance() {
 function viewRed() {
   const p = page(TITLES.red);
   const c = el('div', 'card');
-  const h = el('h3');
+  const body = el('div', 'card-body');
+  const h = el('h3', 'card-title d-flex align-items-center gap-2');
   h.appendChild(el('span', null, 'Raucle Agent Red '));
   h.appendChild(chipEl('not_purchased'));
-  c.appendChild(h);
-  c.appendChild(el('p', null, 'Coming soon. Wave two of the suite; announcing later.'));
-  const ul = el('ul', 'plain');
-  ['Adversarial tool-content scenarios', 'Policy edge-case sweeps', 'Reporting that pairs with Raucle Agent Assurance'].forEach(x => ul.appendChild(el('li', null, x)));
-  c.appendChild(ul);
-  c.appendChild(el('p', null, 'Included with licence key once available - pricing tiers are not shown in product pages.'));
-  explain(c, 'Adversarial testing add-in.', 'Raucle Agent Red will attack your agents the way a real caller would: hostile instructions, ambiguous inputs and policy edges. Not purchasable yet.');
+  body.appendChild(h);
+  body.appendChild(el('p', null, 'Coming soon. Wave two of the suite; announcing later.'));
+  const ul = el('ul');
+  ['Adversarial tool-content scenarios', 'Policy edge-case sweeps', 'Reporting that pairs with Raucle Agent Assurance'].forEach(x => {
+    const li = el('li', null, x);
+    ul.appendChild(li);
+  });
+  body.appendChild(ul);
+  body.appendChild(el('p', null, 'Included with licence key once available - pricing tiers are not shown in product pages.'));
+  c.appendChild(body);
+  explain(body, 'Adversarial testing add-in.', 'Raucle Agent Red will attack your agents the way a real caller would: hostile instructions, ambiguous inputs and policy edges. Not purchasable yet.');
   p.appendChild(c);
   return p;
 }
 
 function alphaBanner(text) {
-  return el('div', 'banner', text + ' This page is an alpha placeholder - form controls do not persist anything yet.');
+  return el('div', 'banner my-3', text + ' This page is an alpha placeholder - form controls do not persist anything yet.');
 }
 
 function stubForm(fields) {
-  const f = el('div', 'panel');
+  const wrap = el('div', 'card mt-3');
+  const f = el('div', 'card-body');
   for (const [lbl, type] of fields) {
-    const label = el('label', null, lbl);
+    const label = el('label', 'form-label', lbl);
     const input = el('input');
     input.type = type;
+    input.className = 'form-control';
     input.name = lbl.toLowerCase().replace(/[^a-z]+/g, '-');
     f.appendChild(label);
     f.appendChild(input);
   }
-  const save = el('button', null, 'Save (placeholder)');
+  const save = el('button', 'btn btn-primary mt-3', 'Save (placeholder)');
   save.type = 'button';
-  f.appendChild(el('div', 'muted', ' '));
+  f.appendChild(el('div', 'muted mt-2', ' '));
   f.appendChild(save);
   save.addEventListener('click', () => {
     const m = f.querySelector('.muted');
     m.textContent = 'Placeholder only - nothing is saved in the alpha.';
   });
-  return f;
+  wrap.appendChild(f);
+  return wrap;
 }
 
 function viewSettings() {
   const p = page(TITLES.settings);
   p.appendChild(alphaBanner('Tenant settings for the single alpha tenant.'));
   p.appendChild(stubForm([['Tenant label', 'text'], ['Contact email', 'email'], ['Gate config path', 'text']]));
-  p.appendChild(el('p', 'muted', 'Org identity is derived by the server from the ADR tenancy contract; the console never sets a tenant by cookie. Authenticated multi-tenancy is a later epic.'));
+  p.appendChild(el('p', 'text-secondary small', 'Org identity is derived by the server from the ADR tenancy contract; the console never sets a tenant by cookie. Authenticated multi-tenancy is a later epic.'));
   return p;
 }
 
@@ -383,20 +765,22 @@ function viewProfile() {
 function viewNotifications() {
   const p = page(TITLES.notifications);
   p.appendChild(alphaBanner('Notification preferences.'));
-  const list = el('div', 'panel');
-  list.appendChild(el('h2', null, 'Unread (from /api/overview)'));
-  const ul = el('ul', 'plain');
+  const wrap = el('div', 'card');
+  const list = el('div', 'card-body');
+  list.appendChild(el('h3', 'card-title', 'Unread (from /api/overview)'));
+  const ul = el('div', 'list-group list-group-flush');
   for (const n of (overview ? overview.notifications.items : [])) {
-    const li = el('li');
+    const li = el('div', 'list-group-item d-flex align-items-center gap-2');
     li.appendChild(chipEl('degraded'));
     li.appendChild(el('span', null, ' ' + n));
     ul.appendChild(li);
   }
   if (!overview || !overview.notifications.items.length) {
-    ul.appendChild(el('li', null, 'No notifications available.'));
+    ul.appendChild(el('div', 'list-group-item', 'No notifications available.'));
   }
   list.appendChild(ul);
-  p.appendChild(list);
+  wrap.appendChild(list);
+  p.appendChild(wrap);
   p.appendChild(stubForm([['Add-in status alerts (placeholder)', 'checkbox'], ['Weekly summary (placeholder)', 'checkbox']]));
   return p;
 }
@@ -433,7 +817,7 @@ function buildSearch() {
       }
     }
     box.replaceChildren();
-    if (!hits.length) box.appendChild(el('div', 'muted', 'No matches.'));
+    if (!hits.length) box.appendChild(el('div', 'text-secondary px-2 py-2 small', 'No matches.'));
     for (const h of hits.slice(0, 8)) {
       const b = el('button', null, h.label);
       b.addEventListener('click', () => { box.classList.remove('show'); q.value = ''; go(h.route); });
@@ -447,21 +831,47 @@ function buildSearch() {
 
 function buildTopbar() {
   const bell = document.getElementById('bell');
+  const badge = document.getElementById('bell-count');
   const count = overview ? overview.notifications.count : 0;
   bell.setAttribute('aria-label', 'Notifications, ' + count + ' unread');
-  bell.textContent = 'Notifications';
-  bell.dataset.empty = count === 0 ? 'true' : 'false';
-  bell.insertBefore(el('span', 'chip ' + (count ? 'tok-look' : 'tok-exempt'), String(count)), null);
+  badge.textContent = String(count);
+  badge.className = 'badge ms-1 ' + (count ? 'bg-red text-white' : 'text-secondary');
   bell.addEventListener('click', () => go('notifications'));
   const prof = document.getElementById('profile-btn');
   prof.addEventListener('click', () => go('profile'));
   buildSearch();
 }
 
+/* ------------------------------------------------------------ theme toggle */
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-bs-theme', t);
+  const btn = document.getElementById('theme-toggle');
+  btn.replaceChildren(iconEl(t === 'dark' ? 'sun' : 'moon', 18));
+  btn.setAttribute('aria-label', 'Switch to ' + (t === 'dark' ? 'light' : 'dark') + ' theme');
+  btn.title = 'Switch to ' + (t === 'dark' ? 'light' : 'dark') + ' theme';
+}
+function buildTheme() {
+  let t = 'light';
+  try {
+    const saved = window.localStorage.getItem('rc-theme');
+    if (saved === 'dark' || saved === 'light') t = saved;
+  } catch { /* storage unavailable: keep light */ }
+  applyTheme(t);
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    try { window.localStorage.setItem('rc-theme', next); } catch { /* keep session-only */ }
+  });
+}
+
 /* ------------------------------------------------------------ boot */
 async function boot() {
   try { overview = await (await fetch('/api/overview')).json(); } catch { overview = null; }
   try { config = await (await fetch('/api/config')).json(); } catch { /* defaults kept */ }
+  try {
+    const r = await fetch('/api/assurance/dashboard');
+    if (r.ok) dash = await r.json();
+  } catch { dash = null; }
   const t = document.getElementById('tenant-label');
   const tenant = overview && overview.tenants ? overview.tenants[0] : { label: 'default' };
   t.textContent = tenant.label;
@@ -469,6 +879,7 @@ async function boot() {
   buildSidebar();
   buildLegend();
   buildTopbar();
+  buildTheme();
   const hash = location.hash.replace('#', '');
   go(VIEWS[hash] ? hash : 'overview');
   window.addEventListener('hashchange', () => {

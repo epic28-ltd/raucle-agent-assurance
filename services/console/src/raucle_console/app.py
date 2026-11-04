@@ -30,6 +30,7 @@ import pathlib
 import fastapi
 import httpx
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 _static_dir = pathlib.Path(__file__).resolve().parents[2] / "static"
 
@@ -155,6 +156,14 @@ def create_app() -> fastapi.FastAPI:
     @app.get("/static/index.html", include_in_schema=False)
     def spa() -> FileResponse:
         return FileResponse(_static_dir / "index.html")
+
+    # Vendored UI assets (Tabler CSS) served locally only: the SPA never
+    # fetches anything external at runtime (threat-model T5).
+    app.mount(
+        "/static/vendor",
+        StaticFiles(directory=_static_dir / "vendor"),
+        name="vendor",
+    )
 
     return app
 

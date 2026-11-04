@@ -13,3 +13,9 @@ Python SDK and OpenInference semantic conventions (Apache-2.0), and a
 docker-compose file adapted from Langfuse v4.74.0 (MIT Expat; the Langfuse
 ee/ tree is under a separate commercial licence — see
 https://github.com/langfuse/langfuse).
+
+The Raucle Console UI (services/console/static/vendor/tabler) vendors
+Tabler v1.7.3 (@tabler/core 1.7.3, built from the npm distribution), which
+is licensed under the MIT licence; see
+services/console/static/vendor/tabler/LICENSE-tabler for the licence text
+and https://github.com/tabler/tabler for the upstream source.

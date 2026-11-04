@@ -114,8 +114,7 @@ def test_spa_textcontent_discipline():
     """Threat-model T5: the SPA has no innerHTML / document.write /
     script-src external fetches; rendering is textContent only."""
     html = (STATIC / "index.html").read_text()
-    for forbidden in ("innerHTML", "outerHTML", "insertAdjacentHTML",
-                      "document.write", "eval("):
+    for forbidden in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval("):
         assert forbidden not in html
     assert "textContent" in html
     # external scripts/stylesheets are not allowed
@@ -142,9 +141,7 @@ def test_spa_no_em_dashes_british_english():
     html = (STATIC / "index.html").read_text()
     # British spellings present, US variants absent (SPDX line is exempt)
     assert "licence" in html
-    body_lines = [
-        ln for ln in html.splitlines() if not ln.startswith("<!-- SPDX-")
-    ]
+    body_lines = [ln for ln in html.splitlines() if not ln.startswith("<!-- SPDX-")]
     assert "license" not in "\n".join(body_lines)
 
 

@@ -1,7 +1,7 @@
-INFO:     Started server process [3098386]
+INFO:     Started server process [3184198]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:3412 (Press CTRL+C to quit)
-INFO:     127.0.0.1:55188 - "GET / HTTP/1.1" 200 OK
-INFO:     192.168.1.90:36884 - "GET / HTTP/1.1" 200 OK
-INFO:     10.10.0.2:33346 - "GET / HTTP/1.1" 200 OK
+ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 3412): [errno 98] address already in use
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     127.0.0.1:47724 - "GET / HTTP/1.1" 200 OK
