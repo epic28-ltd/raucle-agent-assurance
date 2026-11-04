@@ -126,9 +126,9 @@ def shot(http, out_path, theme):
 def main():
     http = f"http://127.0.0.1:{PORT}"
     tmp = tempfile.mkdtemp(prefix="console-shots-")
-    proc = subprocess.Popen(
+    proc = subprocess.Popen(  # nosec B603 B607 - fixed local chromium, dev-only screenshot helper
         [
-            "chromium",
+            shutil.which("chromium") or "chromium",
             "--headless=new",
             "--no-first-run",
             f"--user-data-dir={tmp}",

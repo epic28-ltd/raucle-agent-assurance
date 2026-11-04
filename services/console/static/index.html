@@ -18,6 +18,19 @@
     font-display:swap;
     src:url('/static/vendor/fonts/inter-latin-var.woff2') format('woff2');
   }
+  /* BEH-01 dashboard additions (Trends, rule coverage, Red preview).
+     Reuses existing tokens and card classes; this block only lays out the
+     new pieces (grid row, chip strip, trend legend). */
+  .g-row3{grid-template-columns:3fr 1.35fr;margin-top:var(--gap)}
+  .rule-strip{display:flex;flex-wrap:wrap;gap:6px}
+  .rule-chip{text-decoration:none}
+  .chip-look{border-color:var(--hairline);color:var(--body)}
+  .chip-alert{background:var(--act-bar);border-color:var(--act-bar);color:#fff}
+  .trend-legend{display:flex;gap:14px;margin-top:6px}
+  .trend-key{display:inline-flex;align-items:center;gap:6px}
+  @media (max-width: 900px){
+    .g-row3{grid-template-columns:1fr}
+  }
 </style>
 </head>
 <body>
@@ -145,6 +158,7 @@ let overview = null;
 let dash = null;      /* add-in dashboard proxy payload; null when offline */
 let counts = null;    /* add-in /api/counts proxy payload; null when offline */
 let findings = null;  /* add-in findings proxy payload; null when offline  */
+let trends = null;    /* per-run trend series from the console /api/trends */
 let config = { assurance_url: 'http://127.0.0.1:3411', trust_gate_env: 'RAUCLE_TRUST_GATE_CONFIG', coverage_target_pct: 95 };
 const COVERAGE_DEFAULT = 95;
 
@@ -419,6 +433,234 @@ function activityCard(activity) {
 /* evidence verified: big number + stacked rounded-cap bar + dot legend.
    Bucket taxonomy matches the Evidence states card exactly (UI-02.5
    blocker 5): green valid, amber un-proven, red invalid class, grey exempt. */
+/* ------------------------------------------------------------------ trends */
+/* BEH-01 'Trends': per-run bucket series over ingested runs. The demo
+   fixture set carries individual runs (not aligned ingestion windows), so
+   the chart is honestly labelled 'per run'; window-aligned series land
+   with the windowing epic. Inline SVG, hand-computed polyline points. */
+function trendsCard(series) {
+  const c = card('Trends', series && series.kind ? series.kind + ' series' : 'per run');
+  const pts = (series && series.points ? series.points : []).slice(-7);
+  const wrap = el('div', 'trend');
+  if (!pts.length) {
+    c.body.appendChild(el('p', 'muted', 'No run series available yet: ingest a run and its verification buckets appear here.'));
+    c.footer(el('span', 'muted small', 'Series labels are honest: points are per run, not per window.'));
+    c.explain('One line per verification bucket over the last ingested runs. The demo fixtures ship individual runs, so this is a per-run series until windowed ingestion lands.');
+    return c.root;
+  }
+  const W = 320, H = 124, PAD = 8, PLOT_H = 106;
+  const maxV = Math.max(1, ...pts.flatMap((p) => [p.valid, p.unproven, p.unaccounted]));
+  const xy = (i, v) => [
+    PAD + (i * (W - 2 * PAD)) / (pts.length - 1 || 1),
+    PLOT_H - PAD - ((v || 0) / maxV) * (PLOT_H - 2 * PAD),
+  ];
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.setAttribute('width', '100%');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', 'Per-run trends of valid, un-proven and unaccounted counts');
+  const sers = [
+    { key: 'valid', tone: 'good', stroke: TONE.good },
+    { key: 'unproven', tone: 'look', stroke: TONE.look, label: 'un-proven' },
+    { key: 'unaccounted', tone: 'act', stroke: TONE.act },
+  ];
+  for (const s of sers) {
+    const dPts = pts.map((p, i) => xy(i, p[s.key]).map((n) => n.toFixed(1)).join(','));
+    const line = document.createElementNS(SVG_NS, 'polyline');
+    line.setAttribute('points', dPts.join(' '));
+    line.setAttribute('fill', 'none');
+    line.setAttribute('stroke', s.stroke);
+    line.setAttribute('stroke-width', '2');
+    line.setAttribute('stroke-linecap', 'round');
+    line.setAttribute('stroke-linejoin', 'round');
+    line.classList.add('trend-line');
+    line.dataset.series = s.key;
+    const t = document.createElementNS(SVG_NS, 'title');
+    t.textContent = s.key + ' per run (latest: ' + pts[pts.length - 1][s.key] + ')';
+    line.appendChild(t);
+    svg.appendChild(line);
+    for (let i = 0; i < pts.length; i++) {
+      const [cx, cy] = xy(i, pts[i][s.key]);
+      const dot = document.createElementNS(SVG_NS, 'circle');
+      dot.setAttribute('cx', cx.toFixed(1));
+      dot.setAttribute('cy', cy.toFixed(1));
+      dot.setAttribute('r', '2.5');
+      dot.setAttribute('fill', s.stroke);
+      dot.classList.add('trend-dot');
+      dot.dataset.series = s.key;
+      dot.dataset.label = pts[i].label;
+      dot.dataset.value = String(pts[i][s.key]);
+      svg.appendChild(dot);
+    }
+  }
+  /* honest x labels: first and last run ids */
+  const lab = (x, txt, anchor) => {
+    const t = document.createElementNS(SVG_NS, 'text');
+    t.setAttribute('x', x);
+    t.setAttribute('y', H - 1);
+    t.setAttribute('font-size', '8');
+    t.setAttribute('fill', 'var(--muted)');
+    t.setAttribute('text-anchor', anchor);
+    t.textContent = txt;
+    return t;
+  };
+  svg.appendChild(lab(String(PAD), pts[0].label, 'start'));
+  svg.appendChild(lab(String(W - PAD), pts[pts.length - 1].label, 'end'));
+  wrap.appendChild(svg);
+  const legend = el('div', 'trend-legend');
+  for (const s of sers) {
+    const line = el('span', 'trend-key');
+    const d = el('span', 'dot-lg');
+    d.style.background = s.stroke;
+    line.appendChild(d);
+    line.appendChild(el('span', 'muted small', s.label || s.key));
+    legend.appendChild(line);
+  }
+  wrap.appendChild(legend);
+  c.body.appendChild(wrap);
+  c.footer(el('span', 'muted small', series && series.note
+    ? series.note + '; latest run: valid ' + pts[pts.length - 1].valid
+    + ', un-proven ' + pts[pts.length - 1].unproven
+    + ', unaccounted ' + pts[pts.length - 1].unaccounted + '.'
+    : 'Per-run series from the shared counting module.'));
+  c.explain('Per-run verification buckets over the last ingested runs. Valid is proven (green), un-proven needs a decision (amber), unaccounted is the invalid class (red). The demo set has no aligned windows yet, so this is a per-run series by honest label.');
+  return c.root;
+}
+
+/* ------------------------------------------------------- rule coverage strip */
+/* Which SEC rules fired in this window: chips with counts over SEC-001..006;
+   rules with nothing in the window show as grey silent chips (never hidden). */
+const COVERAGE_RULES = ['SEC-001', 'SEC-002', 'SEC-003', 'SEC-004', 'SEC-005', 'SEC-006'];
+function ruleCoverageCard(list, offline) {
+  const c = card('Rule coverage', 'SEC rules that fired in this window');
+  const strip = el('div', 'rule-strip');
+  const counts = {};
+  for (const f of (list || [])) {
+    if (!f.suppressed) counts[f.rule_id] = (counts[f.rule_id] || 0) + 1;
+  }
+  for (const rid of COVERAGE_RULES) {
+    const n = counts[rid] || 0;
+    const chip = el(n
+      ? 'a'
+      : 'span', n
+      ? ['chip rule-chip', n >= 3 ? 'chip-alert' : 'chip-look'].join(' ')
+      : 'chip chip-exempt rule-chip');
+    chip.textContent = n ? rid + ' · ' + n : rid + ' · silent';
+    chip.title = rid + (n
+      ? ': ' + n + ' finding(s) in this window - click to drill in'
+      : ': no findings in this window');
+    if (n) {
+      chip.href = '#/rules/' + rid;
+      chip.dataset.rule = rid;
+      chip.dataset.count = String(n);
+    } else {
+      chip.dataset.rule = rid;
+      chip.dataset.count = '0';
+    }
+    strip.appendChild(chip);
+  }
+  c.body.appendChild(strip);
+  const fired = COVERAGE_RULES.filter((r) => counts[r]).length;
+  c.footer(el('span', 'muted small', fired
+    ? fired + ' of ' + COVERAGE_RULES.length + ' tracked rules fired; silent rules are shown grey, not hidden.'
+    : 'No tracked rule fired in this window; all show as silent grey chips.'));
+  c.explain('One chip per tracked SEC rule with its finding count for the window. Grey means the rule was evaluated and stayed silent this window. Click a fired chip to open that rule\'s drill view.');
+  return c.root;
+}
+
+/* ------------------------------------------------------------------ red preview */
+function redPreviewCard() {
+  const c = card('Raucle Agent Red', 'add-in preview - coming soon');
+  c.body.appendChild(el('p', 'muted', 'Status: coming soon (wave 2, not purchased). Not connected; nothing is scanned yet.'));
+  const row = (text) => {
+    const r = el('div', 'rowline');
+    const t = el('div', 'tile');
+    t.appendChild(iconEl('alert', 13));
+    r.appendChild(t);
+    r.appendChild(el('span', 'grow', text));
+    return r;
+  };
+  c.body.appendChild(row('Gate fuzzer findings: hostile and edge-case tool calls replayed against your policy.'));
+  c.body.appendChild(row('Tamper attempts: receipt and evidence tamper probes reported through the Assurance findings board.'));
+  const foot = el('span', 'muted small', 'Red roadmap (repo): ');
+  const link = el('a', 'board-link', 'docs/agent-red-roadmap.md');
+  link.href = 'docs/agent-red-roadmap.md';
+  link.target = '_blank';
+  link.rel = 'noreferrer';
+  foot.appendChild(link);
+  c.footer(foot);
+  c.explain('A preview of the Red add-in before it ships: adversarial gate fuzzing and tamper attempts pair with the Assurance findings board so red work becomes actionable findings.');
+  return c.root;
+}
+
+/* ------------------------------------------------------- per-rule drill view */
+/* Guidance per rule: what a fired finding asks the operator to do. Rendered
+   from the SPA (guidance copy, never evidence content), with the actual
+   findings listed from the add-in feed. */
+const RULE_GUIDANCE = {
+  'SEC-001': 'A privileged tool call is missing its gate receipt after the grace window. Confirm whether the call was gated at all, then re-record or document the gap so the trace is complete.',
+  'SEC-002': 'A receipt failed verification or uses an unsupported schema. Open the affected receipt, re-run verification and reconcile the schema set before anything downstream relies on the record.',
+  'SEC-003': 'The denial rate for an application exceeded the threshold in a window. Look for a policy change, a misbehaving caller or credential problems before escalating.',
+  'SEC-004': 'A tool-side success followed a correlated deny. Treat as a possible gate circumvention: check the tool host for the execution and preserve the trace evidence.',
+  'SEC-005': 'A repeated tool-call cycle exceeded the configured bound. Check for a retry loop or an agent stuck on a failing step before the cycle burns quota or credentials.',
+  'SEC-006': 'A privileged tool appeared outside the release baseline registry. Acknowledge the baseline change in rules.yaml or investigate why the tool was invoked.',
+  'SEC-007': 'Evidence ingest or verification records are unavailable above the threshold. Fail visible: restore the sink or verifier before trusting this window.',
+  'SEC-008': 'A credential pattern was matched in the telemetry index. Presence only: find the record by ref and rotate the credential; matched content is never shown in findings.',
+  'SEC-009': 'Privileged execution with no corroborating gate receipt: bypass suspected. Investigate the discrepancy, not intent (ADR-0004).',
+  'SEC-010': 'A credential was consumed with no matching issued lease. Check the lease broker and the tool host for out-of-custody use.',
+  'SEC-011': 'Producer identity changed mid-chain for one agent. Check for identity fragmentation across gate boundaries.',
+};
+function viewRule(ruleId) {
+  const p = el('div');
+  const listAll = findings || [];
+  const ruleFindings = listAll.filter((f) => f.rule_id === ruleId);
+  const c = card(ruleId + ' drill', 'last findings + guidance for this rule');
+  const hd = el('div', 'rowline');
+  hd.appendChild(el('span', 'pill tok-look', ruleFindings.length
+    ? String(ruleFindings.length) + ' finding(s) in window'
+    : 'no findings in window'));
+  hd.appendChild(el('span', 'grow muted small', 'guidance below is SPA copy; evidence lives in the findings board'));
+  c.body.appendChild(hd);
+  if (!ruleFindings.length) {
+    c.body.appendChild(el('p', 'muted', 'No findings for this rule in the current window. Silent rules still show grey on the Overview coverage strip.'));
+  }
+  for (const f of ruleFindings.slice(-10)) {
+    const r = el('div', 'rowline');
+    const t = el('div', 'tile' + (f.suppressed ? '' : (f.severity === 'high' || f.severity === 'critical' ? ' bad' : ' warn')));
+    t.appendChild(iconEl(f.suppressed ? 'file' : 'alert', 13));
+    r.appendChild(t);
+    const main = el('div', 'grow');
+    if (f.subject) main.appendChild(el('b', null, f.subject));
+    if (f.explanation) main.appendChild(oneline(el('span', 'why', f.explanation)));
+    r.appendChild(main);
+    r.appendChild(sevPill(f.severity));
+    if (f.suppressed) r.appendChild(el('span', 'chip chip-exempt', 'suppressed with reason'));
+    c.body.appendChild(r);
+  }
+  const g = RULE_GUIDANCE[ruleId];
+  if (g) {
+    const gb = el('div', 'banner banner-look');
+    gb.appendChild(el('strong', null, 'Guidance'));
+    gb.appendChild(el('div', 'detail', g));
+    c.body.appendChild(gb);
+  }
+  const foot = el('span', 'muted small', 'Board context for every finding: ');
+  const boardLink = el('a', 'board-link', 'open findings board');
+  boardLink.href = config.assurance_url.replace(/\/$/, '') + '/#/findings';
+  boardLink.target = '_blank';
+  boardLink.rel = 'noreferrer';
+  foot.appendChild(boardLink);
+  c.footer(foot);
+  c.explain('Drill view for one rule: the most recent findings from the add-in feed plus standing guidance. Counts agree with the shared counting module.');
+  p.appendChild(c.root);
+  const backWrap = el('p');
+  const back = el('a', 'board-link', 'Back to Overview');
+  back.href = '#overview';
+  backWrap.appendChild(back);
+  p.appendChild(backWrap);
+  return p;
+}
+
 function evidenceCard(dist, total) {
   const c = card('Evidence verified', 'receipts verified, by class');
   const big = el('div', 'num', String(total));
@@ -586,17 +828,23 @@ function viewOverview() {
     return p;
   }
   const health = vState();
+  const offline = !(dash && dash.verification_distribution);
   const row1 = el('div', 'grid g-row1');
   row1.appendChild(gaugeCard(health));
   row1.appendChild(statesCard(health.dist, health.rows, config.coverage_target_pct || COVERAGE_DEFAULT));
-  row1.appendChild(findingsCard(findings, !(dash && dash.verification_distribution)));
+  row1.appendChild(findingsCard(findings, offline));
   const row2 = el('div', 'grid g-row2');
   row2.appendChild(activityCard(overview.activity));
   row2.appendChild(evidenceCard(health.dist, health.rows));
+  const row3 = el('div', 'grid g-row3');
+  row3.appendChild(trendsCard(trends));
+  row3.appendChild(redPreviewCard());
   // guidance banner sits at the TOP of the overview and links to the finding
   p.appendChild(guidanceBanner());
+  p.appendChild(ruleCoverageCard(findings, offline));
   p.appendChild(row1);
   p.appendChild(row2);
+  p.appendChild(row3);
   return p;
 }
 
@@ -757,6 +1005,13 @@ function attachTips(pageEl) {
     const title = arc.querySelector('title');
     if (title) hookTip(arc, title.textContent);
   }
+  for (const dot of pageEl.querySelectorAll('.trend-dot')) {
+    hookTip(dot, dot.dataset.label + ': ' + dot.dataset.series + ' = ' + dot.dataset.value);
+  }
+  for (const dot of pageEl.querySelectorAll('.trend-line')) {
+    const title = dot.querySelector('title');
+    if (title) hookTip(dot, title.textContent);
+  }
 }
 
 /* ------------------------------------------------------------------ router */
@@ -825,14 +1080,21 @@ function markCurrent(route) {
 }
 
 function go(route) {
-  const v = VIEWS[route] || viewOverview;
+  /* drill routes: #/rules/<rule-id> renders the per-rule drill view */
+  const clean = route.replace(/^\//, '');
+  const ruleMatch = /^rules\/([A-Z]{3}-[0-9]{3})$/.exec(clean);
+  const v = ruleMatch
+    ? (() => { return viewRule(ruleMatch[1]); })
+    : (VIEWS[clean] || viewOverview);
   const pageEl = document.getElementById('page');
   pageEl.replaceChildren(v());
   paintIcons(pageEl);
-  markCurrent(route);
-  history.replaceState(null, '', '#' + route);
-  document.getElementById('page-title').textContent = TITLES[route] || 'Overview';
-  document.getElementById('cta-primary').hidden = route === 'assurance';
+  markCurrent(clean);
+  history.replaceState(null, '', '#' + clean);
+  document.getElementById('page-title').textContent = ruleMatch
+    ? ruleMatch[1] + ' drill'
+    : (TITLES[clean] || 'Overview');
+  document.getElementById('cta-primary').hidden = clean === 'assurance';
   document.getElementById('view').scrollTop = 0;
   /* keep relative feed labels honest as the session ages */
   const els = document.querySelectorAll('#page .rowline .when');
@@ -981,6 +1243,10 @@ async function boot() {
     const r = await fetch('/api/assurance/findings');
     if (r.ok) findings = await r.json();
   } catch { findings = null; }
+  try {
+    const r = await fetch('/api/trends');
+    if (r.ok) trends = await r.json();
+  } catch { trends = null; }
   const tenant = overview && overview.tenants ? overview.tenants[0] : { label: 'default' };
   const h = new Date().getHours();
   const word = h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
@@ -992,11 +1258,11 @@ async function boot() {
   buildCollapse();
   buildTheme();
   paintIcons(document);
-  const hash = location.hash.replace('#', '');
-  go(VIEWS[hash] ? hash : 'overview');
+  const hash = location.hash.replace('#', '').replace(/^\//, '');
+  go(hash);
   window.addEventListener('hashchange', () => {
-    const h = location.hash.replace('#', '');
-    if (VIEWS[h]) go(h);
+    const h = location.hash.replace('#', '').replace(/^\//, '');
+    go(h);
   });
 }
 boot();

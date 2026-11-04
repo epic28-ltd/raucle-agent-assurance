@@ -362,3 +362,81 @@ def test_spa_activity_carries_timestamps_and_kinds():
         assert item["ts"]
         assert item["kind"] in ("index", "receipts", "shell")
         assert isinstance(datetime.datetime.fromisoformat(item["ts"]), datetime.datetime)
+
+
+# ------------------------------------------------------------- BEH-01 dashboards
+def test_api_trends_shape_and_coherence(client: TestClient):
+    """/api/trends: per-run bucket series derived from the shared counting
+    module demo fixtures. Buckets partition each run's privileged spans and
+    the kind label is honest ('per run')."""
+    body = client.get("/api/trends").json()
+    assert body["kind"] == "per run"
+    assert body["points"], "demo fixtures ship runs: series must not be empty"
+    total_privileged = 0
+    for run in body["points"]:
+        assert set(run) == {"label", "at", "valid", "unproven", "unaccounted"}
+        assert datetime.datetime.fromisoformat(run["at"]) is not None
+        n = run["valid"] + run["unproven"] + run["unaccounted"]
+        assert n >= 0
+        total_privileged += n
+    counts = count_evidence(UI_DIR / "demo_data")
+    buckets = counts["verification"]["buckets"]
+    # coherence with the shared counting module: exempt states (unavailable /
+    # not_applicable) sit outside the trend buckets, everything else is
+    # partitioned across the per-run series
+    assert total_privileged == buckets["valid"] + buckets["unproven"] + buckets["unaccounted"]
+    assert set(body["buckets"]) == {"valid", "unproven", "unaccounted"}
+
+
+def test_api_trends_never_echoes_env(client: TestClient):
+    text = str(client.get("/api/trends").json())
+    for forbidden in ("SECRET", "PASSWORD", "TOKEN", "API_KEY"):
+        assert forbidden.lower() not in text.lower()
+
+
+def test_spa_trends_card_honest_labels():
+    html = (STATIC / "index.html").read_text()
+    assert "'Trends'" in html and "trendsCard" in html
+    assert "/api/trends" in html
+    # honest per-run labelling: the demo set has no aligned windows
+    assert "per run" in html
+    assert "polyline" in html  # inline SVG lines, no chart library
+
+
+def test_spa_rule_coverage_strip():
+    html = (STATIC / "index.html").read_text()
+    assert "ruleCoverageCard" in html and "Rule coverage" in html
+    for rid in ("SEC-001", "SEC-002", "SEC-003", "SEC-004", "SEC-005", "SEC-006"):
+        assert rid in html
+    assert "chip-exempt rule-chip" in html  # silent rules show grey
+    assert "#/rules/" in html  # chips drill into the per-rule view
+
+
+def test_spa_red_preview_card_and_roadmap_link():
+    html = (STATIC / "index.html").read_text()
+    assert "add-in preview - coming soon" in html
+    assert "Gate fuzzer findings" in html and "Tamper attempts" in html
+    assert "docs/agent-red-roadmap.md" in html
+    roadmap = pathlib.Path(CONSOLE_DIR).resolve().parents[1] / "docs" / "agent-red-roadmap.md"
+    assert roadmap.is_file()
+    assert "coming soon" in roadmap.read_text().lower()
+
+
+def test_spa_per_rule_drill_view():
+    html = (STATIC / "index.html").read_text()
+    assert "viewRule" in html and "RULE_GUIDANCE" in html
+    # router parses #/rules/<id>
+    assert "rules/" in html
+    for rid in ("SEC-001", "SEC-009", "SEC-011"):
+        assert rid in html  # guidance exists for the tracked + hostile rules
+    assert "Guidance" in html
+
+
+def test_spa_dashboard_additions_keep_discipline():
+    """New SPA code keeps threat-model T5: no innerHTML, no new scripts,
+    no external URLs."""
+    html = (STATIC / "index.html").read_text()
+    for forbidden in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval("):
+        assert forbidden not in html
+    for url in re.findall(r"https?://[^'\"\\s]+", html):
+        assert url.startswith("http://127.0.0.1:"), url

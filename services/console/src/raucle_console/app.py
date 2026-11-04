@@ -64,6 +64,50 @@ def _trust_counts() -> dict:
     return counts_payload()
 
 
+def _trend_series() -> dict:
+    """BEH-01 console 'Trends': per-run bucket series over the ingested
+    demo runs, derived from the SAME shared counting-module data as every
+    other console figure (never pinned, never add-in-dependent - the
+    windowing stays honest while the add-in is offline).
+
+    The demo fixture set carries only individual runs, not aligned
+    ingestion windows, so the series is labelled 'per run' and each point
+    is one run's verification buckets over its privileged spans - the same
+    loop and bucket taxonomy as counts_payload (UI-05 coherence).
+    """
+    from oaa_investigation_ui.counting import default_data_dir, load_cached  # noqa: PLC0415
+
+    data = load_cached(default_data_dir())
+    series = []
+    for run in sorted(data.runs, key=lambda r: r["started"]):
+        buckets = {"valid": 0, "unproven": 0, "unaccounted": 0}
+        for trace in run["traces"]:
+            for span in trace["spans"]:
+                if not span.get("privileged"):
+                    continue
+                v = data.verification_for(span.get("receipt_hash"))
+                status = v["status"]
+                if status == "valid":
+                    buckets["valid"] += 1
+                elif status in ("invalid", "unsupported_schema"):
+                    buckets["unaccounted"] += 1
+                elif status not in ("unavailable", "not_applicable"):
+                    buckets["unproven"] += 1
+        series.append(
+            {
+                "label": run["run_id"],
+                "at": run["started"],
+                **buckets,
+            }
+        )
+    return {
+        "kind": "per run",
+        "note": "one point per ingested run (demo fixture set)",
+        "buckets": ("valid", "unproven", "unaccounted"),
+        "points": series,
+    }
+
+
 # Single-tenant alpha: exactly one tenant, server-derived org identity.
 TENANTS = [{"id": "default", "label": "default"}]
 
@@ -246,6 +290,14 @@ def create_app() -> fastapi.FastAPI:
                 {"error": "add-in offline", "detail": type(exc).__name__},
                 status_code=503,
             )
+
+    @app.get("/api/trends")
+    def api_trends() -> dict:
+        """Per-run bucket series for the Overview Trends card. Derived from
+        the shared counting module's demo fixture set (same source as every
+        console figure); the add-in's live runs replace these when the
+        proxy contract is extended with windows."""
+        return _trend_series()
 
     @app.get("/api/health")
     def api_health() -> dict:
