@@ -33,6 +33,15 @@ import pathlib
 import fastapi
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 
+from .counting import (  # noqa: F401
+    BOARD_STATES,
+    count_evidence,
+    counts_payload,
+    default_board_state,
+    finding_lens,
+    load_triage_states,
+    now_iso,
+)
 from .data import DemoData, default_data_dir
 from .verify import verify_offline
 
@@ -141,50 +150,133 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
     @app.get("/api/dashboard")
     def api_dashboard() -> dict:
         """UI-02 health-at-a-glance aggregate: three traffic-light counters
-        plus verification / correlation state distributions. Simple counts
-        over the privileged-span index plane; no re-verification happens."""
-        verif_dist: dict[str, int] = {}
-        corr_dist: dict[str, int] = {}
-        healthy = at_risk = needs = 0
-        for run in data.runs:
-            for trace in run["traces"]:
-                for span in trace["spans"]:
-                    if not span.get("privileged"):
-                        continue
-                    v = data.verification_for(span.get("receipt_hash"))
-                    c = data.correlation_for_span(span, trace["trace_id"])
-                    status, state = v["status"], c["state"]
-                    verif_dist[status] = verif_dist.get(status, 0) + 1
-                    corr_dist[state] = corr_dist.get(state, 0) + 1
-                    if (
-                        status in ("invalid", "unsupported_schema")
-                        or state == "receipt_missing"
-                    ):
-                        needs += 1
-                    elif (status == "valid" and state == "matched") or status == (
-                        "not_applicable"
-                    ):
-                        healthy += 1
-                    else:
-                        # unknown_key / pending / unavailable / ambiguous /
-                        # duplicate / late_arrival / matched_degraded /
-                        # trace_missing / pending correlation — all un-proven.
-                        at_risk += 1
-        active = [f for f in data.findings if not f["suppressed"]]
-        suppressed = len(data.findings) - len(active)
+        plus verification / correlation state distributions. Every number
+        comes from the shared counting module (one source, both surfaces);
+        no counting logic lives here any more."""
+        counts = counts_payload(data_dir, data)
+        active = counts["findings"]["active"]
+        suppressed = counts["findings"]["suppressed"]
         return {
-            "healthy": healthy,
-            "at_risk": at_risk,
-            "needs_investigation": needs + len(active),
-            "verification_distribution": dict(sorted(verif_dist.items())),
-            "correlation_distribution": dict(sorted(corr_dist.items())),
-            "findings": {"active": len(active), "suppressed": suppressed},
-            "runs": len(data.runs),
+            "healthy": counts["health"]["healthy"],
+            "at_risk": counts["health"]["at_risk"],
+            "needs_investigation": counts["health"]["needs_investigation"],
+            "verification_distribution": counts["verification"]["states"],
+            "correlation_distribution": counts["correlation"]["states"],
+            "buckets": counts["verification"]["buckets"],
+            "findings": {"active": active, "suppressed": suppressed},
+            "runs": counts["runs"],
         }
+
+    @app.get("/api/counts")
+    def api_counts() -> dict:
+        """UI-05 coherence pass: ONE full breakdown of every count both
+        surfaces render, computed from the same demo data source by the
+        shared counting module. The board, the dashboard and the console
+        (via its proxy) all read from exactly this output."""
+        return counts_payload(data_dir, data)
 
     @app.get("/api/findings")
     def api_findings():
         return data.findings
+
+    # ------------------------------------------------- UI-02.4 findings board
+    def _triage_state_path(data_dir: pathlib.Path) -> pathlib.Path:
+        return pathlib.Path(data_dir) / "triage_state.json"
+
+    def _load_triage_states() -> dict:
+        """Board triage overrides, persisted as a UI-sidecar index (never the
+        canonical evidence store). Default state derives from the finding:
+        fixture-suppressed findings sit in the Suppressed column, everything
+        else is untriaged (New)."""
+        return load_triage_states(data.dir)
+
+    def _default_board_state(f: dict) -> str:
+        return default_board_state(f)  # shared with the counting module
+
+    def _board_findings() -> tuple[list[dict], dict]:
+        import datetime as dt  # noqa: PLC0415
+
+        states = _load_triage_states()
+        findings = []
+        for f in data.findings:
+            st = states.get(f["id"]) or _default_board_state(f)
+            if st not in BOARD_STATES:
+                st = _default_board_state(f)
+            detected = f.get("detected_at")
+            age = (
+                (dt.datetime.now(dt.UTC) - dt.datetime.fromisoformat(detected)).total_seconds()
+                if detected
+                else None
+            )
+            findings.append(
+                {
+                    "id": f["id"],
+                    "rule_id": f["rule_id"],
+                    "severity": f["severity"],
+                    "confidence": f["confidence"],
+                    "explanation": f["explanation"],
+                    "subject": f["subject"],
+                    "evidence_refs": f["evidence_refs"],
+                    "primary_ref": f["evidence_refs"][0] if f["evidence_refs"] else "",
+                    "suppressed": f["suppressed"],
+                    "suppression_reason": f["suppression_reason"],
+                    "detected_at": detected,
+                    "age_seconds": round(age) if age is not None else None,
+                    "run_id": f.get("run_id"),
+                    "state": st,
+                    "lens": finding_lens(f),  # shared taxonomy (counting module)
+                }
+            )
+        # KPI values are the counting module's finding-lens counts, so every
+        # KPI number equals its own chip count and column/member count:
+        # verified stays an explicit index-plane metric (valid bucket).
+        counts = counts_payload(data_dir, data)
+        lens = counts["findings"]["lens"]
+        kpis = {
+            "needs_investigation": lens["needs_investigation"],
+            "unproven": lens["unproven"],
+            "coverage_gaps": lens["coverage_gaps"],
+            "verified": counts["verification"]["buckets"]["valid"],
+            "verified_total": counts["verification"]["total"],
+        }
+        return findings, kpis
+
+    @app.get("/api/findings/board")
+    def api_findings_board():
+        findings, kpis = _board_findings()
+        by_state = {s: 0 for s in BOARD_STATES}
+        for f in findings:
+            by_state[f["state"]] += 1
+        return {
+            "kpis": kpis,
+            "columns": by_state,
+            "states": BOARD_STATES,
+            "findings": findings,
+        }
+
+    @app.post("/api/findings/{finding_id}/triage")
+    def api_triage(finding_id: str, body: dict):
+        """Alpha board-state persistence: cycles 'New -> Investigating ->
+        Resolved' (click the state button per card; see the spike). Writes a
+        sidecar ``triage_state.json`` in the demo data dir — the canonical
+        evidence store stays untouched (invariant 1)."""
+        if not any(f["id"] == finding_id for f in data.findings):
+            return JSONResponse({"error": "unknown finding id"}, status_code=404)
+        state = str(body.get("state", ""))
+        if state not in BOARD_STATES:
+            return JSONResponse(
+                {"error": "state must be one of " + ", ".join(BOARD_STATES)},
+                status_code=422,
+            )
+        path = _triage_state_path(data.dir)
+        current = {}
+        try:
+            current = json.loads(path.read_text()) if path.is_file() else {}
+        except (OSError, ValueError):
+            current = {}
+        current[finding_id] = state
+        path.write_text(json.dumps(current, indent=2, sort_keys=True))
+        return {"id": finding_id, "state": state}
 
     @app.get("/api/receipts/{receipt_hash}")
     def api_receipt(receipt_hash: str):

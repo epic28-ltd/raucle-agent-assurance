@@ -1,0 +1,97 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Raucle Console design tokens (UI-02.3 quiet-SaaS system).
+   One layer of custom properties: palette, hairlines, accents, radii,
+   type scale. Dark mode swaps the same variables under [data-theme="dark"];
+   the toggle persists in localStorage (rc-theme). No runtime fetches. */
+
+:root{
+  /* canvas + surfaces */
+  --bg:#FAFAF8;
+  --sidebar-bg:#FAFAF8;
+  --card:#FFFFFF;
+  --hairline:#EAE9E4;
+  --divider:#EFEDE8;
+
+  /* ink */
+  --ink:#1D1D1B;
+  --body:#4A4946;
+  --secondary:#8B8A84;
+  --muted:#A3A29A;
+
+  /* brand accent */
+  --accent:#67B94E;
+  --accent-soft:#7FC568;
+  --accent-dim:#EAF6E5;
+
+  /* semantic states (tinted pills, not saturated chips) */
+  --good-bg:#E4F2DC; --good-ink:#3D7A2B; --good-bar:#67B94E; --good-tint:#E4F2DC;
+  --look-bg:#FBF1D8; --look-ink:#A97612; --look-bar:#F2A33C; --look-tick:#1D1D1B;
+  --act-bg:#FBE5E1;  --act-ink:#C64A3D;  --act-bar:#E15A4C;
+  --exempt-bg:#F1F0EB; --exempt-ink:#6E6D66; --exempt-bar:#A3A29A;
+  --info:#5B7BFF;
+
+  /* guidance banner (mint panel) */
+  --mint-bg:#E7F3E0;
+  --mint-ink:#2F6B27;
+
+  /* controls */
+  --cta-bg:#21201E; --cta-ink:#FAFAF8;
+  --badge-bg:#F1F0EB; --badge-ink:#6E6D66;
+  --tile-bg:#21201E; --tile-ink:#FAFAF8;
+  --track:#F1F0EB;
+  --kbd-bg:#FFFFFF;
+
+  /* radii */
+  --r-card:16px;
+  --r-ctl:10px;
+  --r-pill:999px;
+  --r-tile:8px;
+
+  /* layout */
+  --sidebar-w:260px;
+  --sidebar-cw:68px;
+  --content-max:1200px;
+  --gap:14px;
+  --pad-card:22px;
+
+  /* type */
+  --font:'Inter','Inter var',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --fs-title:28px;
+  --fs-card:15px;
+  --fs-body:13.5px;
+  --fs-micro:12px;
+  --fs-stat:40px;
+}
+
+[data-theme="dark"]{
+  --bg:#15161A;
+  --sidebar-bg:#15161A;
+  --card:#1D1E23;
+  --hairline:#2A2B31;
+  --divider:#26272D;
+
+  --ink:#F2F1EC;
+  --body:#C9C8C2;
+  --secondary:#8B8A84;
+  --muted:#71706A;
+
+  --accent:#67B94E;
+  --accent-soft:#7FC568;
+  --accent-dim:#22301E;
+
+  --good-bg:#22301E; --good-ink:#9BD985; --good-bar:#7FC568;
+  --look-bg:#33301E; --look-ink:#E5B660; --look-bar:#F2A33C;
+  --act-bg:#351F1B;  --act-ink:#F0968A;  --act-bar:#E15A4C;
+  --exempt-bg:#26272D; --exempt-ink:#A3A29A;
+  --info:#8DA2FF;
+
+  --mint-bg:#20301C;
+  --mint-ink:#A7D98A;
+
+  --cta-bg:#FAFAF8; --cta-ink:#15161A;
+  --badge-bg:#26272D; --badge-ink:#A3A29A;
+  --tile-bg:#2E2F36; --tile-ink:#FAFAF8;
+  --track:#2A2B31;
+  --kbd-bg:#26272D;
+  --look-tick:#F2F1EC;
+}

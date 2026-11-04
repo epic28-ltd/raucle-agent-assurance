@@ -89,17 +89,153 @@
   .kvs{font-size:.88rem}
   .kvs div{padding:.1rem 0}
   .kv-k{display:inline-block;min-width:9rem;color:var(--soft)}
+  /* ============================================== UI-02.4 findings board ==
+     Kanban reference tokens (Elera 'Patient Flow'): quiet SaaS palette:
+     page bg vs pale board panels one shade darker; white radius-12 cards
+     with soft shadow; charcoal active chips; green/amber/red pill tints. */
+  :root{
+    /* Elera token set (UI-02.4) */
+    --el-page:#F6F6F3; --el-panel:#ECEBE6; --el-card:#FFFFFF; --el-ink:#232420;
+    --el-soft:#6E6B62; --el-line:#E3E1DA; --el-green:#5CBF4F;
+    --t-green-bg:#E7F5D9; --t-green-ink:#3E7A1E;
+    --t-amber-bg:#FBEFD6; --t-amber-ink:#A97A1A;
+    --t-red-bg:#FAE3DE;   --t-red-ink:#D14B39;
+    --t-grey-bg:#ECEBE6;  --t-grey-ink:#4B4941;
+    --t-active:#232420;   --t-active-ink:#FFFFFF;
+    /* muted dark for identity tiles (ID tiles/badges): visually distinct
+       from solid dark ACTIVE chips (coherence-pass fix) */
+    --el-tile:#8B887E;    --el-tile-ink:#FFFFFF;
+  }
+  [data-theme="dark"]{
+    --el-page:#1B1D19; --el-panel:#252722; --el-card:#2C2F29; --el-ink:#E9E7E1;
+    --el-soft:#A5A29A; --el-line:#3A3C36;
+    --t-green-bg:#23331D; --t-green-ink:#9BD88E;
+    --t-amber-bg:#3A2F1B; --t-amber-ink:#E0B45E;
+    --t-red-bg:#3B2420;   --t-red-ink:#F0917F;
+    --t-grey-bg:#2E302B;  --t-grey-ink:#C4C1B8;
+    --t-active:#ECEBE6;   --t-active-ink:#232420;
+    --el-tile:#4A4C45;    --el-tile-ink:#E9E7E1;
+    --c-good:#7FC97F; --c-look:#E0B45E; --c-act:#F0917F; --c-exempt:#A5A29A;
+    --c-good-bg:#23331D; --c-look-bg:#3A2F1B; --c-act-bg:#3B2420; --c-exempt-bg:#2E302B;
+    --ink:#E9E7E1; --line:#3A3C36; --soft:#A5A29A; --accent:#7FB1E0;
+    --bg:#1B1D19; --panel:#2C2F29;
+  }
+  header.app .theme-toggle{margin-left:auto;font:inherit;font-size:.78rem;padding:.25rem .6rem;
+    border:1px solid var(--line);background:var(--panel);border-radius:6px;cursor:pointer;color:var(--ink)}
+  [data-view="board"] main{max-width:1500px}
+  .kpi-card{display:flex;align-items:stretch;background:var(--el-card);border:1px solid var(--el-line);
+    border-radius:14px;box-shadow:0 1px 2px rgba(20,20,15,.06);padding:.9rem 1.1rem;gap:0;flex-wrap:wrap;
+    margin:.2rem 0 1rem}
+  .kpi-group{display:flex;gap:.9rem;align-items:center;flex:1 1 260px;min-width:230px;padding:.2rem .4rem}
+  .kpi-group + .kpi-group{border-left:1px solid var(--el-line)}
+  .kpi-tile{width:46px;height:46px;border-radius:12px;background:var(--el-tile);color:var(--el-tile-ink);
+    display:flex;align-items:center;justify-content:center;font-size:1.15rem;flex:0 0 auto;
+    text-shadow:none}
+  .kpi-txt{display:flex;flex-direction:column;gap:.2rem;min-width:0}
+  .kpi-lbl{font-size:.8rem;color:var(--el-soft)}
+  .kpi-val{font-size:1.7rem;font-weight:700;color:var(--el-ink);line-height:1}
+  .pill{display:inline-flex;align-items:center;gap:.3rem;font-size:.74rem;font-weight:600;
+    padding:.12rem .55rem;border-radius:999px;white-space:nowrap}
+  .pill .dot{width:.45rem;height:.45rem;border-radius:50%;background:currentColor}
+  .pill-green{background:var(--t-green-bg);color:var(--t-green-ink)}
+  .pill-amber{background:var(--t-amber-bg);color:var(--t-amber-ink)}
+  .pill-red{background:var(--t-red-bg);color:var(--t-red-ink)}
+  .pill-grey{background:var(--t-grey-bg);color:var(--t-grey-ink)}
+  .pill-dark{background:var(--t-active);color:var(--t-active-ink)}
+  .board-filters{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin:.2rem 0 .5rem}
+  .scopepill{font:inherit;font-size:.82rem;padding:.3rem .9rem;border-radius:999px;cursor:pointer;
+    border:1px solid var(--el-line);background:var(--el-card);color:var(--el-ink)}
+  .scopepill[aria-pressed="true"]{background:var(--t-active);color:var(--t-active-ink);
+    border-color:var(--t-active);font-weight:600}
+  .board-filters select{font:inherit;font-size:.82rem;padding:.3rem .5rem;border:1px solid var(--el-line);
+    border-radius:8px;background:var(--el-card);color:var(--el-ink)}
+  .board-filters input[type=search]{font:inherit;padding:.3rem .6rem;border:1px solid var(--el-line);
+    border-radius:8px;min-width:14rem;background:var(--el-card);color:var(--el-ink)}
+  .findchip{font:inherit;font-size:.8rem;padding:.28rem .8rem;border-radius:999px;cursor:pointer;
+    border:1px solid var(--el-line);background:var(--el-grey, var(--t-grey-bg));color:var(--t-grey-ink)}
+  .findchip .n{font-weight:700;margin-left:.15rem}
+  .findchip[aria-pressed="true"]{background:var(--t-active);color:var(--t-active-ink);
+    border-color:var(--t-active)}
+  .col-empty{color:var(--el-soft);font-size:.74rem;font-style:italic}
+  .board-grid{display:grid;grid-template-columns:repeat(4, minmax(230px, 1fr));gap:.8rem;align-items:start}
+  @media (max-width:1100px){.board-grid{grid-template-columns:1fr 1fr}}
+  .board-col{background:var(--el-panel);border-radius:14px;padding:.7rem;min-height:14rem;
+    display:flex;flex-direction:column;gap:.6rem}
+  .board-col[data-col="closed"]{background:var(--t-green-bg)}
+  .board-col h3{display:flex;align-items:center;gap:.5rem;font-size:.85rem;margin:0;
+    color:var(--el-ink);text-transform:none}
+  .count-badge{background:var(--el-card);border:1px solid var(--el-line);border-radius:999px;
+    font-size:.74rem;padding:.05rem .5rem;font-weight:700;color:var(--el-ink)}
+  .col-meta{margin-left:auto;font-size:.72rem;color:var(--el-soft)}
+  .card{background:var(--el-card);border-radius:12px;border:1px solid var(--el-line);
+    box-shadow:0 1px 3px rgba(20,20,15,.08);padding:.7rem .8rem;cursor:pointer;
+    transition:box-shadow 180ms ease-out, transform 180ms ease-out}
+  .card:hover{transform:translateY(-1px)}
+  .card[aria-pressed="true"]{box-shadow:0 10px 24px rgba(20,20,15,.18);
+    border-color:var(--el-soft);transform:translateY(-2px)}
+  .card-top{display:flex;gap:.6rem;align-items:flex-start}
+  .card-tile{width:34px;height:34px;border-radius:8px;background:var(--el-tile);color:var(--el-tile-ink);
+    display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:700;
+    flex:0 0 auto;letter-spacing:.02em}
+  .card-name{font-size:.86rem;font-weight:600;color:var(--el-ink)}
+  .card-reason{margin-top:.35rem;font-size:.78rem;color:var(--el-soft);overflow-wrap:anywhere;
+    /* clamped to three lines; a 'more' affordance opens the full drilldown
+       panel inside the card (coherence-pass fix) */
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .card .more-btn{margin:.15rem 0 0;font:inherit;font-size:.72rem;font-weight:600;
+    border:none;background:transparent;color:var(--accent);cursor:pointer;padding:0}
+  .card-tokens{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.55rem;align-items:center}
+  .tok{display:inline-flex;align-items:center;gap:.25rem;font-size:.72rem;font-weight:600;
+    padding:.13rem .5rem;border-radius:999px;border:1px solid transparent;white-space:nowrap}
+  .tok-sev-critical,.tok-sev-high{background:var(--t-red-bg);color:var(--t-red-ink)}
+  .tok-sev-medium{background:var(--t-amber-bg);color:var(--t-amber-ink)}
+  .tok-sev-low,.tok-sev-info{background:var(--t-green-bg);color:var(--t-green-ink)}
+  .tok-run{background:transparent;border-color:var(--el-line);color:var(--el-soft);font-weight:500}
+  /* time pills are neutral grey; amber is reserved for un-proven semantics
+     (coherence-pass fix). Stale stays red: overdue action, not un-proven. */
+  .tok-clock{background:var(--t-grey-bg);color:var(--t-grey-ink)}
+  .tok-clock.stale{background:var(--t-red-bg);color:var(--t-red-ink)}
+  .tok-clock.warm{background:var(--t-grey-bg);color:var(--t-grey-ink)}
+  .tok-state{background:transparent;border-color:var(--el-line);color:var(--el-soft)}
+  .card-actions{display:flex;gap:.45rem;margin-top:.6rem;flex-wrap:wrap;align-items:center}
+  .btn-primary{font:inherit;font-size:.76rem;font-weight:600;padding:.32rem .75rem;border:none;
+    border-radius:8px;background:var(--el-green);color:#12330B;cursor:pointer}
+  .btn-outline{font:inherit;font-size:.76rem;padding:.3rem .75rem;border-radius:8px;cursor:pointer;
+    border:1px solid var(--el-line);background:transparent;color:var(--el-ink)}
+  .btn-dark{font:inherit;font-size:.76rem;font-weight:600;padding:.3rem .75rem;border-radius:8px;
+    border:none;background:var(--el-ink);color:var(--el-card);cursor:pointer}
+  .btn-ghost{font:inherit;font-size:.74rem;padding:.25rem .5rem;border-radius:8px;cursor:pointer;
+    border:1px dashed var(--el-line);background:transparent;color:var(--el-soft)}
+  .finding-note{margin-top:.6rem;background:var(--t-amber-bg);border-radius:10px;padding:.55rem .7rem;
+    font-size:.78rem;color:var(--el-ink);display:flex;gap:.5rem;align-items:flex-start}
+  .finding-note .note-icon{flex:0 0 auto;font-weight:700}
+  .finding-note .note-body{display:flex;flex-direction:column;gap:.3rem;overflow-wrap:anywhere}
+  .finding-note a{color:inherit;font-weight:600;white-space:nowrap}
+  .summary-card{background:var(--el-card);border-radius:12px;border:1px solid var(--el-line);
+    box-shadow:0 1px 3px rgba(20,20,15,.08);padding:.7rem .8rem;font-size:.78rem;color:var(--el-soft)}
+  .summary-card .grow{display:block;height:.45rem;border-radius:999px;background:var(--t-grey-bg);
+    overflow:hidden;margin:.45rem 0 .2rem}
+  .summary-card .grow span{display:block;height:100%;background:var(--el-green)}
+  .allclear{background:var(--t-green-bg);color:var(--t-green-ink);border-radius:12px;
+    padding:.6rem .9rem;font-size:.82rem;font-weight:600;margin:.4rem 0 .8rem}
+  .toast{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);background:var(--el-ink);
+    color:var(--el-card);padding:.5rem .9rem;border-radius:10px;font-size:.8rem;z-index:10;
+    opacity:0;transition:opacity 180ms ease-out;pointer-events:none}
+  .toast.show{opacity:1}
 </style>
 </head>
 <body>
 <header class="app">
   <div class="brand">
     <h1>Open Agent Assurance — investigation</h1>
-    <span class="hint">runs / traces / receipts · index-plane only · evidence never re-rendered raw</span>
+    <span class="hint">runs / traces / receipts</span>
+    <span class="chip tok-exempt" title="Index-plane only: the UI reads verification and correlation index rows. Evidence is never re-rendered raw and the canonical store stays untouched.">index-plane</span>
   </div>
   <nav class="tabs" role="tablist" aria-label="Views">
     <button id="tab-overview" role="tab" aria-selected="true">Overview</button>
     <button id="tab-runs" role="tab" aria-selected="false">Runs &amp; traces</button>
+    <button id="tab-findings" role="tab" aria-selected="false">Findings board</button>
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark theme">Dark theme</button>
   </nav>
   <div class="legend" id="legend" aria-label="Semantic colour legend">
     <span class="chip tok-good">green — proven good (valid + matched)</span>
@@ -371,7 +507,7 @@ function spanTone(v, c) {
 
 // ---------------------------------------------------------------- overview
 function showOverview() {
-  selectTab(true);
+  selectTab(tabOverview);
   app.replaceChildren();
   app.appendChild(el("h2", null, "Health at a glance"));
   const counters = el("div", "counters");
@@ -580,7 +716,7 @@ function filtersBar(parent) {
 // --------------------------------------------------------------- runs view
 let runCache = null; // last loaded run detail (guidance side docking)
 function showRuns() {
-  selectTab(false);
+  selectTab(tabRuns);
   app.replaceChildren();
   app.appendChild(el("h2", null, "Runs"));
   const wrap = el("div");
@@ -637,7 +773,7 @@ function showRuns() {
 }
 
 function showRun(runId) {
-  selectTab(false);
+  selectTab(tabRuns);
   app.replaceChildren();
   const crumbs = el("div");
   const back = el("button", "chipbtn", "← all runs");
@@ -843,27 +979,499 @@ function renderEvidence(side, span) {
   });
 }
 
-// ---------------------------------------------------------------- routing
-function selectTab(overview) {
-  tabOverview.setAttribute("aria-selected", String(overview));
-  tabRuns.setAttribute("aria-selected", String(!overview));
+// ============================================================== UI-02.4 board
+// Findings triage board (hash route #/findings): KPI strip, two filter rows,
+// four lifecycle columns (Needs investigation / Investigating / Suppressed /
+// Closed), with the Coverage gaps lens kept as a KPI metric + chip only.
+// Every value renders through textContent (hostile text discipline, T5):
+// the amber finding note is built exclusively with element text nodes, so a
+// hostile explanation (e.g. <script>…) can never execute — covered by tests.
+//
+// Alpha interaction model (documented in the spike): state moves are manual
+// — the per-card state button cycles New -> Investigating -> Closed, and a
+// suppressed card exposes 'Restore'. Persistence goes through the sidecar
+// triage_state.json via POST /api/findings/{id}/triage (never the canonical
+// evidence store).
+const SEV_ORDER = {critical: 0, high: 1, medium: 2, low: 3, info: 4};
+const COLUMNS = [
+  {key: "new", name: "Needs investigation", meta: "target: seen once, untriaged"},
+  {key: "investigating", name: "Investigating", meta: "target: closed within the window"},
+  {key: "suppressed", name: "Suppressed", meta: "target: retained, reason on record"},
+  {key: "closed", name: "Closed", meta: "target: zero active"},
+];
+// Column/chip mapping (coherence pass, documented in
+// docs/spikes/UI-02.4-findings-board.md): COLUMNS are lifecycle states and
+// show every open finding in its state column; the counting CHIPS are the
+// risk lens over open findings (needs / unproven / coverage gaps) plus the
+// terminal Closed and Suppressed chips. 'Unproven' and 'Coverage gaps' are
+// chips + KPI metrics only - they never get a column, so a one-line mapping
+// holds: chip count == member count of the bucket == KPI strip number.
+// Per-rule context button: derived action + optional real endpoint wiring.
+// Receipt-backed findings wire their action to the offline verify endpoint;
+// everything else is an honest alpha stub (toast), never a fake result.
+const RULE_ACTION = {
+  "SEC-001": {label: "Corroborate coverage", kind: "outline"},
+  "SEC-002": {label: "Re-verify receipt", kind: "outline", endpoint: "verify"},
+  "SEC-003": {label: "Sample denied receipts", kind: "outline"},
+  "SEC-004": {label: "Compare tool-side event", kind: "outline"},
+  "SEC-005": {label: "Read repeated calls", kind: "outline"},
+  "SEC-006": {label: "Check release baseline", kind: "outline"},
+  "SEC-007": {label: "Check verifier backlog", kind: "outline"},
+  "SEC-008": {label: "Rotate credential", kind: "outline"},
+  "SEC-009": {label: "Confirm tool-side audit", kind: "outline"},
+  "SEC-010": {label: "Search lease events", kind: "outline"},
+  "SEC-011": {label: "Compare chain steps", kind: "outline"},
+};
+// Short card names per rule (the full four-part copy stays in the guidance)
+const RULE_NAME = {
+  "SEC-001": "SEC-001 Privileged invocation, no receipt",
+  "SEC-002": "SEC-002 Receipt verification failed",
+  "SEC-003": "SEC-003 Denial-rate threshold exceeded",
+  "SEC-004": "SEC-004 Tool success after deny",
+  "SEC-005": "SEC-005 Repeated tool-call cycle",
+  "SEC-006": "SEC-006 New privileged tool off-baseline",
+  "SEC-007": "SEC-007 Evidence ingest backlog",
+  "SEC-008": "SEC-008 Credential in telemetry index",
+  "SEC-009": "SEC-009 Bypass suspected",
+  "SEC-010": "SEC-010 Credential used without lease",
+  "SEC-011": "SEC-011 Producer identity change",
+};
+function ruleLabel(ruleId) {
+  return RULE_NAME[ruleId] || ruleId;
 }
+function relTime(seconds) {
+  if (seconds === null || seconds === undefined) return "age unknown";
+  const m = Math.round(seconds / 60);
+  if (m < 1) return "just now";
+  if (m < 60) return m + " min ago";
+  const h = Math.round(m / 60);
+  if (h < 24) return h + " h ago";
+  return Math.round(h / 24) + " d ago";
+}
+function toast(msg, timeoutMs) {
+  let t = document.querySelector(".toast");
+  if (!t) { t = el("div", "toast"); document.body.appendChild(t); }
+  t.textContent = msg;                       // hostile text discipline
+  t.classList.add("show");
+  clearTimeout(toast._h);
+  toast._h = setTimeout(() => t.classList.remove("show"), timeoutMs || 2200);
+}
+
+let boardSelection = new Map();   // finding id -> selected/expanded
+let pendingFocus = null;          // finding id from #/findings?f=<id> query
+let boardLens = "needs";          // active row-2 chip key
+let boardScope = "all";           // all | by-rule | by-run
+let boardSort = "severe";         // severe | newest | oldest
+let boardSearch = "";
+
+function boardMembers(findings) {
+  // chip member predicates; counts reconcile to member counts by construction:
+  // the three lens chips partition every open finding, closed and
+  // suppressed pick out exactly their column members.
+  const open = f => !f.suppressed && f.state !== "closed";
+  return {
+    needs: (f) => open(f) && f.lens === "needs",
+    unproven: (f) => open(f) && f.lens === "unproven",
+    gaps: (f) => open(f) && f.lens === "gaps",
+    closed: (f) => f.state === "closed",
+    suppressed: (f) => f.state === "suppressed",
+  };
+}
+// pluralisation helper (coherence-pass QA): "1 finding" vs "2 findings"
+function plural(n, one, many) {
+  return n + " " + (n === 1 ? one : many);
+}
+
+function showBoard() {
+  app.closest("body").dataset.view = "board";
+  selectTab(tabFindings);
+  app.replaceChildren();
+  app.appendChild(el("h2", null, "Findings triage board"));
+  api("/api/findings/board").then((payload) => {
+    if (!payload || payload.error) {
+      app.appendChild(emptyState("Nothing here — the findings index could not be loaded."));
+      return;
+    }
+    const findings = payload.findings;
+    const kpis = payload.kpis;
+    const members = boardMembers(findings);
+
+    // deep link: #/findings?f=<finding id> selects the finding, switches the
+    // lens chip to its bucket and, after draw, scrolls it into view.
+    if (pendingFocus) {
+      const target = findings.find((f) => f.id === pendingFocus);
+      if (target) {
+        for (const key of ["needs", "unproven", "gaps", "closed", "suppressed"]) {
+          if (members[key](target)) { boardLens = key; break; }
+        }
+        boardSelection.set(pendingFocus, true);
+      }
+    }
+
+    // ---- KPI strip card — four groups split by 1px dividers
+    const countLens = (lens) => findings.filter((f) => members[lens](f)).length;
+    const strips = [
+      ["!", "Needs investigation", kpis.needs_investigation, "pill-red",
+        plural(countLens("needs"), "active finding", "active findings")],
+      ["?", "Unproven", kpis.unproven, "pill-amber",
+        plural(countLens("unproven"), "unknown state", "unknown states")],
+      [":", "Coverage gaps", kpis.coverage_gaps, "pill-amber",
+        plural(countLens("gaps"), "coverage finding", "coverage findings")],
+      // index-plane metric with a real count (never a bare 'live' chip):
+      ["✓", "Evidence verified", kpis.verified, "pill-grey",
+        plural(kpis.verified, "span receipt verifies valid", "span receipts verify valid")
+        + " · index-plane"],
+    ];
+    const kpiCard = el("div", "kpi-card");
+    kpiCard.setAttribute("aria-label", "Findings KPI strip");
+    strips.forEach(([glyph, lbl, val, pillCls, pillTxt]) => {
+      const g = el("div", "kpi-group");
+      const tile = el("div", "kpi-tile", glyph);
+      g.appendChild(tile);
+      const txt = el("div", "kpi-txt");
+      txt.appendChild(el("span", "kpi-lbl", lbl));
+      txt.appendChild(el("span", "kpi-val", String(val)));
+      const pill = el("span", "pill " + pillCls);
+      pill.appendChild(el("span", "dot"));
+      pill.appendChild(el("span", null, pillTxt));
+      txt.appendChild(pill);
+      g.appendChild(txt);
+      kpiCard.appendChild(g);
+    });
+    app.appendChild(kpiCard);
+
+    // ---- filter row 1: scope pills, sort select, find input
+    const bar1 = el("div", "board-filters");
+    bar1.setAttribute("role", "group");
+    bar1.setAttribute("aria-label", "Board scope, sort and search");
+    [
+      ["all", "All"],
+      ["by-rule", "By rule"],
+      ["by-run", "By run"],
+    ].forEach(([key, label]) => {
+      const b = el("button", "scopepill", label);
+      b.setAttribute("aria-pressed", String(boardScope === key));
+      b.onclick = () => { boardScope = key; showBoard(); };
+      bar1.appendChild(b);
+    });
+    const sort = el("select");
+    sort.setAttribute("aria-label", "Board sort order");
+    [
+      ["severe", "Sort: Most severe"],
+      ["newest", "Sort: Newest first"],
+      ["oldest", "Sort: Oldest first"],
+    ].forEach(([v, label]) => {
+      const o = document.createElement("option");
+      o.value = v; o.textContent = label;         // textContent: escaped
+      if (boardSort === v) o.selected = true;
+      sort.appendChild(o);
+    });
+    sort.onchange = () => { boardSort = sort.value; showBoard(); };
+    bar1.appendChild(sort);
+    const search = el("input");
+    search.type = "search";
+    search.placeholder = "Find (rule, reason, run, ref)…";
+    search.value = boardSearch;
+    search.setAttribute("aria-label", "Find findings");
+    search.oninput = () => { boardSearch = search.value.trim().toLowerCase(); };
+    bar1.appendChild(search);
+    app.appendChild(bar1);
+
+    // ---- filter row 2: single-select counting chips + showing count
+    const chipDefs = [
+      ["needs", "Needs investigation"],
+      ["unproven", "Unproven"],
+      ["gaps", "Coverage gaps"],
+      ["closed", "Closed"],
+      ["suppressed", "Suppressed"],
+    ];
+    const bar2 = el("div", "board-filters");
+    bar2.setAttribute("role", "group");
+    bar2.setAttribute("aria-label", "Findings filter chips (single select)");
+    let selectedChip = boardLens;
+    chipDefs.forEach(([key, label]) => {
+      const n = findings.filter(members[key]).length;
+      const hidden = key === "suppressed";
+      const b = el("button", "findchip");
+      b.dataset.chip = key;
+      b.appendChild(el("span", null, label + " - " + n + (hidden ? " (hidden by default)" : "")));
+      b.setAttribute("aria-pressed", String(boardLens === key));
+      b.onclick = () => {
+        // single-select: the clicked chip wins; a second click deselects it
+        selectedChip = selectedChip === key ? "needs" : key;
+        boardLens = selectedChip;
+        bar2.querySelectorAll(".findchip").forEach(c =>
+          c.setAttribute("aria-pressed", String(c.dataset.chip === boardLens)));
+        drawBoard();
+      };
+      bar2.appendChild(b);
+    });
+    app.appendChild(bar2);
+
+    // ---- board grid
+    const gridWrap = el("div");
+    app.appendChild(gridWrap);
+    const selectedCard = boardSelection.get("_card") || null;
+    boardSelection.delete("_card");
+
+    const visibleFor = (f) => {
+      const tester = members[boardLens];
+      if (tester && !tester(f)) return false;
+      return matchesBoardSearch(f);
+    };
+    function matchesBoardSearch(f) {
+      if (!boardSearch) return true;
+      const hay = [f.rule_id, f.explanation, f.subject, f.run_id, f.primary_ref,
+        (f.evidence_refs || []).join(" ")].join(" ").toLowerCase();
+      return hay.includes(boardSearch);
+    }
+    const sorters = {
+      severe: (a, b) => (SEV_ORDER[a.severity] ?? 9) - (SEV_ORDER[b.severity] ?? 9),
+      newest: (a, b) => String(b.detected_at || "").localeCompare(String(a.detected_at || "")),
+      oldest: (a, b) => String(a.detected_at || "").localeCompare(String(b.detected_at || "")),
+    };
+    const sortFn = sorters[boardSort] || sorters.severe;
+
+    function drawBoard() {
+      const vis = findings.slice().sort(sortFn);
+      const shown = vis.filter(visibleFor);
+      const showing = el("span", "hint",
+        "Showing " + shown.length + " of " + findings.length + " findings");
+      showing.dataset.showing = true;
+      showing.dataset.x = String(shown.length);
+      showing.dataset.y = String(findings.length);
+
+      gridWrap.replaceChildren();
+      gridWrap.appendChild(showing);
+      if (!countLens("needs") && !countLens("unproven") && !countLens("gaps")) {
+        gridWrap.appendChild(el("div", "allclear",
+          "All clear — no finding needs an investigator. Lanes stay as the record of what was decided."));
+      }
+      const grid = el("div", "board-grid");
+      COLUMNS.forEach(col => {
+        const colEl = el("section", "board-col");
+        colEl.dataset.col = col.key;
+        const colCards = shown.filter(f => f.state === col.key);
+        const head = el("h3");
+        head.appendChild(el("span", null, col.name));
+        head.appendChild(el("span", "count-badge", String(colCards.length)));
+        head.appendChild(el("span", "col-meta", col.meta));
+        colEl.appendChild(head);
+        colCards.forEach(f => colEl.appendChild(findingCard(f)));
+        if (!colCards.length) colEl.appendChild(el("div", "col-empty", "No findings here"));
+        if (col.key === "closed") colEl.appendChild(outcomeSummary(shown));
+        grid.appendChild(colEl);
+      });
+      gridWrap.appendChild(grid);
+      const count = showing;
+      count.textContent = "Showing " + shown.length + " of " + findings.length + " findings";
+    }
+
+    function findingCard(f) {
+      const card = el("article", "card");
+      card.setAttribute("aria-pressed", String(Boolean(boardSelection.get(f.id))));
+      card.dataset.findingId = f.id;
+      card.tabIndex = 0;
+      const top = el("div", "card-top");
+      const tile = el("div", "card-tile", f.rule_id.replace("SEC-", ""));
+      top.appendChild(tile);
+      const nameBox = el("div");
+      nameBox.appendChild(el("div", "card-name", ruleLabel(f.rule_id)));
+      nameBox.appendChild(el("div", "card-reason", f.explanation));
+      const moreBtn = el("button", "more-btn", "More");
+      moreBtn.type = "button";
+      moreBtn.setAttribute("aria-label", "Open the full guidance drilldown");
+      moreBtn.onclick = (ev) => {
+        ev.stopPropagation();
+        const existing = card.querySelector(".panel.guide");
+        if (existing) { existing.remove(); return; }
+        card.appendChild(guidancePanel("rules", f.rule_id));
+      };
+      nameBox.appendChild(moreBtn);
+      top.appendChild(nameBox);
+      card.appendChild(top);
+
+      const tokens = el("div", "card-tokens");
+      const sev = el("span", "tok tok-sev-" + f.severity, f.severity);
+      tokens.appendChild(sev);
+      const cls = f.age_seconds === null ? "" : f.age_seconds > 86400 ? " stale" : f.age_seconds > 3600 ? " warm" : "";
+      const clock = el("span", "tok tok-clock" + cls, "⏱ " + relTime(f.age_seconds));
+      clock.title = f.detected_at || "detection instant unknown (corpus-level finding)";
+      tokens.appendChild(clock);
+      if (f.run_id) {
+        const short = f.run_id.replace(/^run-obs0?/, "");
+        tokens.appendChild(el("span", "tok tok-run", "run: " + short));
+      }
+      tokens.appendChild(el("span", "tok tok-state", f.state));
+      card.appendChild(tokens);
+
+      // selected card elevates and reveals the inline amber finding note:
+      // finding sentence + suggested action + evidence ref, all textContent
+      if (boardSelection.get(f.id)) {
+        const g = (G.rules || {})[f.rule_id];
+        const note = el("div", "finding-note");
+        note.setAttribute("role", "note");
+        note.appendChild(el("span", "note-icon", "⚠"));
+        const body = el("div", "note-body");
+        if (g) {
+          body.appendChild(el("div", null, g.what));
+          if (g.actions && g.actions.length) {
+            body.appendChild(el("div", null, "Suggested action: " + g.actions[0]));
+          }
+        }
+        body.appendChild(el("div", null, "Evidence ref: " + (f.primary_ref || "(none)")));
+        if (f.suppressed && f.suppression_reason) {
+          body.appendChild(el("div", null, "Retention: " + f.suppression_reason));
+        }
+        if (f.run_id) {
+          const link = el("a", null, "Open full guidance in the drilldown — " + f.run_id);
+          link.href = "#run/" + encodeURIComponent(f.run_id);
+          body.appendChild(link);
+        } else {
+          const more = el("button", "btn-outline", "Open full guidance");
+          more.onclick = (ev) => {
+            ev.stopPropagation();
+            const existing = card.querySelector(".panel.guide");
+            if (existing) { existing.remove(); return; }
+            card.appendChild(guidancePanel("rules", f.rule_id));
+          };
+          body.appendChild(more);
+        }
+        note.appendChild(body);
+        card.appendChild(note);
+
+        // context action row: real endpoint when wired, honest stub otherwise
+        const actions = el("div", "card-actions");
+        const act = RULE_ACTION[f.rule_id] || {label: "Investigate", kind: "outline"};
+        const btn = el("button", act.kind === "dark" ? "btn-dark"
+          : act.kind === "primary" ? "btn-primary" : "btn-outline", act.label);
+        btn.onclick = (ev) => {
+          ev.stopPropagation();
+          if (act.endpoint === "verify" && /^sha256:/.test(f.primary_ref || "")) {
+            btn.disabled = true;
+            toast("running offline verify over canonical bytes…");
+            api("/api/receipts/" + encodeURIComponent(f.primary_ref) + "/verify", {method: "POST"})
+              .then(r => { toast("offline verify: " + (r.verification_status || r.error)); btn.disabled = false; })
+              .catch(() => { toast("action stub: alpha (verify could not run)"); btn.disabled = false; });
+          } else {
+            toast("action stub: alpha");   // honest: endpoint not present yet
+          }
+        };
+        actions.appendChild(btn);
+        const stateBtn = f.state === "suppressed"
+          ? el("button", "btn-dark", "Restore")
+          : el("button", "btn-outline", "Move state (" + f.state + " → next)");
+        stateBtn.onclick = (ev) => {
+          ev.stopPropagation();
+          const nextMap = {new: "investigating", investigating: "resolved", resolved: "closed", closed: "new", suppressed: "new"};
+          const next = nextMap[f.state] || "new";
+          fetch("/api/findings/" + encodeURIComponent(f.id) + "/triage", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({state: next}),
+          }).then(r => r.json()).then(r => {
+            if (r.error) { toast("action stub: alpha — " + r.error); return; }
+            toast(f.rule_id + " moved to " + next);
+            f.state = r.state;
+            drawBoard();
+          }).catch(() => toast("action stub: alpha (triage endpoint offline)"));
+        };
+        actions.appendChild(stateBtn);
+        card.appendChild(actions);
+      }
+      const pick = () => {
+        boardSelection.set(f.id, !boardSelection.get(f.id));
+        drawBoard();
+      };
+      card.onclick = pick;
+      card.onkeydown = ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); pick(); } };
+      return card;
+    }
+
+    // Board outcome card: open + closed + suppressed == total (partition),
+    // and 'Open' equals the items visible across the open columns (the
+    // currently shown set), so the arithmetic stays coherent under filters.
+    function outcomeSummary(shownSet) {
+      const total = shownSet.length;
+      const closedCount = shownSet.filter(f => f.state === "closed").length;
+      const suppressedCount = shownSet.filter(f => f.state === "suppressed").length;
+      const open = shownSet.filter(f => f.state === "new" || f.state === "investigating").length;
+      const s = el("div", "summary-card");
+      s.setAttribute("aria-label", "Board outcome summary");
+      s.appendChild(el("div", "card-name", "Board outcome"));
+      const rows = [
+        ["Closed", closedCount],
+        ["Suppressed (on record)", suppressedCount],
+        ["Open", open],
+      ];
+      rows.forEach(([k, v]) => s.appendChild(el("div", null, k + ": " + String(v))));
+      const grow = el("span", "grow");
+      const fill = el("span");
+      fill.style.width = total ? Math.round(100 * closedCount / total) + "%" : "0%";
+      grow.appendChild(fill);
+      s.appendChild(grow);
+      s.appendChild(el("div", null, plural(closedCount, "finding", "findings")
+        + " closed · open " + open + " + closed " + closedCount
+        + " + suppressed " + suppressedCount + " = " + total));
+      return s;
+    }
+
+    drawBoard();
+    if (pendingFocus) {
+      const target = app.querySelector('[data-finding-id="' + CSS.escape(pendingFocus) + '"]');
+      if (target) target.scrollIntoView({ block: "center", behavior: "smooth" });
+      pendingFocus = null;
+    }
+  });
+}
+
+// -------------------------------------------------------------- routing
+function selectTab(which) {
+  tabOverview.setAttribute("aria-selected", String(which === tabOverview));
+  tabRuns.setAttribute("aria-selected", String(which === tabRuns));
+  tabFindings.setAttribute("aria-selected", String(which === tabFindings));
+}
+const tabFindings = document.getElementById("tab-findings");
 tabOverview.onclick = () => { location.hash = "overview"; };
 tabRuns.onclick = () => { location.hash = "runs"; };
+tabFindings.onclick = () => { location.hash = "findings"; };
 
 function route() {
-  const h = decodeURIComponent(location.hash.replace(/^#/, ""));
+  let h = decodeURIComponent(location.hash.replace(/^#/, "")).replace(/^\/+/, "");
+  if (h.startsWith("findings")) {
+    const qi = h.indexOf("?");
+    if (qi !== -1) {
+      pendingFocus = new URLSearchParams(h.slice(qi + 1)).get("f") || null;
+      h = h.slice(0, qi);
+    } else if (h > "findings") { pendingFocus = null; }
+  }
   if (h.startsWith("run/")) showRun(h.slice(4));
   else if (h.startsWith("runs")) showRuns();
-  else showOverview();
+  else if (h.startsWith("findings")) showBoard();
+  else { app.closest("body").dataset.view = ""; showOverview(); }
 }
 window.addEventListener("hashchange", route);
-// keyboard: 1 = overview, 2 = runs
+// keyboard: 1 = overview, 2 = runs, 3 = findings board
 document.addEventListener("keydown", ev => {
   if (ev.target.tagName === "INPUT" || ev.metaKey || ev.ctrlKey || ev.altKey) return;
   if (ev.key === "1") location.hash = "overview";
   if (ev.key === "2") location.hash = "runs";
+  if (ev.key === "3") location.hash = "findings";
 });
+// theme toggle: data-theme attribute, persisted to localStorage only
+const themeToggle = document.getElementById("theme-toggle");
+function applyTheme() {
+  const dark = document.documentElement.dataset.theme === "dark";
+  themeToggle.textContent = dark ? "Light theme" : "Dark theme";
+}
+themeToggle.onclick = () => {
+  const cur = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = cur === "dark" ? "light" : "dark";
+  try { document.defaultView.localStorage.setItem("oaa-theme", document.documentElement.dataset.theme); } catch (e) {}
+  applyTheme();
+};
+try { document.documentElement.dataset.theme = document.defaultView.localStorage.getItem("oaa-theme") || "light"; } catch (e) {}
+applyTheme();
 route();
 </script>
 </body>

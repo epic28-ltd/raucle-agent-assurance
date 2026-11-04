@@ -1,10 +1,25 @@
 {
-  "note": "UI-01 rules fixture: SEC-002 verification failure + SEC-001 receipt_missing, with one documented suppression (suppressed findings are RETAINED, per RULE-01).",
+  "note": "UI-01 rules fixture + UI-02.4 richer demo: every absence beyond grace in the demo corpus carries a documented suppression here, so the retained-suppressed ledger and the rules engine agree; suppressed findings are RETAINED per RULE-01. Demo-only reasons are hand-built synthetic documentation, not production policy.",
   "suppressions": [
     {
       "rule_id": "SEC-001",
       "reason": "documented maintenance-window coverage gap on t-sim-sup trace (CHANGELOG 2026-11-04)",
       "trace_id": "t-sim-sup-0000000000000000000000000000aa"
+    },
+    {
+      "rule_id": "SEC-001",
+      "reason": "UI-02.4 demo (synthetic): shell bypass-b2 case kept on record with its audit trail; the absence is explained in the demo run-book (not production suppression policy)",
+      "trace_id": "t-w03-bypass-b2"
+    },
+    {
+      "rule_id": "SEC-001",
+      "reason": "UI-02.4 demo (synthetic): spanref-e5 receipt was emitted under a different trace id (t-sim-tmiss); absence resolved to a trace-tagging defect in the demo",
+      "trace_id": "t-w03-spanref-e5"
+    },
+    {
+      "rule_id": "SEC-009",
+      "reason": "UI-02.4 demo (synthetic): bypass-b2 tool-side success pairs with the demo absence; retained as a discrepancy demo, ruled out in the run-book",
+      "trace_id": "t-w03-bypass-b2"
     }
   ]
 }

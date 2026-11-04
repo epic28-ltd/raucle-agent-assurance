@@ -10,3 +10,8 @@
 {"receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000006", "status": "not_applicable", "checked_at": "2026-11-04T09:14:32+00:00", "verifier": "demo fixture", "detail": "schema v0 out of verifier scope"}
 {"receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000007", "status": "unavailable", "checked_at": "2026-11-04T09:15:32+00:00", "verifier": "demo fixture", "detail": "verifier unreachable at ingest time"}
 {"receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000008", "status": "valid", "checked_at": "2026-11-04T09:17:32+00:00", "verifier": "demo fixture", "detail": "synthetic index row"}
+# UI-02.4 richer demo rows (run-sim-03 receipts).
+{"receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000010", "status": "valid", "checked_at": "2026-11-04T09:20:32+00:00", "verifier": "demo fixture (UI-02.4)", "detail": "synthetic index row (UI-02.4 demo)"}
+{"receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000011", "status": "valid", "checked_at": "2026-11-04T09:28:22+00:00", "verifier": "demo fixture (UI-02.4)", "detail": "synthetic index row (UI-02.4 demo)"}
+{"receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000012", "status": "valid", "checked_at": "2026-11-04T09:22:32+00:00", "verifier": "demo fixture (UI-02.4)", "detail": "synthetic index row; receipt correlates only via approximate fallback pairing (UI-02.4 demo)"}
+{"receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000013", "status": "valid", "checked_at": "2026-11-04T09:24:32+00:00", "verifier": "demo fixture (UI-02.4)", "detail": "synthetic index row (UI-02.4 demo)"}

@@ -1,0 +1,74 @@
+# Synthetic AUDIT-PLANE event rows for the UI-02.4 findings board demo.
+#
+# These are hand-built INDEX-PLANE records (tool audits, custody events,
+# identity chains, ingest coverage events), one JSON object per line. Every
+# row carries ``"synthetic": true`` — an explicit, honest marker: none of this
+# is real production telemetry and no canonical evidence bytes exist behind
+# any of it. Times are fixed fixture instants; the board's relative-time
+# pills are computed against the real wall clock at render time, so ages
+# drift (deliberately: the fixture includes >24h-old rows, which the board
+# colours red as stale, and >1h rows coloured amber).
+#
+# Deliberately designed events per SEC rule (see docs/spikes/UI-02.4-findings-board.md):
+#   aud-003-*  SEC-003   billing-agent denial burst: 6 deny / 4 allow in one window
+#   t-w03-deny-a1 SEC-004 tool-side success on a deny-correlated trace
+#   aud-005-*  SEC-005   oaa-loop shell loop: 21 calls inside the bound window
+#   aud-006-01 SEC-006   http_fetch observed on rel-0.9.3 outside its baseline
+#              (unkeyed trace_id ⇒ also the SEC-009 medium-confidence case)
+#   aud-007-*  SEC-007   ingest coverage events: 7 unavailable rows (backlog ratio)
+#   aud-008-01 SEC-008   AKIA key pattern present in a telemetry index record
+#              (presence only — the matched content is never carried in a finding)
+#   t-w03-bypass-b2 SEC-009 tool-side shell success, no receipt beyond grace
+#   aud-010-*  SEC-010   cred-vault-77 use with no lease; cred-vault-88 used with
+#              a lease (deliberate non-finding counterpart)
+#   aud-011-*  SEC-011   oaa-identity producer id change across chain steps
+{"kind": "tool_audit", "ref": "t-w03-deny-a1", "agent_id": "oaa-sim", "tool": "shell", "outcome": "success", "trace_id": "t-w03-deny-a1", "release_id": "rel-0.9.3", "privileged": true, "at": "2026-11-04T09:20:25+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "t-w03-bypass-b2", "agent_id": "oaa-sim", "tool": "shell", "outcome": "success", "trace_id": "t-w03-bypass-b2", "release_id": "rel-0.9.3", "privileged": true, "at": "2026-11-04T09:21:25+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-003-01", "agent_id": "oaa-billing", "application": "billing-agent", "decision": "deny", "at": "2026-11-04T09:05:00+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-003-02", "agent_id": "oaa-billing", "application": "billing-agent", "decision": "deny", "at": "2026-11-04T09:06:30+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-003-03", "agent_id": "oaa-billing", "application": "billing-agent", "decision": "allow", "at": "2026-11-04T09:08:00+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-003-04", "agent_id": "oaa-billing", "application": "billing-agent", "decision": "deny", "at": "2026-11-04T09:09:30+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-003-05", "agent_id": "oaa-billing", "application": "billing-agent", "decision": "allow", "at": "2026-11-04T09:11:00+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-003-06", "agent_id": "oaa-billing", "application": "billing-agent", "decision": "deny", "at": "2026-11-04T09:12:30+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-003-07", "agent_id": "oaa-billing", "application": "billing-agent", "decision": "allow", "at": "2026-11-04T09:14:00+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-003-08", "agent_id": "oaa-billing", "application": "billing-agent", "decision": "deny", "at": "2026-11-04T09:15:30+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-003-09", "agent_id": "oaa-billing", "application": "billing-agent", "decision": "deny", "at": "2026-11-04T09:17:00+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-003-10", "agent_id": "oaa-billing", "application": "billing-agent", "decision": "deny", "at": "2026-11-04T09:18:30+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-01", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:28:00+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-02", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:28:05+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-03", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:28:10+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-04", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:28:15+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-05", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:28:20+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-06", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:28:25+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-07", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:28:30+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-08", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:28:35+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-09", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:28:40+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-10", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:28:45+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-11", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:28:50+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-12", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:28:55+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-13", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:29:00+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-14", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:29:05+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-15", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:29:10+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-16", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:29:15+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-17", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:29:20+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-18", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:29:25+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-19", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:29:30+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-20", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:29:35+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-005-21", "agent_id": "oaa-loop", "tool": "shell", "outcome": "success", "trace_id": "t-w03-loop-c3", "privileged": true, "at": "2026-11-04T09:29:40+00:00", "synthetic": true}
+{"kind": "tool_audit", "ref": "aud-006-01", "agent_id": "oaa-new", "tool": "http_fetch", "outcome": "success", "release_id": "rel-0.9.3", "privileged": true, "trace_id": null, "at": "2026-11-04T09:30:00+00:00", "synthetic": true}
+{"kind": "ingest", "ref": "aud-007-01", "state": "unavailable", "at": "2026-11-04T10:00:00+00:00", "synthetic": true}
+{"kind": "ingest", "ref": "aud-007-02", "state": "unavailable", "at": "2026-11-04T10:01:00+00:00", "synthetic": true}
+{"kind": "ingest", "ref": "aud-007-03", "state": "unavailable", "at": "2026-11-04T10:02:00+00:00", "synthetic": true}
+{"kind": "ingest", "ref": "aud-007-04", "state": "unavailable", "at": "2026-11-04T10:03:00+00:00", "synthetic": true}
+{"kind": "ingest", "ref": "aud-007-05", "state": "unavailable", "at": "2026-11-04T10:04:00+00:00", "synthetic": true}
+{"kind": "ingest", "ref": "aud-007-06", "state": "unavailable", "at": "2026-11-04T10:05:00+00:00", "synthetic": true}
+{"kind": "ingest", "ref": "aud-007-07", "state": "unavailable", "at": "2026-11-04T10:06:00+00:00", "synthetic": true}
+# SEC-008: presence-only probe. The AKIA substring lives here in the FIXTURE
+# (demo data file) but must never be echoed into any finding field by the
+# rules engine — presence of the named pattern only (PRIV-01).
+{"kind": "ingest", "ref": "aud-008-01", "agent_id": "oaa-leak", "state": "matched", "content": "tool=http_fetch span attrs contained the AWS documentation example access-key id AKIAIOSFODNN7EXAMPLE (synthetic demo token, not a real credential — presence-only trigger for SEC-008; the rules engine never echoes matched content into finding fields)", "at": "2026-11-04T09:31:00+00:00", "synthetic": true}
+{"kind": "custody", "ref": "aud-010-01", "agent_id": "oaa-custody", "tool": "vault_read", "action": "use", "credential_id": "cred-vault-77", "at": "2026-11-03T09:00:00+00:00", "synthetic": true}
+{"kind": "custody", "ref": "aud-010-lease-88", "agent_id": "oaa-custody", "tool": "vault_read", "action": "lease_issued", "credential_id": "cred-vault-88", "lease_id": "lease-88", "at": "2026-11-04T09:00:00+00:00", "synthetic": true}
+{"kind": "custody", "ref": "aud-010-02", "agent_id": "oaa-custody", "tool": "vault_read", "action": "use", "credential_id": "cred-vault-88", "lease_id": "lease-88", "at": "2026-11-04T09:05:00+00:00", "synthetic": true}
+{"kind": "identity", "ref": "aud-011-01", "agent_id": "oaa-identity", "chain_seq": 1, "producer_id": "oaa-identity#sess-a", "at": "2026-11-04T09:32:00+00:00", "synthetic": true}
+{"kind": "identity", "ref": "aud-011-02", "agent_id": "oaa-identity", "chain_seq": 2, "producer_id": "oaa-identity#sess-b", "at": "2026-11-04T09:33:00+00:00", "synthetic": true}

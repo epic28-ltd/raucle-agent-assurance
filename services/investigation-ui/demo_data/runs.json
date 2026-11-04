@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "UI-01 demo fixture. Synthetic rows are test index data (never canonical evidence). The hostile attribute values below are intentional XSS/link-injection probes (threat model T5) — they MUST render escaped and unlinked.",
+  "note": "UI-01 demo fixture, enriched for UI-02.4 (run-sim-03): every deliberate state above is a hand-built synthetic index case, never canonical evidence.",
   "runs": [
     {
       "run_id": "run-obs01-01",
@@ -49,7 +49,9 @@
               "privileged": true,
               "receipt_hash": null,
               "started": "2026-11-04T08:43:41+00:00",
-              "attrs": {"oaa.note": "no gate receipt observed at ingest time"}
+              "attrs": {
+                "oaa.note": "no gate receipt observed at ingest time"
+              }
             },
             {
               "span_id": "sp-04",
@@ -59,7 +61,9 @@
               "privileged": false,
               "receipt_hash": null,
               "started": "2026-11-04T08:43:42+00:00",
-              "attrs": {"oaa.model": "claude-sonnet-4-6"}
+              "attrs": {
+                "oaa.model": "claude-sonnet-4-6"
+              }
             }
           ]
         }
@@ -85,7 +89,9 @@
               "privileged": true,
               "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000001",
               "started": "2026-11-04T09:10:12+00:00",
-              "attrs": {"oaa.note": "duplicate producer claim for the same trace"}
+              "attrs": {
+                "oaa.note": "duplicate producer claim for the same trace"
+              }
             },
             {
               "span_id": "sp-a2",
@@ -95,7 +101,9 @@
               "privileged": true,
               "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000002",
               "started": "2026-11-04T09:10:20+00:00",
-              "attrs": {"oaa.note": "second, distinct receipt for the same trace"}
+              "attrs": {
+                "oaa.note": "second, distinct receipt for the same trace"
+              }
             }
           ]
         },
@@ -113,7 +121,9 @@
               "privileged": true,
               "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000003",
               "started": "2026-11-04T09:11:12+00:00",
-              "attrs": {"oaa.note": "two ingest deliveries collapsed to one logical record"}
+              "attrs": {
+                "oaa.note": "two ingest deliveries collapsed to one logical record"
+              }
             }
           ]
         },
@@ -131,7 +141,9 @@
               "privileged": true,
               "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000004",
               "started": "2026-11-04T09:12:12+00:00",
-              "attrs": {"oaa.note": "receipt event_time outside window + 30s grace"}
+              "attrs": {
+                "oaa.note": "receipt event_time outside window + 30s grace"
+              }
             }
           ]
         },
@@ -149,7 +161,9 @@
               "privileged": true,
               "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000005",
               "started": "2026-11-04T09:13:12+00:00",
-              "attrs": {"oaa.note": "verification queued; not yet decided"}
+              "attrs": {
+                "oaa.note": "verification queued; not yet decided"
+              }
             }
           ]
         },
@@ -167,7 +181,9 @@
               "privileged": true,
               "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000006",
               "started": "2026-11-04T09:14:12+00:00",
-              "attrs": {"oaa.note": "gate marked the call out of scope (not_applicable)"}
+              "attrs": {
+                "oaa.note": "gate marked the call out of scope (not_applicable)"
+              }
             }
           ]
         },
@@ -185,7 +201,9 @@
               "privileged": true,
               "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000007",
               "started": "2026-11-04T09:15:12+00:00",
-              "attrs": {"oaa.note": "verifier unreachable at ingest — fail-visible gap"}
+              "attrs": {
+                "oaa.note": "verifier unreachable at ingest \u2014 fail-visible gap"
+              }
             }
           ]
         },
@@ -203,7 +221,9 @@
               "privileged": true,
               "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000008",
               "started": "2026-11-04T09:17:12+00:00",
-              "attrs": {"oaa.note": "receipt inside event window; correlated matched"}
+              "attrs": {
+                "oaa.note": "receipt inside event window; correlated matched"
+              }
             }
           ]
         },
@@ -221,7 +241,182 @@
               "privileged": true,
               "receipt_hash": null,
               "started": "2026-11-04T09:16:12+00:00",
-              "attrs": {"oaa.note": "known maintenance-window coverage gap (documented suppression)"}
+              "attrs": {
+                "oaa.note": "known maintenance-window coverage gap (documented suppression)"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": "run-sim-03",
+      "agent": "oaa-sim",
+      "release": "rel-0.9.3",
+      "started": "2026-11-04T09:20:00+00:00",
+      "traces": [
+        {
+          "trace_id": "t-w03-deny-a1",
+          "label": "UI-02.4: gate denied, tool-side result reports success (SEC-004)",
+          "window_start": "2026-11-04T09:20:10+00:00",
+          "window_end": "2026-11-04T09:20:30+00:00",
+          "spans": [
+            {
+              "span_id": "sp-r3-0-a1",
+              "parent_id": null,
+              "name": "agent.turn",
+              "tool": null,
+              "privileged": false,
+              "receipt_hash": null,
+              "started": "2026-11-04T09:20:00+00:00",
+              "attrs": {
+                "oaa.release": "rel-0.9.3",
+                "oaa.note": "UI-02.4 demo enrichment run; parent of the synthetic traces below"
+              }
+            },
+            {
+              "span_id": "sp-r3-a1",
+              "parent_id": "sp-r3-root",
+              "name": "tool.shell",
+              "tool": "shell",
+              "privileged": true,
+              "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000010",
+              "started": "2026-11-04T09:20:12+00:00",
+              "attrs": {
+                "oaa.note": "synthetic UI-02.4 demo: tool-side audit claims success here; paired receipt decision is deny"
+              }
+            }
+          ]
+        },
+        {
+          "trace_id": "t-w03-bypass-b2",
+          "label": "UI-02.4: privileged shell, no receipt beyond grace (SEC-001 + SEC-009)",
+          "window_start": "2026-11-04T09:21:10+00:00",
+          "window_end": "2026-11-04T09:21:30+00:00",
+          "spans": [
+            {
+              "span_id": "sp-r3-0-b2",
+              "parent_id": null,
+              "name": "agent.turn",
+              "tool": null,
+              "privileged": false,
+              "receipt_hash": null,
+              "started": "2026-11-04T09:20:00+00:00",
+              "attrs": {
+                "oaa.release": "rel-0.9.3",
+                "oaa.note": "UI-02.4 demo enrichment run; parent of the synthetic traces below"
+              }
+            },
+            {
+              "span_id": "sp-r3-b2",
+              "parent_id": "sp-r3-root",
+              "name": "tool.shell",
+              "tool": "shell",
+              "privileged": true,
+              "receipt_hash": null,
+              "started": "2026-11-04T09:21:12+00:00",
+              "attrs": {
+                "oaa.note": "synthetic UI-02.4 demo: tool-side audit recorded the execution; no gate receipt exists"
+              }
+            }
+          ]
+        },
+        {
+          "trace_id": "t-w03-loop-c3",
+          "label": "UI-02.4: tool-call loop window (SEC-005)",
+          "window_start": "2026-11-04T09:28:00+00:00",
+          "window_end": "2026-11-04T09:28:20+00:00",
+          "spans": [
+            {
+              "span_id": "sp-r3-0-c3",
+              "parent_id": null,
+              "name": "agent.turn",
+              "tool": null,
+              "privileged": false,
+              "receipt_hash": null,
+              "started": "2026-11-04T09:20:00+00:00",
+              "attrs": {
+                "oaa.release": "rel-0.9.3",
+                "oaa.note": "UI-02.4 demo enrichment run; parent of the synthetic traces below"
+              }
+            },
+            {
+              "span_id": "sp-r3-c3",
+              "parent_id": "sp-r3-root",
+              "name": "tool.shell",
+              "tool": "shell",
+              "privileged": true,
+              "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000011",
+              "started": "2026-11-04T09:28:02+00:00",
+              "attrs": {
+                "oaa.note": "synthetic UI-02.4 demo: 21 tool-audit calls to shell by oaa-loop within the window (first receipt only; the rest are audit-plane records)"
+              }
+            }
+          ]
+        },
+        {
+          "trace_id": "t-w03-degraded-d4",
+          "label": "UI-02.4: matched via approximate fallback pairing (matched_degraded demo)",
+          "window_start": "2026-11-04T09:22:10+00:00",
+          "window_end": "2026-11-04T09:22:30+00:00",
+          "spans": [
+            {
+              "span_id": "sp-r3-0-d4",
+              "parent_id": null,
+              "name": "agent.turn",
+              "tool": null,
+              "privileged": false,
+              "receipt_hash": null,
+              "started": "2026-11-04T09:20:00+00:00",
+              "attrs": {
+                "oaa.release": "rel-0.9.3",
+                "oaa.note": "UI-02.4 demo enrichment run; parent of the synthetic traces below"
+              }
+            },
+            {
+              "span_id": "sp-r3-d4",
+              "parent_id": "sp-r3-root",
+              "name": "tool.file_write",
+              "tool": "file_write",
+              "privileged": true,
+              "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000012",
+              "started": "2026-11-04T09:22:12+00:00",
+              "attrs": {
+                "oaa.note": "synthetic UI-02.4 demo: receipt reconciled only through fallback pairing (hand-built matched_degraded case)"
+              }
+            }
+          ]
+        },
+        {
+          "trace_id": "t-w03-spanref-e5",
+          "label": "UI-02.4: receipt exists but its own trace id has no trace record (trace_missing demo)",
+          "window_start": "2026-11-04T09:24:10+00:00",
+          "window_end": "2026-11-04T09:24:30+00:00",
+          "spans": [
+            {
+              "span_id": "sp-r3-0-e5",
+              "parent_id": null,
+              "name": "agent.turn",
+              "tool": null,
+              "privileged": false,
+              "receipt_hash": null,
+              "started": "2026-11-04T09:20:00+00:00",
+              "attrs": {
+                "oaa.release": "rel-0.9.3",
+                "oaa.note": "UI-02.4 demo enrichment run; parent of the synthetic traces below"
+              }
+            },
+            {
+              "span_id": "sp-r3-e5",
+              "parent_id": "sp-r3-root",
+              "name": "tool.file_write",
+              "tool": "file_write",
+              "privileged": true,
+              "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000013",
+              "started": "2026-11-04T09:24:12+00:00",
+              "attrs": {
+                "oaa.note": "synthetic UI-02.4 demo: the receipt row was emitted under trace t-sim-tmiss-...f1, which has no trace-side record \u2014 span shows trace_missing via its receipt; the invocation itself is receipt_missing (SEC-001)"
+              }
             }
           ]
         }

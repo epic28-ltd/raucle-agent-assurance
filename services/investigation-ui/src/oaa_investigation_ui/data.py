@@ -16,6 +16,10 @@ Loads the demo data dir (read-only, invariant 1):
   only; raucle 0.23.5 wants ``dict[str, bytes]``, hence bytes-encoded PEMs).
 - ``rules_fixture.json`` documented suppressions for the RULE-01 findings
   panel (suppressed findings are retained, never dropped).
+- ``synthetic_audit_events.jsonl`` UI-02.4: hand-built audit-plane INDEX
+  rows (tool audits, custody, identity chains, ingest coverage) — every
+  row carries ``synthetic: true``: explicit, honest synthetic markers that
+  make all eleven SEC rules fire somewhere in the demo corpus.
 
 Correlation index rows are computed at load time with the COR-01 engine
 (``oaa_correlation.reconcile``) from the receipt-side index (real receipts
@@ -98,11 +102,13 @@ class DemoData:
         self._spans: dict[str, dict] = {}
         self.correlation_by_trace: dict[str, dict] = {}
         self.correlation_by_hash: dict[str, dict] = {}
+        self._expected_correlation_overrides: dict[str, str] = {}
         self.warnings: list[str] = []
 
         self._load_evidence_store()
         self._load_verification_index()
         self._load_runs()
+        self._load_audit_events()
         self._correlate()
         self.findings = self._rules()
 
@@ -191,7 +197,72 @@ class DemoData:
                 "jws_available": False,
                 "canonical": False,
             }
+            if row.get("expected_correlation"):
+                # UI-02.4: the ONLY supported expected_correlation value is
+                # matched_degraded — a hand-built fallback-pairing demo over a
+                # row that would otherwise reconcile to exactly `matched`.
+                expected = row["expected_correlation"]
+                if expected != "matched_degraded":
+                    raise ValueError("expected_correlation override only supports matched_degraded")
+                self._expected_correlation_overrides[row.get("trace_id")] = expected
         return rows
+
+    def _load_audit_events(self) -> None:
+        """UI-02.4: audit-plane synthetic rows (kind tool_audit / custody /
+        identity / ingest). Each row must be explicitly ``synthetic``; the
+        ``content`` field (SEC-008 probe material) is held ONLY for the rules
+        engine's pattern check and is never copied into any finding or any
+        API response (PRIV-01: presence, not payload)."""
+        self._audit_events: list[dict] = []
+        path = self.dir / "synthetic_audit_events.jsonl"
+        if not path.is_file():
+            return
+        for i, line in enumerate(path.read_text().splitlines()):
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            row = json.loads(line)
+            if not row.get("synthetic"):
+                raise ValueError(f"audit event row {i} must set synthetic: true")
+            row = {k: v for k, v in row.items()}
+            self._audit_events.append(row)
+
+    def _audit_engine_events(self) -> list:
+        """Project audit rows into the rules engine's Event model. The raw
+        row (including ``content``) never leaves this module."""
+        import datetime as _dt  # noqa: PLC0415
+
+        from oaa_rules import Event  # noqa: PLC0415
+
+        events: list[Event] = []
+        for row in self._audit_events:
+            fields = {
+                k: row[k]
+                for k in (
+                    "ref",
+                    "agent_id",
+                    "tool",
+                    "application",
+                    "trace_id",
+                    "receipt_hash",
+                    "state",
+                    "decision",
+                    "outcome",
+                    "privileged",
+                    "credential_id",
+                    "action",
+                    "lease_id",
+                    "release_id",
+                    "chain_seq",
+                    "producer_id",
+                    "content",
+                )
+                if k in row
+            }
+            events.append(
+                Event(kind=row["kind"], at=_dt.datetime.fromisoformat(row["at"]), **fields)
+            )
+        return events
 
     def _load_runs(self) -> None:
         self.runs = json.loads((self.dir / "runs.json").read_text())["runs"]
@@ -216,12 +287,25 @@ class DemoData:
         ]
         result = reconcile(receipts, traces, at=None)
         for record in result.records:
+            # UI-02.4: hand-built fallback-pairing demo rows may declare
+            # expected_correlation == "matched_degraded" — an explicit,
+            # honest override of the state (the COR-01 engine has no
+            # fallback keys yet; see note in the spike). Notes always
+            # carry the hand-built marker so the override is visible.
+            override = self._expected_correlation_overrides.get(record.trace_id)
+            state = record.state
+            notes = record.notes
+            if override:
+                state = override
+                notes = (
+                    f"hand-built matched_degraded demo case (UI-02.4); prior state: {record.state}"
+                )
             payload = {
-                "state": record.state,
+                "state": state,
                 "trace_id": record.trace_id,
                 "receipt_hashes": list(record.receipt_hashes),
                 "decision": record.decision,
-                "notes": record.notes,
+                "notes": notes,
                 "provenance": list(record.provenance),
                 "receipt_event_times": [e.isoformat() for e in record.receipt_event_times],
                 "trace_observed_at": record.trace_observed_at.isoformat()
@@ -239,22 +323,11 @@ class DemoData:
     def _rules(self) -> list[dict]:
         from oaa_rules import (  # noqa: PLC0415
             Event,
-            RulesConfig,
-            Suppression,
             run_rules,
         )
 
         fixture = json.loads((self.dir / "rules_fixture.json").read_text())
-        config = RulesConfig(
-            suppressions=tuple(
-                Suppression(
-                    rule_id=s["rule_id"],
-                    reason=s["reason"],
-                    trace_id=s.get("trace_id"),
-                )
-                for s in fixture.get("suppressions", [])
-            )
-        )
+        config = self.demo_rules_config(fixture)
         events: list[Event] = []
         for payload in {p["trace_id"]: p for p in self.correlation_by_trace.values()}.values():
             events.append(
@@ -290,21 +363,96 @@ class DemoData:
                     state=row["status"],
                 )
             )
-        findings = run_rules(events, config)
+        findings = run_rules([*events, *self._audit_engine_events()], config)
         return [
-            {
-                "rule_id": f.rule_id,
-                "rule_version": f.rule_version,
-                "severity": f.severity,
-                "confidence": f.confidence,
-                "evidence_refs": list(f.evidence_refs),
-                "explanation": f.explanation,
-                "subject": f.subject,
-                "suppressed": f.suppression_reason is not None,
-                "suppression_reason": f.suppression_reason,
-            }
-            for f in findings
+            {**base, **self._finding_meta(base)}
+            for base in (self._finding_dict(f) for f in findings)
         ]
+
+    def _finding_dict(self, f) -> dict:
+        return {
+            "rule_id": f.rule_id,
+            "rule_version": f.rule_version,
+            "severity": f.severity,
+            "confidence": f.confidence,
+            "evidence_refs": list(f.evidence_refs),
+            "explanation": f.explanation,
+            "subject": f.subject,
+            "suppressed": f.suppression_reason is not None,
+            "suppression_reason": f.suppression_reason,
+        }
+
+    def demo_rules_config(self, fixture) -> dict:
+        """Demo rules config (UI-02.4): same engine, but the demo corpus is
+        deliberately designed to exercise every rule. Registry coverage and
+        thresholds stay engine defaults; the demo enables the release
+        baseline, one custody-covered tool and the documented suppressions."""
+        from oaa_rules import RulesConfig, Suppression  # noqa: PLC0415
+
+        return RulesConfig(
+            tool_baseline={"rel-0.9.3": frozenset({"shell", "file_write"})},
+            custody_covered_tools=frozenset({"vault_read"}),
+            suppressions=tuple(
+                Suppression(
+                    rule_id=s["rule_id"],
+                    reason=s["reason"],
+                    trace_id=s.get("trace_id"),
+                )
+                for s in fixture.get("suppressions", [])
+            ),
+        )
+
+    def _finding_meta(self, base: dict) -> dict:
+        """UI-02.4 board metadata per finding: stable id, detection instant
+        (the audit-event time when the primary evidence ref is an audit
+        record, else the earliest correlated receipt / check time) and the
+        demo run the finding belongs to (None for corpus-level findings)."""
+        refs = set(base["evidence_refs"])
+        trace_ids = {t["trace_id"] for r in self.runs for t in r["traces"] for t in [t]}
+        run_hashes = {
+            s["receipt_hash"]: r["run_id"]
+            for r in self.runs
+            for tr in r["traces"]
+            for s in tr["spans"]
+            if s["receipt_hash"]
+        }
+        run_id = None
+        audit_by_ref = {e["ref"]: e for e in self._audit_events}
+        expanded = set(refs)
+        for ref in refs:
+            if ref in audit_by_ref and audit_by_ref[ref].get("trace_id"):
+                expanded.add(audit_by_ref[ref]["trace_id"])
+        for r in self.runs:
+            local = {t["trace_id"] for t in r["traces"]}
+            if expanded & local or any(
+                h in run_hashes and run_hashes[h] == r["run_id"] for h in refs
+            ):
+                run_id = r["run_id"]
+                break
+        audit_by_ref = {e["ref"]: e for e in self._audit_events}
+        detected = None
+        for ref in base["evidence_refs"]:
+            if ref in audit_by_ref:
+                detected = audit_by_ref[ref]["at"]
+                break
+        if detected is None:
+            for ref in base["evidence_refs"]:
+                payload = self.correlation_by_trace.get(ref) or self.correlation_by_hash.get(ref)
+                if payload:
+                    times = payload.get("receipt_event_times") or []
+                    obs = payload.get("trace_observed_at")
+                    if times or obs:
+                        detected = min(x for x in [*(times or []), obs] if x)
+                        break
+        # stable, deterministic finding id for board triage state keys
+        seed = base["rule_id"] + "|" + "|".join(base["evidence_refs"]) + "|" + base["explanation"]
+        fid = "f-" + hashlib.sha256(seed.encode()).hexdigest()[:12]
+        return {
+            "id": fid,
+            "detected_at": detected,
+            "run_id": run_id,
+            "trace_ids_only": None if not refs & trace_ids else sorted(refs & trace_ids),
+        }
 
     # ---------------------------------------------------------------- access
     def get_run(self, run_id: str) -> dict | None:

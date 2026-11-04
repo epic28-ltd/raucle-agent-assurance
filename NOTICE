@@ -14,8 +14,13 @@ docker-compose file adapted from Langfuse v4.74.0 (MIT Expat; the Langfuse
 ee/ tree is under a separate commercial licence — see
 https://github.com/langfuse/langfuse).
 
-The Raucle Console UI (services/console/static/vendor/tabler) vendors
-Tabler v1.7.3 (@tabler/core 1.7.3, built from the npm distribution), which
-is licensed under the MIT licence; see
-services/console/static/vendor/tabler/LICENSE-tabler for the licence text
-and https://github.com/tabler/tabler for the upstream source.
+The Raucle Console UI previously vendored Tabler v1.7.3 (MIT licence); that
+vendor tree was removed in the UI-02.3 quiet-SaaS rebuild and the shell now
+styles itself from its own design-token layer (static/tokens.css) plus
+static/app.css, with no third-party CSS.
+
+The Raucle Console UI also vendors the Inter variable font (latin subset,
+static/vendor/fonts/inter-latin-var.woff2), which is licensed under the SIL
+Open Font Licence, Version 1.1; see
+services/console/static/vendor/fonts/licence-Inter-OFL.txt for the licence
+text and https://github.com/rsms/inter for the upstream source.

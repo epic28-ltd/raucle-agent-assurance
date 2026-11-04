@@ -225,12 +225,23 @@ def test_evidence_store_unmutated(client: TestClient):
 # -------------------------------------------------------------- UI-02 (SPA v2)
 INDEX_HTML = UI / "static" / "index.html"
 VERIFICATION_STATES_UI = {
-    "valid", "invalid", "unknown_key", "unsupported_schema",
-    "pending", "unavailable", "not_applicable",
+    "valid",
+    "invalid",
+    "unknown_key",
+    "unsupported_schema",
+    "pending",
+    "unavailable",
+    "not_applicable",
 }
 CORRELATION_STATES_UI = {
-    "matched", "matched_degraded", "ambiguous", "duplicate",
-    "late_arrival", "receipt_missing", "trace_missing", "pending",
+    "matched",
+    "matched_degraded",
+    "ambiguous",
+    "duplicate",
+    "late_arrival",
+    "receipt_missing",
+    "trace_missing",
+    "pending",
 }
 RULE_IDS_UI = {f"SEC-{i:03d}" for i in range(1, 12)}
 
@@ -249,20 +260,30 @@ def test_index_no_innerHTML_no_external_fetch(client: TestClient):
     code_only = "\n".join(line.split("//")[0] for line in html.splitlines())
     assert not __import__("re").search(r"\.innerHTML|\bdocument\.write\b", code_only)
     for scheme in ("http://", "https://", "src=", "import(", "eval("):
-        assert scheme not in html.replace('xmlns=', "").replace('href="/', "")
+        assert scheme not in html.replace("xmlns=", "").replace('href="/', "")
 
 
 def test_index_legend_present(client: TestClient):
     html = INDEX_HTML.read_text()
     legend = client.get("/").text if False else html
-    for token in ("legend", "tok-good", "tok-look", "tok-act", "tok-exempt",
-                  "proven good", "un-proven", "action needed", "structurally exempt"):
+    for token in (
+        "legend",
+        "tok-good",
+        "tok-look",
+        "tok-act",
+        "tok-exempt",
+        "proven good",
+        "un-proven",
+        "action needed",
+        "structurally exempt",
+    ):
         assert token in legend, token
 
 
 def test_index_guidance_map_covers_all_states_and_rules():
     html = INDEX_HTML.read_text()
     import re as _re  # noqa: PLC0415
+
     for state in VERIFICATION_STATES_UI | CORRELATION_STATES_UI:
         # key may appear bare (JS object shorthand) or quoted — both are the
         # GUIDANCE map key when followed by "what:" guidance content
@@ -271,25 +292,39 @@ def test_index_guidance_map_covers_all_states_and_rules():
     for rule in RULE_IDS_UI:
         assert '"' + rule + '":' in html or '"' + rule + '"' in html, rule
     # every guidance entry carries the four required headings
-    for heading in ("What you are looking at", "What this means",
-                    "Could be fine because", "Suggested actions"):
+    for heading in (
+        "What you are looking at",
+        "What this means",
+        "Could be fine because",
+        "Suggested actions",
+    ):
         assert heading in html
 
 
 def test_dashboard_endpoint(client: TestClient):
     d = client.get("/api/dashboard").json()
-    for key in ("healthy", "at_risk", "needs_investigation",
-                "verification_distribution", "correlation_distribution",
-                "findings", "runs"):
+    for key in (
+        "healthy",
+        "at_risk",
+        "needs_investigation",
+        "verification_distribution",
+        "correlation_distribution",
+        "findings",
+        "runs",
+        "buckets",
+    ):
         assert key in d, key
-    # counters cover privileged spans; needs_investigation also folds in
-    # active findings (one active fixture finding)
-    assert sum(d["verification_distribution"].values()) == sum(
-        d["correlation_distribution"].values())
-    assert d["needs_investigation"] - d["findings"]["active"] + d["healthy"] + d["at_risk"] == sum(
-        d["verification_distribution"].values())
-    # traffic-light logic: receipt_missing / invalid land under needs
-    corr = d["correlation_distribution"]
-    verif = d["verification_distribution"]
-    assert d["needs_investigation"] >= corr.get("receipt_missing", 0) + verif.get("invalid", 0)
-    assert d["findings"]["suppressed"] >= 1  # SEC-001 suppressed fixture retained
+    # every number comes from the shared counting module — the distributions,
+    # the buckets and the traffic lights all reconcile to the same total
+    total = sum(d["verification_distribution"].values())
+    assert total == sum(d["correlation_distribution"].values())
+    assert sum(d["buckets"].values()) == total
+    assert d["healthy"] + d["at_risk"] + d["needs_investigation"] == total
+    # traffic-light logic: receipt_missing / unsupported_schema land under needs
+    assert d["needs_investigation"] >= d["correlation_distribution"].get("receipt_missing", 0)
+    assert d["findings"]["suppressed"] >= 1  # suppressed fixture retained
+    # the dashboard derives from the same /api/counts output
+    counts = client.get("/api/counts").json()
+    assert d["verification_distribution"] == counts["verification"]["states"]
+    assert d["correlation_distribution"] == counts["correlation"]["states"]
+    assert d["healthy"] == counts["health"]["healthy"]

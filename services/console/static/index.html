@@ -1,144 +1,87 @@
 <!doctype html>
 <!-- SPDX-License-Identifier: Apache-2.0 -->
-<html lang="en" data-bs-theme="light" data-bs-navbar-position="combined">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Raucle Console</title>
-<link rel="stylesheet" href="/static/vendor/tabler/tabler.min.css">
-<link rel="stylesheet" href="/static/vendor/tabler/tabler-vendors.min.css">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/app.css">
 <style>
-  /* ------------------------------------------------------------- house tweaks
-     Semantic colour system on top of Tabler tokens:
-     green = proven / connected; amber = un-proven / degraded;
-     red = action needed; grey = exempt / not purchased. */
-  :root{
-    --c-good:#2fb344; --c-good-ink:#186a29; --c-good-bg:#e6f6ea; --c-good-line:#b9e3c4;
-    --c-look:#d97706; --c-look-ink:#8a4b06; --c-look-bg:#fdf3e2; --c-look-line:#f0d9a8;
-    --c-act:#d63939;  --c-act-ink:#92211f;  --c-act-bg:#fbebeb;  --c-act-line:#f0b9b9;
-    --c-exempt:#667382; --c-exempt-bg:#e9edf1; --c-exempt-line:#c9d2dc;
+  /* Inter (variable, latin subset) is vendored locally under
+     /static/vendor/fonts/ (SIL Open Font Licence 1.1; see vendor/fonts/
+     licence-Inter-OFL.txt and NOTICE). No external font fetch at runtime. */
+  @font-face{
+    font-family:'Inter';
+    font-style:normal;
+    font-weight:100 900;
+    font-display:swap;
+    src:url('/static/vendor/fonts/inter-latin-var.woff2') format('woff2');
   }
-  html[data-bs-theme="dark"]{
-    --c-good-bg:#12301a; --c-good-line:#2b5c39;
-    --c-look-bg:#332712; --c-look-line:#5f4a1e;
-    --c-act-bg:#381919;  --c-act-line:#6b2a2a;
-    --c-exempt-bg:#242b33; --c-exempt-line:#3d4757;
-  }
-  .chip{display:inline-flex;align-items:center;gap:.2rem;border-radius:4px;
-    padding:.06rem .45rem;font-size:.72rem;font-weight:600;border:1px solid;
-    line-height:1.6;white-space:nowrap}
-  .tok-good{color:var(--c-good-ink);background:var(--c-good-bg);border-color:var(--c-good-line)}
-  .tok-look{color:var(--c-look-ink);background:var(--c-look-bg);border-color:var(--c-look-line)}
-  .tok-act{color:var(--c-act-ink);background:var(--c-act-bg);border-color:var(--c-act-line)}
-  .tok-exempt{color:var(--c-exempt);background:var(--c-exempt-bg);border-color:var(--c-exempt-line)}
-  html[data-bs-theme="dark"] .tok-good{color:#7ee2a0}
-  html[data-bs-theme="dark"] .tok-look{color:#f0b862}
-  html[data-bs-theme="dark"] .tok-act{color:#f2a0a0}
-  html[data-bs-theme="dark"] .tok-exempt{color:#a8b3c0}
-  /* welcome banner */
-  .welcome{border:0;border-radius:12px;color:#fff;
-    background:linear-gradient(120deg,#1e3a8a 0%,#2563eb 52%,#3b82f6 100%);
-    box-shadow:0 10px 28px rgba(30,58,138,.25)}
-  html[data-bs-theme="dark"] .welcome{background:linear-gradient(120deg,#111a35 0%,#1b2f66 52%,#23488f 100%)}
-  .welcome .btn-light{color:#1e3a8a}
-  /* sidebar: Tabler positions .navbar-vertical fixed on desktop; we only make
-     it scrollable and highlight the active item */
-  .navbar-vertical .nav-link[aria-current="page"],
-  .navbar-vertical .nav-link.active{background:rgba(var(--tblr-primary-rgb),.16);color:var(--tblr-primary);font-weight:600}
-  .navbar-vertical .nav-link{display:flex;justify-content:space-between;align-items:center}
-  /* search dropdown */
-  .search-results{position:absolute;left:0;top:calc(100% + .3rem);z-index:1060;
-    background:var(--tblr-bg-surface);border:1px solid var(--tblr-border-color);
-    border-radius:8px;min-width:340px;display:none;box-shadow:var(--tblr-shadow-3)}
-  .search-results.show{display:block}
-  .search-results button{display:block;width:100%;text-align:left;border:0;font:inherit;
-    padding:.45rem .7rem;background:none;color:var(--tblr-body-color)}
-  .search-results button:hover{background:var(--tblr-active-bg)}
-  /* explain box */
-  .explain{border-top:1px dashed var(--tblr-border-color);margin-top:.7rem;padding-top:.55rem;
-    font-size:.82rem;color:var(--tblr-secondary)}
-  .explain b{color:var(--tblr-body-color)}
-  /* banner (alpha placeholders and add-in offline states) */
-  .banner{border:1px solid var(--c-look-line);background:var(--c-look-bg);color:var(--c-look-ink);
-    border-radius:8px;padding:.55rem .9rem;font-size:.88rem}
-  .banner.red{border-color:var(--c-act-line);background:var(--c-act-bg);color:var(--c-act-ink)}
-  /* KPI stat card */
-  .stat-card .subicon{width:2.4rem;height:2.4rem;border-radius:8px;display:flex;
-    align-items:center;justify-content:center;flex:0 0 auto}
-  .stat-card .big{font-size:1.85rem;font-weight:700;line-height:1.1;display:block}
-  .stat-card .lbl{color:var(--tblr-secondary);font-size:.8rem}
-  .stat-card .sub{font-size:.75rem}
-  /* charts */
-  .legend-swatch{width:.85rem;height:.85rem;border-radius:3px;display:inline-block;flex:0 0 auto}
-  .chart-note{font-size:.78rem;color:var(--tblr-secondary)}
-  /* list feed */
-  .feed-item .what{font-size:.9rem}
-  .feed-item .when{font-size:.72rem;color:var(--tblr-secondary)}
-  iframe{width:100%;height:78vh;border-radius:8px;background:#fff;border:1px solid var(--tblr-border-color)}
-  button:focus-visible,input:focus-visible,[tabindex]:focus-visible,a:focus-visible{
-    outline:3px solid var(--tblr-primary);outline-offset:1px}
 </style>
 </head>
 <body>
-<div class="page">
+<div class="shell has-sidebar" id="shell">
 
-  <!-- ---------------------------------------------------------------- sidebar -->
-  <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark" aria-label="Console navigation">
-    <div class="container-fluid">
-      <h1 class="navbar-brand navbar-brand-autodark mb-0">Raucle Console</h1>
-      <p class="navbar-text text-secondary small mb-2 mt-1 d-none d-lg-block">Agent suite shell - alpha</p>
-      <div class="collapse navbar-collapse" id="sidebar-menu">
-        <ul class="navbar-nav pt-lg-3" id="side-nav"></ul>
-        <p class="text-secondary small px-2 mt-4 mb-0 d-none d-lg-block">
-          Single-tenant alpha (one tenant: default). Org identity is derived by
-          the server per the tenancy ADR.
-        </p>
-      </div>
+  <!-- ---------------------------------------------------------- sidebar -->
+  <aside class="sidebar" aria-label="Console navigation">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-text">
+        <span class="brand-name">Raucle Console</span>
+        <span class="brand-sub">Agent suite shell · alpha</span>
+      </span>
+      <button id="shell-collapse" class="brand-row-btn" type="button" aria-label="Collapse sidebar" aria-expanded="true">
+        <span data-icon="panel"></span>
+      </button>
     </div>
+    <nav class="side-scroll" id="side-nav" aria-label="Sections"></nav>
+    <p class="side-note">Single-tenant alpha. Org identity is derived by the server; no cookies.</p>
   </aside>
 
-  <!-- ---------------------------------------------------------------- topbar -->
-  <header class="navbar navbar-expand-md d-print-none sticky-top">
-    <div class="container-xl">
-      <div class="position-relative me-auto" style="min-width:260px">
-        <input id="q" class="form-control" type="search" placeholder="Search the console..." aria-label="Global search">
+  <!-- ---------------------------------------------------------- main -->
+  <div class="main">
+    <header class="topbar">
+      <div class="search">
+        <span class="search-ic" data-icon="search"></span>
+        <input id="q" type="search" placeholder="Search the console" aria-label="Global search">
+        <kbd>/</kbd>
         <div id="search-results" class="search-results" role="listbox"></div>
       </div>
-      <div class="nav-item d-none d-md-block ms-3">
-        <span class="text-secondary">Tenant:</span> <b id="tenant-label">default</b>
+      <div style="flex:1"></div>
+      <button id="bell" class="icon-btn" type="button" aria-label="Notifications">
+        <span data-icon="bell"></span><span id="bell-count" class="bubble" hidden></span>
+      </button>
+      <button id="theme-toggle" class="icon-btn" type="button" aria-label="Switch colour theme"></button>
+      <button id="cta-primary" class="cta" type="button">Open Assurance</button>
+      <div class="menu-wrap">
+        <button id="avatar-btn" class="avatar" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">RC</button>
+        <div id="avatar-pop" class="menu" role="menu"></div>
       </div>
-      <div class="ms-3">
-        <button id="bell" class="btn position-relative" aria-label="Notifications">
-          Notifications
-          <span id="bell-count" class="badge bg-exempt-tok tok-exempt ms-1">0</span>
-        </button>
-      </div>
-      <div class="ms-2">
-        <button id="theme-toggle" class="btn btn-ghost-primary" type="button" aria-label="Switch colour theme"></button>
-      </div>
-      <div class="ms-2">
-        <button id="profile-btn" class="btn" type="button" aria-haspopup="menu">Profile</button>
+    </header>
+
+    <div class="page-head">
+      <div class="page-heading">
+        <h1 class="page-title" id="page-title">Overview</h1>
+        <p class="page-sub" id="page-sub">Agent suite · alpha · tenant default</p>
       </div>
     </div>
-  </header>
 
-  <!-- ---------------------------------------------------------------- body -->
-  <div class="page-wrapper">
-    <main class="page-body" id="view" tabindex="0">
-      <div class="container-xl py-4">
-        <div id="legend" class="d-flex align-items-center gap-2 flex-wrap small text-secondary mb-3"></div>
-        <div id="page" aria-live="polite"></div>
-      </div>
+    <main class="content" id="view" tabindex="0">
+      <p class="alpha-line">Alpha preview: figures reflect this session. Demo fixtures are used where an add-in is offline.</p>
+      <div id="legend" class="legendbar" aria-label="Legend"></div>
+      <div id="page" aria-live="polite"></div>
     </main>
   </div>
 </div>
 
 <script type="module">
-/* Raucle Console SPA - EPIC-N. Vanilla JS, textContent only (threat-model T5:
-   no markup-injection sinks anywhere, no external script or stylesheet fetches
-   at runtime; Tabler is vendored locally under /static/vendor/tabler).
-   The only network calls this page makes are to this console's own API and
-   the console-side proxy of the configured Assurance add-in origin. */
+/* Raucle Console SPA, quiet-SaaS design system (UI-02.3). Vanilla JS,
+   textContent only (threat-model T5: no markup-injection sinks, no external
+   fetches at runtime; the Inter font is vendored locally under
+   /static/vendor/fonts). The only network calls this page makes are to this
+   console's own API and the console-side proxy of the configured Assurance
+   add-in origin. */
 
 'use strict';
 
@@ -148,102 +91,725 @@ const el = (tag, cls, text) => {
   if (text !== undefined) n.textContent = text;
   return n;
 };
+/* single-line ellipsis with the full text on the title attribute */
+const oneline = (node) => { node.title = node.textContent; return node; };
 
-/* ------------------------------------------------------------ icons (Tabler outline paths, inlined) */
+/* ------------------------------------------------------------ icons (inline SVG paths) */
 /* SVG namespace assembled in parts so no URL literal appears in this file */
 const SVG_NS = ['http:', '', 'www.w3.org', '2000', 'svg'].join('/');
 const ICONS = {
-  'file-text': ['M14 3v4a1 1 0 0 0 1 1h4', 'M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z', 'M9 13h1', 'M9 17h5'],
-  'shield': ['M12 3a12 12 0 0 0 8.5 3a12 12 0 0 0 -8.5 15a12 12 0 0 0 8.5 -15a12 12 0 0 0 -8.5 -3'],
-  'activity': ['M3 12h4l3 8l4 -16l3 8h4'],
-  'apps': ['M4 4h6v6h-6z', 'M14 4h6v6h-6z', 'M4 14h6v6h-6z', 'M14 14h6v6h-6z'],
-  'sun': ['M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0', 'M12 3v1', 'M12 20v1', 'M3 12h1', 'M20 12h1', 'M5.6 5.6l.7 .7', 'M17.7 17.7l.7 .7', 'M5.6 18.4l.7 -.7', 'M17.7 6.3l.7 -.7'],
-  'moon': ['M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z'],
-  'chevron': ['M9 6l6 6l-6 6'],
-  'alert': ['M12 9v4', 'M12 3.2l9.166 16.032a1.5 1.5 0 0 1 -1.3 2.268h-15.732a1.5 1.5 0 0 1 -1.3 -2.268l9.166 -16.032a1.5 1.5 0 0 1 2.5 0', 'M12 16h.01'],
+  shield: ['M12 3a12 12 0 0 0 8.5 3a12 12 0 0 0 -8.5 15a12 12 0 0 0 8.5 -15a12 12 0 0 0 -8.5 -3'],
+  activity: ['M3 12h4l3 8l4 -16l3 8h4'],
+  alert: ['M12 9v4', 'M12 3.2l9.166 16.032a1.5 1.5 0 0 1 -1.3 2.268h-15.732a1.5 1.5 0 0 1 -1.3 -2.268l9.166 -16.032a1.5 1.5 0 0 1 2.5 0', 'M12 16h.01'],
+  apps: ['M4 4h6v6h-6z', 'M14 4h6v6h-6z', 'M4 14h6v6h-6z', 'M14 14h6v6h-6z'],
+  search: ['M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0', 'M21 21l-6 -6'],
+  bell: ['M10 5a2 2 0 0 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6', 'M9 17a3 3 0 0 0 6 0'],
+  sun: ['M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0', 'M12 3v1', 'M12 20v1', 'M3 12h1', 'M20 12h1', 'M5.6 5.6l.7 .7', 'M17.7 17.7l.7 .7', 'M5.6 18.4l.7 -.7', 'M17.7 6.3l.7 -.7'],
+  moon: ['M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z'],
+  panel: ['M4 4h16v16h-16z', 'M9 4v16'],
+  file: ['M14 3v4a1 1 0 0 0 1 1h4', 'M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z'],
+  user: ['M8 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0', 'M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2'],
+  logout: ['M14 8v-2a2 2 0 0 0 -2 -2h-6a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h6a2 2 0 0 0 2 -2v-2', 'M9 12h12l-3 -3m0 6l3 -3'],
+  sliders: ['M6 4v6', 'M6 14v6', 'M4 10h4', 'M12 4v2', 'M12 10v10', 'M10 6h4', 'M18 4v8', 'M18 16v4', 'M16 12h4'],
+  clock: ['M12 21a9 9 0 1 0 -9 -9a9 9 0 0 0 9 9', 'M11 7h1v4l3 3'],
+  info: ['M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0', 'M12 9h.01', 'M11 12h1v4h1'],
 };
 function iconEl(name, size) {
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('width', size || 20);
-  svg.setAttribute('height', size || 20);
+  svg.setAttribute('width', size || 15);
+  svg.setAttribute('height', size || 15);
   svg.setAttribute('fill', 'none');
   svg.setAttribute('stroke', 'currentColor');
-  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-width', '1.5');
   svg.setAttribute('stroke-linecap', 'round');
   svg.setAttribute('stroke-linejoin', 'round');
   svg.setAttribute('aria-hidden', 'true');
-  for (const d of (ICONS[name] || [])) {
+  for (const d of (ICONS[name] || ICONS.apps)) {
     const p = document.createElementNS(SVG_NS, 'path');
     p.setAttribute('d', d);
     svg.appendChild(p);
   }
   return svg;
 }
+/* fill every [data-icon] placeholder inside a node tree */
+function paintIcons(root) {
+  for (const holder of (root.querySelectorAll ? root.querySelectorAll('[data-icon]') : [])) {
+    if (holder.firstChild) continue;
+    holder.appendChild(iconEl(holder.dataset.icon, 16));
+  }
+}
 
-/* ------------------------------------------------------------ data + config */
-const chipName = { connected: 'Connected', degraded: 'Degraded', not_purchased: 'Not purchased' };
-const chipTone = { connected: 'tok-good', degraded: 'tok-look', not_purchased: 'tok-exempt' };
-const chipEl = (status) => el('span', ['chip', chipTone[status] || 'tok-exempt'].join(' '), chipName[status] || 'Unknown');
-
+/* ------------------------------------------------------------ state */
 let overview = null;
-let dash = null; /* live add-in dashboard proxy payload, null when offline */
-let config = { assurance_url: 'http://127.0.0.1:3411', trust_gate_env: 'RAUCLE_TRUST_GATE_CONFIG' };
+let dash = null;      /* add-in dashboard proxy payload; null when offline */
+let counts = null;    /* add-in /api/counts proxy payload; null when offline */
+let findings = null;  /* add-in findings proxy payload; null when offline  */
+let config = { assurance_url: 'http://127.0.0.1:3411', trust_gate_env: 'RAUCLE_TRUST_GATE_CONFIG', coverage_target_pct: 95 };
+const COVERAGE_DEFAULT = 95;
+
+const PILL_NAME = { connected: 'Connected', degraded: 'Degraded', not_purchased: 'Not purchased' };
+const PILL_TONE = { connected: 'tok-good', degraded: 'tok-look', not_purchased: 'tok-exempt' };
+const pill = (status) => el('span', ['pill', PILL_TONE[status] || 'tok-exempt'].join(' '), PILL_NAME[status] || 'Unknown');
+/* severity maps to the semantic tint scale: red action needed, amber
+   un-proven, grey exempt (UI-02.5 QA blocker 2) */
+const SEV_TONE = { high: 'tok-act', critical: 'tok-act', medium: 'tok-look', moderate: 'tok-look', low: 'tok-exempt', info: 'tok-exempt' };
+const sevPill = (sev) => {
+  const name = (sev || 'unknown').toLowerCase();
+  return el('span', ['pill', 'num', SEV_TONE[name] || 'tok-exempt'].join(' '), name + ' severity');
+};
+const dotCls = (status) => status === 'connected' ? 'side-dot dot-good'
+  : status === 'degraded' ? 'side-dot dot-look' : 'side-dot';
+
+const relativeTime = (ts, fallback) => {
+  if (ts) {
+    const t = Date.parse(ts);
+    if (!Number.isNaN(t)) {
+      let s = Math.max(0, Math.round((Date.now() - t) / 1000));
+      if (s < 60) return s < 10 ? 'just now' : s + 's ago';
+      const m = Math.round(s / 60);
+      if (m < 60) return m + 'm ago';
+      const h = Math.round(m / 60);
+      if (h < 24) return h + 'h ago';
+      return Math.round(h / 24) + 'd ago';
+    }
+  }
+  return fallback || 'in the current window';
+};
+
+/* ------------------------------------------------------------ card builder */
+function card(title, qualifier) {
+  const root = el('section', 'card');
+  const hd = el('div', 'card-hd');
+  hd.appendChild(oneline(el('h3', 'card-title', title)));
+  if (qualifier) hd.appendChild(oneline(el('span', 'card-qual', qualifier)));
+  root.appendChild(hd);
+  const body = el('div'); body.className = 'card-body'; root.appendChild(body);
+  const ft = el('div', 'card-ft'); root.appendChild(ft);
+  const owner = {
+    body, root, ft,
+    explain(text) {
+      ft.replaceChildren();
+      /* one info icon per card whose explainer lives in a CSS-only
+         hover/focus popover, out of the visible flow */
+      const wrap = el('span', 'info-wrap');
+      const btn = el('button', 'what-btn');
+      btn.type = 'button';
+      btn.setAttribute('aria-label', 'What is this?');
+      const pop = el('span', 'what-line info-pop');
+      pop.setAttribute('role', 'tooltip');
+      pop.appendChild(el('strong', null, 'What is this?'));
+      pop.appendChild(el('div', null, text));
+      btn.appendChild(pop);
+      wrap.appendChild(btn);
+      ft.appendChild(wrap);
+    },
+    footer(node) { ft.replaceChildren(node); },
+  };
+  return owner;
+}
+
+/* ------------------------------------------------------------ chart tones */
+const TONE = { good: 'var(--good-bar)', look: 'var(--look-bar)', act: 'var(--act-bar)', exempt: 'var(--exempt-bar)', plum: 'var(--plum)' };
+
+/* ------------------------------------------------------------------ gauge */
+function gaugeCard(health) {
+  const c = card('Verification health', 'share of receipts verifying valid');
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 128 128');
+  svg.setAttribute('width', '128');
+  svg.setAttribute('height', '128');
+  const R = 52, C = 2 * Math.PI * R;
+  const track = document.createElementNS(SVG_NS, 'circle');
+  track.setAttribute('cx', '64'); track.setAttribute('cy', '64'); track.setAttribute('r', R);
+  track.setAttribute('fill', 'none'); track.setAttribute('stroke', 'var(--track)');
+  track.setAttribute('stroke-width', '13');
+  svg.appendChild(track);
+  const share = health.rows ? health.valid / health.rows : 0;
+  const arc = document.createElementNS(SVG_NS, 'circle');
+  arc.setAttribute('cx', '64'); arc.setAttribute('cy', '64'); arc.setAttribute('r', R);
+  arc.setAttribute('fill', 'none'); arc.setAttribute('stroke', 'var(--accent)');
+  arc.setAttribute('stroke-width', '13');
+  arc.setAttribute('stroke-linecap', 'round');
+  const dashLen = Math.max(0.0001, share * C);
+  arc.setAttribute('stroke-dasharray', dashLen.toFixed(2) + ' ' + (C - dashLen).toFixed(2));
+  arc.setAttribute('stroke-dashoffset', (C / 4).toFixed(2));
+  /* the arc is the valid share only; the track is everything else */
+  const t = document.createElementNS(SVG_NS, 'title');
+  t.textContent = health.valid + ' of ' + health.rows + ' receipts verify valid';
+  svg.appendChild(t);
+  let wrapped = false;
+  svg.childNodes.forEach(() => { wrapped = true; });
+  svg.insertBefore(arc, svg.childNodes[1]);
+  svg.replaceChild(arc, svg.childNodes[1]);
+  const g = el('div', 'gauge');
+  const num = el('div', 'g-num');
+  num.appendChild(el('span', 'g-big num', String(health.valid)));
+  num.appendChild(el('span', 'g-cap', health.caption));
+  g.appendChild(svg);
+  g.appendChild(num);
+  c.body.appendChild(g);
+  const foot = el('div', 'gauge-foot');
+  /* same bucket taxonomy as the Evidence states card (UI-02.5 blocker 5) */
+  const d = health.dist;
+  const nValid = d.valid || 0;
+  const nInv = (d.unsupported_schema || 0) + (d.invalid || 0);
+  const nEx = (d.unavailable || 0) + (d.not_applicable || 0);
+  const nUnp = Math.max(0, health.rows - nValid - nInv - nEx);
+  const footCell = (cls, label, n) => {
+    const s = el('span', cls + ' num');
+    s.textContent = (label === 'valid' ? '+' : '') + n + ' ' + label;
+    return s;
+  };
+  if (nValid + nUnp + nInv + nEx) {
+    foot.appendChild(footCell('tint-good', 'valid', nValid));
+    if (nUnp) foot.appendChild(footCell('tint-look', 'un-proven', nUnp));
+    if (nInv) foot.appendChild(footCell('tint-act', 'unaccounted', nInv));
+    if (nEx) foot.appendChild(footCell('tint-exempt', 'exempt', nEx));
+  } else {
+    foot.appendChild(footCell('tint-look', 'un-proven', health.unproven));
+  }
+  c.body.appendChild(foot);
+  c.footer(el('span', 'muted small', health.src));
+  c.explain('The arc is the share of receipts that verify valid. Valid is proven; un-proven covers unknown key and pending, unaccounted is the invalid class, and unavailable receipts are shown as exempt.');
+  return c.root;
+}
+
+/* ------------------------------------------------------------------ bars */
+function stateBarRow(name, count, total, tone, opts) {
+  const o = opts || {};
+  const row = el('div', 'state-row');
+  const hd = el('div', 'state-hd');
+  hd.appendChild(el('span', null, name));
+  if (o.pillText) hd.appendChild(el('span', 'pill ' + (o.pillTone || 'tok-exempt'), o.pillText));
+  hd.appendChild(el('span', 'count num', count + ' of ' + total));
+  row.appendChild(hd);
+  const bar = el('div', 'bar');
+  const fill = el('div', 'bar-fill');
+  const pct = total ? Math.min(100, (count / total) * 100) : 0;
+  fill.style.width = pct.toFixed(1) + '%';
+  fill.style.background = TONE[tone] || TONE.exempt;
+  fill.title = name + ': ' + count + ' of ' + total + ' (' + Math.round(pct) + '%)';
+  bar.appendChild(fill);
+  if (o.target !== undefined) {
+    const tick = el('span', 'bar-tick');
+    /* sit the allowance line exactly at the target share of the track width */
+    tick.style.left = 'calc(' + o.target + '% - 1px)';
+    tick.title = 'Coverage allowance line: ' + (100 - o.target) + '%';
+    bar.appendChild(tick);
+  }
+  row.appendChild(bar);
+  return row;
+}
+
+function statesCard(dist, total, target) {
+  const c = card('Evidence states', 'receipt share per verification state');
+  const unkShare = total ? (dist.unknown_key || 0) / total * 100 : 0;
+  const allowed = 100 - target;
+  const ok = unkShare <= allowed + (total ? 1 / total * 100 : 0);
+  c.body.appendChild(stateBarRow('Valid', dist.valid || 0, total, 'good'));
+  c.body.appendChild(stateBarRow('Unknown key', dist.unknown_key || 0, total, 'look', {
+    target,
+    pillText: ok ? 'In coverage' : 'Needs attention',
+    pillTone: ok ? 'tok-good' : 'tok-act',
+  }));
+  /* pending is un-proven (amber) and not applicable is exempt (grey); every
+     verification state gets a bar so the rows sum to the row total (UI-02.5
+     blocker 5) and reconcile with the Evidence verified card and the shared
+     counting module buckets */
+  c.body.appendChild(stateBarRow('Pending', dist.pending || 0, total, 'look'));
+  c.body.appendChild(stateBarRow('Unsupported schema', dist.unsupported_schema || 0, total, 'act'));
+  c.body.appendChild(stateBarRow('Invalid', dist.invalid || 0, total, 'act'));
+  c.body.appendChild(stateBarRow('Unavailable', dist.unavailable || 0, total, 'exempt'));
+  c.body.appendChild(stateBarRow('Not applicable', dist.not_applicable || 0, total, 'exempt'));
+  const wrap = el('div');
+  wrap.style.marginTop = '14px';
+  wrap.appendChild(el('span', 'muted small num', 'Coverage target: ' + target + '% of rows verify or are exempt; the tick on the unknown-key bar is the ' + allowed + '% allowance (from the console config).'));
+  c.body.appendChild(wrap);
+  c.footer(el('span', 'muted small', 'State names follow the ADR-0001 verification enum; nothing is hidden as blank.'));
+  c.explain('Each bar is one receipt state as a share of all rows. The black tick is the coverage allowance the suite is held to; the pill flips to Needs attention when the bar passes it.');
+  return c.root;
+}
+
+/* ------------------------------------------------------------------ findings */
+function findingsCard(list, offline) {
+  const c = card('Findings', offline ? 'add-in offline' : 'this demo window');
+  if (offline || !list || !list.length) {
+    c.body.appendChild(el('p', 'muted', offline
+      ? 'The findings feed is unavailable while the add-in is offline; nothing is shown rather than a stale list.'
+      : 'No findings in the current window.'));
+    c.footer(el('span', 'muted small', 'Suppressed findings are retained with their documented reason.'));
+    c.explain('Findings are raised by the rules harness over the evidence plane and verified offline. Suppressed ones stay on the record with their reason.');
+    return c.root;
+  }
+  for (const f of list) {
+    const r = el('div', 'rowline');
+    const t = el('div', 'tile' + (f.suppressed ? '' : (f.severity === 'high' || f.severity === 'critical' ? ' bad' : ' warn')));
+    t.appendChild(iconEl(f.suppressed ? 'file' : 'alert', 13));
+    r.appendChild(t);
+    const main = el('div', 'grow');
+    const l1 = el('div');
+    l1.appendChild(el('b', null, f.rule_id));
+    if (f.subject) l1.appendChild(el('span', 'muted small', ' · ' + f.subject));
+    main.appendChild(l1);
+    if (f.explanation) main.appendChild(oneline(el('span', 'why', f.explanation)));
+    r.appendChild(main);
+    const meta = el('div', 'row-rail');
+    meta.appendChild(sevPill(f.severity));
+    if (f.suppressed) {
+      /* grey outline chip, not plain low-contrast text (UI-02.5 blocker 3) */
+      meta.appendChild(el('span', 'chip chip-exempt', 'suppressed with reason'));
+    }
+    r.appendChild(meta);
+    c.body.appendChild(r);
+    if (f.suppressed && f.suppression_reason) {
+      /* label/value mini-grid beneath the row, full width, aligned with it */
+      const sr = el('div', 'rowline supp-row');
+      sr.appendChild(el('span', 'supp-label', 'Suppression reason'));
+      sr.appendChild(el('span', 'supp-value muted small', f.suppression_reason));
+      c.body.appendChild(sr);
+    }
+  }
+  /* counts footer from the SHARED counting module (via /api/assurance/counts
+     live, or the console's own overview fallback): open + closed =
+     suppressed reconciles everywhere; no local re-computation */
+  const fc = counts && counts.findings ? counts.findings
+    : (overview && overview.trust && overview.trust.findings ? overview.trust.findings : null);
+  const footSpan = fc
+    ? el('span', 'muted small', 'Counts (shared module): open ' + fc.lens.open
+        + ' (needs investigation ' + fc.lens.needs_investigation
+        + ' · unproven ' + fc.lens.unproven
+        + ' · coverage gaps ' + fc.lens.coverage_gaps
+        + ') + suppressed ' + fc.suppressed
+        + (fc.closed ? ' + closed ' + fc.closed : '')
+        + ' = ' + fc.total + ' findings.')
+    : el('span', 'muted small', 'Counts unavailable: add-in offline.');
+  const boardLink = el('a', 'board-link', 'Open findings board');
+  boardLink.href = config.assurance_url.replace(/\/$/, '') + '/#/findings';
+  boardLink.target = '_blank';
+  boardLink.rel = 'noreferrer';
+  footSpan.appendChild(document.createTextNode(' · '));
+  footSpan.appendChild(boardLink);
+  c.footer(footSpan);
+  c.explain('Active findings need an investigator. Suppressed findings are retained on purpose, each with its documented reason, so nothing disappears silently.');
+  return c.root;
+}
+
+/* ------------------------------------------------------------------ activity */
+const FEED_ICONS = { index: 'apps', receipts: 'shield', shell: 'activity' };
+function activityCard(activity) {
+  const c = card('Recent activity', 'across the suite');
+  for (const item of activity) {
+    const r = el('div', 'rowline');
+    const t = el('div', 'tile');
+    t.appendChild(iconEl(FEED_ICONS[item.kind] || 'activity', 13));
+    r.appendChild(t);
+    const main = el('div', 'grow');
+    main.appendChild(el('div', null, item.what));
+    r.appendChild(main);
+    const when = relativeTime(item.ts, item.when);
+    r.appendChild(el('span', 'when', when));
+    c.body.appendChild(r);
+  }
+  c.footer(el('span', 'muted small', 'Times are measured from the console boot moment on the server; they age as the session runs.'));
+  c.explain('Recent events across the suite. Live tenant activity lands with the tenancy epic; the alpha shows the demo fixture provenance.');
+  return c.root;
+}
+
+/* evidence verified: big number + stacked rounded-cap bar + dot legend.
+   Bucket taxonomy matches the Evidence states card exactly (UI-02.5
+   blocker 5): green valid, amber un-proven, red invalid class, grey exempt. */
+function evidenceCard(dist, total) {
+  const c = card('Evidence verified', 'receipts verified, by class');
+  const big = el('div', 'num', String(total));
+  big.style.fontSize = 'var(--fs-stat)';
+  big.style.fontWeight = '500';
+  big.style.color = 'var(--ink)';
+  big.style.lineHeight = '1.05';
+  c.body.appendChild(big);
+  const cap = oneline(el('p', 'muted small', 'receipts verified in this window'));
+  c.body.appendChild(cap);
+  const buckets = [
+    { label: 'Valid', tone: 'good', n: (dist.valid || 0) },
+    { label: 'Un-proven', tone: 'look', n: (dist.unknown_key || 0) + (dist.pending || 0) },
+    { label: 'Unaccounted', tone: 'act', n: (dist.unsupported_schema || 0) + (dist.invalid || 0) },
+    { label: 'Exempt', tone: 'exempt', n: (dist.unavailable || 0) + (dist.not_applicable || 0) },
+  ];
+  /* bucket names follow the shared counting module taxonomy exactly
+     (valid / un-proven / unaccounted / exempt), so this card's sums equal
+     the /api/counts buckets on the add-in (UI-05 coherence pass) */
+  const stack = el('div', 'stack');
+  for (const b of buckets) {
+    if (!b.n || !total) continue;
+    const seg = el('span');
+    seg.style.width = (b.n / total * 100).toFixed(2) + '%';
+    seg.style.background = TONE[b.tone];
+    seg.title = b.label + ': ' + b.n;
+    stack.appendChild(seg);
+  }
+  c.body.appendChild(stack);
+  for (const b of buckets) {
+    const line = el('div', 'legend-line');
+    const d = el('span', 'dot-lg');
+    d.style.background = TONE[b.tone];
+    line.appendChild(d);
+    line.appendChild(el('span', null, b.label));
+    const nEl = el('span', 'num', String(b.n));
+    nEl.style.marginLeft = 'auto';
+    nEl.style.color = 'var(--secondary)';
+    line.appendChild(nEl);
+    c.body.appendChild(line);
+  }
+  const nEx = (dist.unavailable || 0) + (dist.not_applicable || 0);
+  c.footer(el('span', 'muted small', 'Same buckets as Evidence states. Exempt shows the unavailable receipts as the grey segment (' + nEx + ' shown as exempt).'));
+  c.explain('One bar for the whole window so the mix is read at a glance; the bar segments and the dot legend carry the same counts. Invalid and un-proven receipts are the ones an investigator looks at next.');
+  return c.root;
+}
+
+/* ------------------------------------------------------------------ guidance */
+function pickGuidance(vd, cd, flist, offline) {
+  const n = (k) => vd && vd[k] || 0;
+  const nCorr = (k) => cd && cd[k] || 0;
+  const rules = new Set((flist || []).map(f => f.rule_id));
+  const activeExpl = (id, s) => (flist || []).some(f => f.rule_id === id && !f.suppressed && (f.explanation || '').includes(s));
+  /* banner tint follows the severity of the priority finding (UI-02.5
+     blocker 1): red action needed, amber un-proven, mint green all clear */
+  const firstRef = (ruleId, substr) => {
+    const f = (flist || []).find((x) => x.rule_id === ruleId && !x.suppressed
+      && (substr === undefined || (x.explanation || "").includes(substr)));
+    return f && f.primary_ref ? f.primary_ref : (f && f.id ? String(f.id) : null);
+  };
+  const pair = (tone, headline, detail, ref) => ({ tone, headline, detail, ref });
+  if (offline) {
+    return pair('look', 'Add-in offline: the Assurance add-in is not reachable right now.',
+      'Start the add-in process; the console will then show live verification, correlation and findings here instead of the pinned demo figures.');
+  }
+  if (n('invalid') || activeExpl('SEC-002', 'invalid')) {
+    return pair('act', 'At least one receipt verifies as invalid in the live window (SEC-002).',
+      'Open the Assurance add-in, find the affected receipt and re-run verification before anything downstream relies on the record.',
+      firstRef('SEC-002', 'invalid'));
+  }
+  if (rules.has('SEC-009')) {
+    return pair('act', 'Bypass is suspected: a privileged tool appears to have executed with no gate receipt.',
+      'Check the tool host the finding points at; every privileged execution should have left a gate receipt.',
+      firstRef('SEC-009'));
+  }
+  if (nCorr('receipt_missing') || rules.has('SEC-001')) {
+    return pair('act', 'A privileged tool call is missing its gate receipt after the grace window (SEC-001).',
+      'Confirm whether the tool call was gated at all, then re-record or document the gap so the trace is complete.',
+      firstRef('SEC-001'));
+  }
+  if (n('unsupported_schema') || rules.has('SEC-002')) {
+    return pair('look', 'A receipt uses a schema this verifier does not support, so it cannot be verified.',
+      'Bring the verifier schema set up to the receipt format in use, then verify again; nothing is proven until the schema is understood.',
+      firstRef('SEC-002'));
+  }
+  const amb = nCorr('ambiguous');
+  if (amb) {
+    return pair('look', amb + ' tool-call receipt' + (amb > 1 ? 's correlate' : ' correlates') + ' ambiguously: more matching receipts than trace items point at.',
+      'Resolve the ingest duplication before reporting on these traces, since the correlation cannot be proven either way yet.');
+  }
+  if (nCorr('duplicate')) {
+    const d = nCorr('duplicate');
+    return pair('look', d + ' trace record' + (d > 1 ? 's are' : ' is') + ' marked as an ingest duplicate.',
+      'Deduplicate the ingest feed so the window reflects real tool calls, then re-open the affected traces.');
+  }
+  return pair('good', 'The suite is calm: no invalid or unsupported receipts and no missing receipts in the current window.',
+    'Nothing is waiting on you; the next thing worth watching is the unknown-key share staying inside the coverage allowance.');
+}
+
+function guidanceBanner() {
+  const vd = dash && dash.verification_distribution ? dash.verification_distribution : null;
+  const cd = dash && dash.correlation_distribution ? dash.correlation_distribution : null;
+  const g = (dash || findings)
+    ? pickGuidance(vd, cd, findings, false)
+    : pickGuidance(null, null, findings, true);
+  // Top-of-overview banner doubles as the direct link to the finding: whole
+  // banner is an anchor into the Assurance add-in board with the finding focused.
+  const base = (config && config.assurance_url) || 'http://127.0.0.1:3411';
+  const b = el('a', 'banner banner-' + g.tone + ' banner-link');
+  if (g.ref) b.href = base + '/#/findings?f=' + encodeURIComponent(g.ref);
+  b.setAttribute('aria-label', 'Open the priority finding in the Assurance board');
+  const t = el('div', 'tile');
+  t.appendChild(iconEl('alert', 15));
+  b.appendChild(t);
+  const tx = el('div');
+  tx.appendChild(el('strong', null, g.headline));
+  tx.appendChild(el('div', 'detail', g.detail));
+  if (vd || cd) tx.appendChild(el('span', 'muted small', 'Live figures from the add-in, fetched this session.'));
+  else if (findings === null) tx.appendChild(el('span', 'muted small', 'Figures are the pinned demo fixture set while the add-in is offline.'));
+  b.appendChild(tx);
+  b.id = 'guidance-banner';
+  return b;
+}
+
+/* ------------------------------------------------------------------ overview */
+function vState() {
+  /* Live branch: the add-in dashboard (shared counting module output). */
+  const d = dash && dash.verification_distribution ? dash.verification_distribution : null;
+  if (d) {
+    const dist = { valid: 0, pending: 0, not_applicable: 0, unknown_key: 0, unsupported_schema: 0, unavailable: 0, ...(d || {}) };
+    const rows = dash.buckets ? dash.buckets.valid + dash.buckets.unproven + dash.buckets.unaccounted + dash.buckets.exempt
+      : Object.values(d).reduce((a, v) => a + v, 0);
+    return {
+      buckets: dash.buckets || null,
+      dist, rows,
+      valid: dist.valid, unproven: rows - dist.valid,
+      src: 'Shared counting module over the demo fixture set, fetched this session via the add-in.',
+      caption: 'of ' + rows + ' span receipts (index-plane)',
+    };
+  }
+  /* Offline branch falls back to the shared counting module output the
+     console server derived into /api/overview - never pinned numbers, so
+     the offline figures agree with the add-in's own /api/counts. */
+  const t = overview && overview.trust ? overview.trust : null;
+  const dist = { valid: 0, pending: 0, not_applicable: 0, unknown_key: 0, unsupported_schema: 0, unavailable: 0, ...((t && t.verification_distribution) || {}) };
+  const rows = t && t.verification_buckets
+    ? t.verification_buckets.valid + t.verification_buckets.unproven + t.verification_buckets.unaccounted + t.verification_buckets.exempt
+    : 0;
+  const valid = t && t.verification_buckets ? t.verification_buckets.valid : (dist.valid || 0);
+  return {
+    buckets: t && t.verification_buckets ? t.verification_buckets : null,
+    dist, rows,
+    valid, unproven: rows - valid,
+    src: 'Shared counting module over the pinned demo fixture set; the add-in is offline.',
+    caption: 'of ' + rows + ' span receipts (demo)',
+  };
+}
+
+function viewOverview() {
+  const p = el('div');
+  if (!overview) {
+    const c = card('Suite data not loaded', null);
+    c.body.appendChild(el('p', 'muted', 'The console API did not respond. Reload to retry.'));
+    p.appendChild(c.root);
+    return p;
+  }
+  const health = vState();
+  const row1 = el('div', 'grid g-row1');
+  row1.appendChild(gaugeCard(health));
+  row1.appendChild(statesCard(health.dist, health.rows, config.coverage_target_pct || COVERAGE_DEFAULT));
+  row1.appendChild(findingsCard(findings, !(dash && dash.verification_distribution)));
+  const row2 = el('div', 'grid g-row2');
+  row2.appendChild(activityCard(overview.activity));
+  row2.appendChild(evidenceCard(health.dist, health.rows));
+  // guidance banner sits at the TOP of the overview and links to the finding
+  p.appendChild(guidanceBanner());
+  p.appendChild(row1);
+  p.appendChild(row2);
+  return p;
+}
+
+/* ------------------------------------------------------------------ products */
+function viewTrust() {
+  const p = el('div');
+  const c = card('Raucle Agent Trust', 'Gate and evidence core');
+  const s = overview.addins.find(a => a.id === 'trust') || { status: 'connected' };
+  c.body.appendChild(pill(s.status));
+  const note = el('p'); note.style.margin = '10px 0';
+  const t = overview && overview.trust ? overview.trust : null;
+  note.textContent = 'Stops a tool call unless its evidence is proven. '
+    + (t ? 'Pinned demo set (shared counting module): '
+        + t.receipts_minted + ' receipts minted, '
+        + t.receipts_verified + ' verification rows, '
+        + t.receipts_valid + ' valid, ' + t.spans_indexed
+        + ' span receipts indexed.' : 'Counts unavailable (demo fixture missing).');
+  c.body.appendChild(note);
+  const ul = el('ul', 'quiet');
+  ['Gate decisions over privileged tool calls',
+    'Signed evidence receipts with offline verification',
+    'Full ADR-0001 verification status enum surfaced (no silent blanks)',
+    'Bundle with the gate so agents cannot act without proof'].forEach(x => ul.appendChild(el('li', null, x)));
+  c.body.appendChild(ul);
+  c.footer(el('span', 'muted small', 'Included with licence key - pricing tiers are not shown in product pages.'));
+  c.explain('Connect it to your gate once; the console then shows live counts.');
+  p.appendChild(c.root);
+  const cc = card('Connect your gate', 'environment, never echoed');
+  cc.body.appendChild(el('p', null, 'Point the console at your gate configuration by setting the environment variable ' + config.trust_gate_env + ' (the path to your gate config). Restart the console after the change; the value itself is never displayed.'));
+  cc.explain('The gate config path is read from the environment; the console never displays or echoes the value itself.');
+  p.appendChild(cc.root);
+  return p;
+}
+
+function viewAssurance() {
+  const p = el('div');
+  p.appendChild(el('span', 'alpha-line', 'Note: this is a separate add-in process, embedded here in an alpha iframe. Live process embedding via a plugin registry is planned - see the EPIC-N findings.'));
+  const src = config.assurance_url.replace(/\/$/, '') + '/';
+  const frame = el('iframe', 'embed');
+  frame.title = 'Raucle Agent Assurance - investigation add-in';
+  frame.setAttribute('src', src);
+  frame.setAttribute('referrerpolicy', 'no-referrer');
+  p.appendChild(frame);
+  const c = card('About this embed', null);
+  c.body.appendChild(el('p', null, 'Source (configured, env RAUCLE_ASSURANCE_URL): ' + src));
+  c.body.appendChild(el('p', 'muted small', 'If the frame is empty, the add-in process is offline - its page shows the graceful empty state here the moment it is reachable.'));
+  c.explain('The Assurance add-in runs as its own process; the console embeds it today and would host it natively once the plugin registry lands.');
+  p.appendChild(c.root);
+  return p;
+}
+
+function viewRed() {
+  const p = el('div');
+  const c = card('Raucle Agent Red', 'Not purchased');
+  c.body.appendChild(pill('not_purchased'));
+  const note = el('p'); note.style.margin = '10px 0';
+  note.textContent = 'Coming soon. Wave two of the suite; announcing later.';
+  c.body.appendChild(note);
+  const ul = el('ul', 'quiet');
+  ['Adversarial tool-content scenarios', 'Policy edge-case sweeps', 'Reporting that pairs with Raucle Agent Assurance'].forEach(x => ul.appendChild(el('li', null, x)));
+  c.body.appendChild(ul);
+  c.footer(el('span', 'muted small', 'Included with licence key once available - pricing tiers are not shown in product pages.'));
+  c.explain('Raucle Agent Red will attack your agents the way a real caller would: hostile instructions, ambiguous inputs and policy edges. Not purchasable yet.');
+  p.appendChild(c.root);
+  return p;
+}
+
+/* ------------------------------------------------------------------ tenant pages */
+function stubForm(fields) {
+  const wrap = el('div', 'card');
+  const f = el('div');
+  const msg = el('div', 'muted small', ' ');
+  for (const [lbl, type] of fields) {
+    const label = el('label', 'field-label', lbl);
+    const input = el('input', 'input');
+    input.type = type;
+    input.name = lbl.toLowerCase().replace(/[^a-z]+/g, '-');
+    f.appendChild(label);
+    f.appendChild(input);
+  }
+  const save = el('button', 'cta', 'Save (placeholder)');
+  save.type = 'button';
+  f.appendChild(save);
+  f.appendChild(msg);
+  msg.style.marginTop = '8px';
+  save.addEventListener('click', () => {
+    msg.textContent = 'Placeholder only - nothing is saved in the alpha.';
+  });
+  wrap.appendChild(f);
+  return wrap;
+}
+
+function viewSettings() {
+  const p = el('div');
+  p.appendChild(el('span', 'alpha-line', 'Tenant settings for the single alpha tenant. This page is an alpha placeholder - form controls do not persist anything yet.'));
+  p.appendChild(stubForm([['Tenant label', 'text'], ['Contact email', 'email'], ['Gate config path', 'text']]));
+  const note = el('p', 'muted small');
+  note.style.marginTop = '12px';
+  note.textContent = 'Org identity is derived by the server from the ADR tenancy contract; the console never sets a tenant by cookie. Authenticated multi-tenancy is a later epic.';
+  p.appendChild(note);
+  return p;
+}
+
+function viewProfile() {
+  const p = el('div');
+  p.appendChild(el('span', 'alpha-line', 'Your operator profile. This page is an alpha placeholder - form controls do not persist anything yet.'));
+  p.appendChild(stubForm([['Display name', 'text'], ['Email', 'email']]));
+  return p;
+}
+
+function viewNotifications() {
+  const p = el('div');
+  p.appendChild(el('span', 'alpha-line', 'Notification preferences. This page is an alpha placeholder - preferences do not persist yet.'));
+  const c = card('Unread', 'from /api/overview');
+  for (const n of (overview ? overview.notifications.items : [])) {
+    const r = el('div', 'rowline');
+    r.appendChild(el('span', 'pill tok-look', 'Unread'));
+    r.appendChild(el('span', 'grow', n));
+    c.body.appendChild(r);
+  }
+  if (!overview || !overview.notifications.items.length) c.body.appendChild(el('div', 'muted small', 'No notifications available.'));
+  c.explain('Unread items come from the console overview API; preferences below are placeholders in the alpha.');
+  p.appendChild(c.root);
+  p.appendChild(stubForm([['Add-in status alerts (placeholder)', 'checkbox'], ['Weekly summary (placeholder)', 'checkbox']]));
+  return p;
+}
+
+/* ------------------------------------------------------------------ tips */
+/* one shared positioned tooltip div for every chart segment; textContent
+   only, positioned from the pointer, kept inside the viewport */
+const tipNode = () => document.getElementById('tip');
+function hookTip(node, text) {
+  node.addEventListener('pointerenter', () => {
+    const t = tipNode();
+    if (!t) return;
+    t.textContent = text;
+    t.style.display = 'block';
+  });
+  node.addEventListener('pointermove', (e) => {
+    const t = tipNode();
+    if (!t) return;
+    t.style.left = Math.min(e.clientX + 12, window.innerWidth - t.offsetWidth - 8) + 'px';
+    t.style.top = Math.max(e.clientY - t.offsetHeight - 10, 8) + 'px';
+  });
+  node.addEventListener('pointerleave', () => {
+    const t = tipNode();
+    if (t) t.style.display = 'none';
+  });
+}
+/* register tips for each chart segment after a view renders */
+function attachTips(pageEl) {
+  const t = tipNode();
+  if (t) { t.style.display = 'none'; t.textContent = ''; }
+  for (const seg of pageEl.querySelectorAll('.bar-fill, .stack > span')) {
+    if (seg.title) hookTip(seg, seg.title);
+  }
+  for (const arc of pageEl.querySelectorAll('.gauge svg [stroke-linecap="round"]')) {
+    const title = arc.querySelector('title');
+    if (title) hookTip(arc, title.textContent);
+  }
+}
+
+/* ------------------------------------------------------------------ router */
 const NAV = [
-  { id: 'overview', label: 'Overview', section: 'overview' },
-  { id: 'trust', label: 'Raucle Agent Trust', section: 'products' },
-  { id: 'assurance', label: 'Raucle Agent Assurance', section: 'products' },
-  { id: 'red', label: 'Raucle Agent Red', section: 'products' },
-  { id: 'settings', label: 'Settings', section: 'tenant' },
-  { id: 'profile', label: 'Profile', section: 'tenant' },
-  { id: 'notifications', label: 'Notifications', section: 'tenant' },
+  { id: 'overview', label: 'Overview', group: 'suite' },
+  { id: 'trust', label: 'Raucle Agent Trust', group: 'products' },
+  { id: 'assurance', label: 'Raucle Agent Assurance', group: 'products' },
+  { id: 'red', label: 'Raucle Agent Red', group: 'products' },
+  { id: 'settings', label: 'Settings', group: 'account' },
+  { id: 'profile', label: 'Profile', group: 'account' },
+  { id: 'notifications', label: 'Notifications', group: 'account' },
 ];
 const TITLES = Object.fromEntries(NAV.map(n => [n.id, n.label]));
-
-/* ------------------------------------------------------------ sidebar */
-function sideItem(item) {
-  const a = el('a', 'nav-link');
-  a.href = '#' + item.id;
-  a.dataset.route = item.id;
-  a.appendChild(iconEl(item.id === 'overview' ? 'activity' : item.id === 'settings' ? 'apps' : item.id === 'notifications' ? 'alert' : 'shield', 17));
-  a.appendChild(el('span', 'nav-link-title', item.label));
-  a.title = item.label;
-  if (item.section === 'products') {
-    const status = overview && overview.addins
-      ? overview.addins.find(a2 => a2.id === item.id)
-      : null;
-    a.appendChild(chipEl(status ? status.status : 'not_purchased'));
-  }
-  if (item.id === 'notifications') {
-    const count = overview ? overview.notifications.count : 0;
-    a.appendChild(el('span', 'badge ' + (count ? 'badge bg-red text-white' : 'badge bg-secondary'), String(count)));
-  }
-  const li = el('li', 'nav-item');
-  li.appendChild(a);
-  return li;
-}
+const VIEWS = {
+  overview: viewOverview, trust: viewTrust, assurance: viewAssurance, red: viewRed,
+  settings: viewSettings, profile: viewProfile, notifications: viewNotifications,
+};
 
 function buildSidebar() {
   const nav = document.getElementById('side-nav');
-  for (const section of ['overview', 'products', 'tenant']) {
-    nav.appendChild(el('li', 'nav-item small text-secondary text-uppercase fw-bold mt-3 px-2',
-      section === 'overview' ? 'Overview' : section === 'products' ? 'Products' : 'Tenant'));
-    for (const item of NAV.filter(n => n.section === section)) nav.appendChild(sideItem(item));
+  nav.replaceChildren();
+  const groups = [['suite', 'Suite'], ['products', 'Products'], ['account', 'Tenant']];
+  for (const [gid, glabel] of groups) {
+    nav.appendChild(el('div', 'side-section', glabel));
+    for (const item of NAV.filter(n => n.group === gid)) {
+      const a = el('a', 'side-item');
+      a.href = '#' + item.id;
+      a.dataset.route = item.id;
+      a.title = item.label;
+      const status = overview && overview.addins ? overview.addins.find(x => x.id === item.id) : null;
+      a.appendChild(el('span', status ? dotCls(status.status) : 'side-dot dot-good'));
+      a.appendChild(el('span', 'side-text', item.label));
+      if (item.id === 'notifications') {
+        /* unread count lives in the top bar only, so the count is not
+         duplicated in two surfaces */
+      } else if (item.group === 'products') {
+        /* honest small counters: run count only once, from the dashboard */
+      }
+      nav.appendChild(a);
+    }
   }
-  if (nav.classList) nav.setAttribute('aria-label', 'Console navigation');
+  paintIcons(nav);
 }
 
 function buildLegend() {
   const legend = document.getElementById('legend');
   legend.replaceChildren();
   legend.appendChild(el('span', null, 'Legend:'));
-  const row = (chip, label) => {
-    legend.appendChild(chipEl(chip));
-    legend.appendChild(el('span', null, label));
-  };
-  row('connected', 'add-in connected');
-  row('degraded', 'add-in offline (degraded)');
-  row('not_purchased', 'not purchased');
+  const row = (tone, label) => legend.appendChild(el('span', 'pill ' + tone, label));
+  row('tok-good', 'proven / connected');
+  row('tok-look', 'un-proven / degraded');
+  row('tok-act', 'action needed');
+  row('tok-exempt', 'exempt / not purchased');
 }
 
 function markCurrent(route) {
@@ -258,548 +824,23 @@ function markCurrent(route) {
   });
 }
 
-/* ------------------------------------------------------------ small builders */
-function page(title) {
-  const p = el('div');
-  const h = el('h2', 'mb-3', title);
-  p.appendChild(h);
-  return p;
-}
-
-function card(title) {
-  const c = el('div', 'card');
-  if (title) {
-    const hd = el('div', 'card-header');
-    hd.appendChild(el('h3', 'card-title', title));
-    c.appendChild(hd);
-  }
-  const body = el('div', 'card-body');
-  c.appendChild(body);
-  body.ownerCard = c;
-  return body;
-}
-
-function explain(node, what, text) {
-  const e = el('div', 'explain');
-  e.appendChild(el('b', null, 'What is this? '));
-  e.appendChild(el('span', null, text));
-  node.appendChild(e);
-  node.appendChild(el('p', null, '')); /* spacing */
-  return e;
-}
-
-/* ------------------------------------------------------------ charts (hand-built SVG) */
-const TONES = { good: 'var(--c-good)', look: 'var(--c-look)', act: 'var(--c-act)', exempt: 'var(--c-exempt)' };
-
-function svgEl(name) {
-  return document.createElementNS(SVG_NS, name);
-}
-
-/* donut: segments = [{label, value, tone}] */
-function donutChart(segments) {
-  const total = segments.reduce((s, x) => s + x.value, 0);
-  const wrap = el('div', 'row align-items-center g-3');
-  const colA = el('div', 'col-auto');
-  const svg = svgEl('svg');
-  svg.setAttribute('viewBox', '0 0 42 42');
-  svg.setAttribute('width', '132');
-  svg.setAttribute('height', '132');
-  if (!total) {
-    const c = svgEl('circle');
-    c.setAttribute('cx', '21'); c.setAttribute('cy', '21'); c.setAttribute('r', '15.915');
-    c.setAttribute('fill', 'none'); c.setAttribute('stroke', 'var(--c-exempt)');
-    c.setAttribute('stroke-width', '6'); c.setAttribute('opacity', '.3');
-    svg.appendChild(c);
-    colA.appendChild(svg);
-    wrap.appendChild(colA);
-    return wrap;
-  }
-  /* circumference is 100 by construction (r 15.915), so dash units are per cent */
-  let offset = 25; /* start at 12 o'clock */
-  for (const seg of segments) {
-    if (!seg.value) continue;
-    const pct = (seg.value / total) * 100;
-    const c = svgEl('circle');
-    c.setAttribute('cx', '21'); c.setAttribute('cy', '21'); c.setAttribute('r', '15.915');
-    c.setAttribute('fill', 'none');
-    c.setAttribute('stroke', TONES[seg.tone] || TONES.exempt);
-    c.setAttribute('stroke-width', '6');
-    c.setAttribute('stroke-dasharray', pct.toFixed(2) + ' ' + (100 - pct).toFixed(2));
-    c.setAttribute('stroke-dashoffset', offset.toFixed(2));
-    const t = svgEl('title');
-    t.textContent = seg.label + ': ' + seg.value;
-    c.appendChild(t);
-    svg.appendChild(c);
-    offset -= pct;
-    if (offset < -75) offset += 100;
-  }
-  const txt = svgEl('text');
-  txt.setAttribute('x', '21'); txt.setAttribute('y', '23');
-  txt.setAttribute('text-anchor', 'middle');
-  txt.setAttribute('dominant-baseline', 'middle');
-  txt.setAttribute('font-size', '7');
-  txt.setAttribute('font-weight', '700');
-  txt.setAttribute('fill', 'var(--tblr-body-color)');
-  txt.textContent = String(total);
-  svg.appendChild(txt);
-  const sub = svgEl('text');
-  sub.setAttribute('x', '21'); sub.setAttribute('y', '29');
-  sub.setAttribute('text-anchor', 'middle');
-  sub.setAttribute('font-size', '2.6');
-  sub.setAttribute('fill', 'var(--tblr-secondary)');
-  sub.textContent = 'rows';
-  svg.appendChild(sub);
-  colA.appendChild(svg);
-  wrap.appendChild(colA);
-
-  const colB = el('div', 'col');
-  for (const seg of segments) {
-    const li = el('div', 'd-flex align-items-center gap-2 mb-1');
-    const sw = el('span', 'legend-swatch');
-    sw.style.background = TONES[seg.tone] || TONES.exempt;
-    li.appendChild(sw);
-    li.appendChild(el('span', null, seg.label));
-    li.appendChild(el('span', 'ms-auto fw-semibold', String(seg.value)));
-    colB.appendChild(li);
-  }
-  wrap.appendChild(colB);
-  return wrap;
-}
-
-/* stacked bar: segments = [{label, value, tone}] */
-function stackedBar(segments) {
-  const total = segments.reduce((s, x) => s + x.value, 0);
-  const wrap = el('div');
-  const svg = svgEl('svg');
-  svg.setAttribute('viewBox', '0 0 100 12');
-  svg.setAttribute('width', '100%');
-  svg.setAttribute('height', '30');
-  svg.setAttribute('preserveAspectRatio', 'none');
-  svg.style.display = 'block';
-  if (!total) {
-    const r = svgEl('rect');
-    r.setAttribute('x', '0'); r.setAttribute('y', '0');
-    r.setAttribute('width', '100'); r.setAttribute('height', '12');
-    r.setAttribute('fill', 'var(--c-exempt)'); r.setAttribute('opacity', '.3');
-    svg.appendChild(r);
-    wrap.appendChild(svg);
-    return wrap;
-  }
-  let x = 0;
-  for (const seg of segments) {
-    if (!seg.value) continue;
-    const w = (seg.value / total) * 100;
-    const r = svgEl('rect');
-    r.setAttribute('x', x.toFixed(2)); r.setAttribute('y', '0');
-    r.setAttribute('width', w.toFixed(2)); r.setAttribute('height', '12');
-    r.setAttribute('fill', TONES[seg.tone] || TONES.exempt);
-    r.setAttribute('rx', '1.2');
-    const t = svgEl('title');
-    t.textContent = seg.label + ': ' + seg.value;
-    r.appendChild(t);
-    svg.appendChild(r);
-    x += w;
-  }
-  wrap.appendChild(svg);
-  const row = el('div', 'd-flex flex-wrap gap-3 mt-2');
-  for (const seg of segments) {
-    const item = el('span', 'd-inline-flex align-items-center gap-1 small');
-    const sw = el('span', 'legend-swatch');
-    sw.style.background = TONES[seg.tone] || TONES.exempt;
-    item.appendChild(sw);
-    item.appendChild(el('span', null, seg.label + ' (' + seg.value + ')'));
-    row.appendChild(item);
-  }
-  wrap.appendChild(row);
-  return wrap;
-}
-
-/* Verification-status semantic mapping (ADR-0001 enum; no silent blanks) */
-function verificationSegments(dist) {
-  const seg = (key, tone) => ({ label: key.replace(/_/g, ' '), value: dist[key] || 0, tone });
-  return [
-    seg('valid', 'good'),
-    seg('pending', 'exempt'),
-    seg('not_applicable', 'exempt'),
-    seg('unknown_key', 'look'),
-    seg('unsupported_schema', 'look'),
-    seg('unavailable', 'act'),
-  ];
-}
-function correlationSegments(dist) {
-  const seg = (key, tone) => ({ label: key.replace(/_/g, ' '), value: dist[key] || 0, tone });
-  return [
-    seg('matched', 'good'),
-    seg('pending', 'exempt'),
-    seg('late_arrival', 'look'),
-    seg('ambiguous', 'look'),
-    seg('duplicate', 'act'),
-    seg('receipt_missing', 'act'),
-  ];
-}
-
-/* ------------------------------------------------------------ welcome + KPIs */
-/* live verification counts (helpers shared by the banner and the KPI row) */
-function vDist() {
-  return dash && dash.verification_distribution ? dash.verification_distribution : null;
-}
-function vCounts() {
-  const d = vDist();
-  if (!d) return { rows: overview.trust.receipts_verified, valid: overview.trust.receipts_valid, src: 'pinned demo fixture set' };
-  return { rows: Object.values(d).reduce((a, v) => a + v, 0), valid: d.valid || 0, src: 'live add-in now' };
-}
-
-function welcomeBanner() {
-  const b = el('div', 'welcome card mb-3');
-  const body = el('div', 'card-body d-flex flex-wrap align-items-center justify-content-between gap-3 py-4');
-  const lead = el('div');
-  lead.appendChild(el('h2', 'mb-1 fw-bold', 'Welcome back'));
-  const tenantCount = overview.tenants ? overview.tenants.length : 1;
-  lead.appendChild(el('div', null,
-    'Tenant ' + (overview.tenants ? overview.tenants[0].label : 'default') +
-    ' - one tenant, single-tenant alpha.'));
-  const liveAddins = overview.addins.filter(a => a.status === 'connected').length;
-  const status = el('div', 'mt-2');
-  /* one honest line: add-ins live + findings posture; verified against live data */
-  let verified = 'verification data pending';
-  if (dash) verified = 'verification: ' + vCounts().valid + ' of ' + vCounts().rows + ' rows valid';
-  else verified = 'verification: add-in offline';
-  status.textContent = liveAddins + ' of ' + overview.addins.length + ' add-ins connected; ' + verified + '.';
-  lead.appendChild(status);
-  body.appendChild(lead);
-
-  const actions = el('div', 'd-flex gap-2 flex-wrap');
-  const btn1 = el('button', 'btn btn-light');
-  btn1.textContent = 'Open Assurance';
-  btn1.addEventListener('click', () => go('assurance'));
-  const btn2 = el('button', 'btn btn-outline-light');
-  btn2.textContent = 'Trust counters';
-  btn2.addEventListener('click', () => go('trust'));
-  actions.appendChild(btn1);
-  actions.appendChild(btn2);
-  body.appendChild(actions);
-  b.appendChild(body);
-  return b;
-}
-
-function statCard(iconName, iconNameBg, big, label, subNode) {
-  const col = el('div', 'col-6 col-lg-3');
-  const c = el('div', 'card stat-card h-100');
-  const body = el('div', 'card-body d-flex gap-3 align-items-start');
-  const ic = el('span', 'subicon');
-  ic.style.background = iconNameBg;
-  ic.style.color = '#fff';
-  ic.appendChild(iconEl(iconName, 22));
-  body.appendChild(ic);
-  const txt = el('div', 'flex-grow-1');
-  txt.appendChild(el('span', 'big', String(big)));
-  txt.appendChild(el('span', 'lbl', label));
-  txt.appendChild(el('div', 'sub', ''));
-  if (subNode) txt.lastElementChild.appendChild(subNode);
-  body.appendChild(txt);
-  c.appendChild(body);
-  col.appendChild(c);
-  return col;
-}
-
-function kpiRow() {
-  const row = el('div', 'row row-cards mb-1');
-  const vc = vCounts();
-  row.appendChild(statCard('file-text', 'var(--c-exempt)', overview.trust.receipts_minted,
-    'Receipts minted', el('span', 'text-secondary', 'pinned demo fixture set')));
-  const vSub = el('span', null);
-  vSub.appendChild(chipEl(vc.valid === vc.rows ? 'connected' : 'degraded'));
-  vSub.appendChild(el('span', 'text-secondary', ' ' + vc.valid + ' valid of ' + vc.rows + ' (' + vc.src + ')'));
-  row.appendChild(statCard('shield', 'var(--c-good)', vc.rows,
-    'Verification rows', vSub));
-  const active = dash ? (dash.findings ? dash.findings.active : 0) : 0;
-  row.appendChild(statCard('alert', active ? 'var(--c-act)' : 'var(--c-good)', active,
-    'Active findings', el('span', active ? 'tok-act' : 'tok-good',
-      dash ? 'live add-in now' : 'add-in offline')));
-  const live = overview.addins.filter(a => a.status === 'connected').length;
-  row.appendChild(statCard('apps', 'var(--c-look)', live,
-    'Add-ins connected', el('span', 'text-secondary', 'of ' + overview.addins.length + ' in the suite')));
-  return row;
-}
-
-/* ------------------------------------------------------------ overview view */
-function viewOverview() {
-  const p = page('Overview');
-  if (!overview) {
-    p.appendChild(el('div', 'banner red mb-3', 'Suite data not loaded - the console API did not respond. Reload to retry.'));
-    return p;
-  }
-  p.appendChild(welcomeBanner());
-  p.appendChild(kpiRow());
-
-  /* charts row: verification donut + correlation stacked bar */
-  const chartsRow = el('div', 'row row-deck my-3');
-  const donutCol = el('div', 'col-12 col-lg-6');
-  const dCard = card('Verification-state distribution');
-  if (dash && dash.verification_distribution) {
-    dCard.appendChild(donutChart(verificationSegments(dash.verification_distribution)));
-    dCard.appendChild(el('p', 'chart-note mt-2 mb-0',
-      'Centre figure is the total number of verification rows reported by the live add-in.'));
-  } else {
-    dCard.appendChild(el('div', 'banner', 'Add-in offline - no verification distribution available. Start the Raucle Agent Assurance process to see live figures.'));
-  }
-  explain(dCard, 'Verification states.',
-    'Each row from the add-in carries an ADR-0001 status. Green is valid (proven), grey is pending or not applicable, amber needs attention, red means evidence was unavailable.');
-  donutCol.appendChild(dCard.ownerCard);
-  chartsRow.appendChild(donutCol);
-
-  const corrCol = el('div', 'col-12 col-lg-6');
-  const cCard = card('Correlation states');
-  if (dash && dash.correlation_distribution) {
-    cCard.appendChild(stackedBar(correlationSegments(dash.correlation_distribution)));
-    cCard.appendChild(el('p', 'chart-note mt-2 mb-0',
-      'Stacked across the whole demo set: receipt-side correlation state per tool call.'));
-  } else {
-    cCard.appendChild(el('div', 'banner', 'Add-in offline - no correlation distribution available.'));
-  }
-  explain(cCard, 'Correlation states.',
-    'How tool-call receipts correlate to trace items. Matched is proven; ambiguous or late arrivals are un-proven and amber; missing receipts are action-needed in red.');
-  corrCol.appendChild(cCard.ownerCard);
-  chartsRow.appendChild(corrCol);
-  p.appendChild(chartsRow);
-
-  /* add-ins status table */
-  const tableCard = card('Add-ins');
-  const tblBody = el('div', 'table-responsive');
-  const tbl = el('table', 'table table-vcenter card-table');
-  const thead = el('thead');
-  const trh = el('tr');
-  for (const h of ['Add-in', 'Status', 'Blurb', '']) {
-    trh.appendChild(el('th', h === '' ? 'w-1' : null, h));
-  }
-  thead.appendChild(trh);
-  tbl.appendChild(thead);
-  const tbody = el('tbody');
-  for (const a of overview.addins) {
-    const tr = el('tr');
-    const tdName = el('td');
-    const nameWrap = el('div', 'd-flex align-items-center gap-2');
-    nameWrap.appendChild(iconEl('apps', 16));
-    nameWrap.appendChild(el('span', 'fw-semibold', a.name));
-    tdName.appendChild(nameWrap);
-    tr.appendChild(tdName);
-    const tdStatus = el('td');
-    tdStatus.appendChild(chipEl(a.status));
-    tr.appendChild(tdStatus);
-    tr.appendChild(el('td', 'text-secondary', a.blurb));
-    const tdAct = el('td', 'text-end');
-    const viewBtn = el('a', 'btn btn-sm ' + (a.status === 'connected' ? 'btn-primary' : 'btn-secondary'));
-    viewBtn.href = '#' + a.id;
-    viewBtn.textContent = 'View';
-    tdAct.appendChild(viewBtn);
-    tr.appendChild(tdAct);
-    tbody.appendChild(tr);
-  }
-  tbl.appendChild(tbody);
-  tblBody.appendChild(tbl);
-  tableCard.appendChild(tblBody);
-  explain(tableCard, 'Add-in catalogue.',
-    'Suite products are add-ins purchased separately. Chips follow the semantic colours: green connected, amber degraded, grey not purchased.');
-  p.appendChild(tableCard.ownerCard);
-
-  /* recent activity feed */
-  const feedRow = el('div', 'row mt-3');
-  const feedCol = el('div', 'col-12');
-  const feedCard = card('Recent activity');
-  const list = el('div', 'list-group list-group-flush');
-  for (const item of overview.activity) {
-    const itemEl = el('div', 'list-group-item d-flex align-items-start gap-2 feed-item');
-    const dot = el('span', 'legend-swatch mt-1 rounded-circle');
-    dot.style.background = 'var(--c-look)';
-    itemEl.appendChild(dot);
-    const tx = el('div');
-    tx.appendChild(el('div', 'what', item.what));
-    tx.appendChild(el('div', 'when', item.when));
-    itemEl.appendChild(tx);
-    list.appendChild(itemEl);
-  }
-  feedCard.appendChild(list);
-  explain(feedCard, 'Activity feed.',
-    'Recent events across the suite. In the alpha this is demo data; live tenant activity lands with the tenancy epic.');
-  feedCol.appendChild(feedCard.ownerCard);
-  feedRow.appendChild(feedCol);
-  p.appendChild(feedRow);
-
-  /* findings triage card (bottom) */
-  const triRow = el('div', 'row mt-1');
-  const triCol = el('div', 'col-12');
-  const triCard = card('Findings triage');
-  const triBody = el('div', 'd-flex flex-wrap align-items-center gap-3');
-  const fActive = dash && dash.findings ? dash.findings.active : 0;
-  const fSup = dash && dash.findings ? dash.findings.suppressed : 0;
-  triBody.appendChild(chipEl(fActive ? 'degraded' : 'connected'));
-  const fActiveWrap = el('div', 'd-flex align-items-center gap-2');
-  fActiveWrap.appendChild(el('span', null, 'Active findings: ' + fActive + (dash ? '' : ' (add-in offline)')));
-  triBody.appendChild(fActiveWrap);
-  const fSupWrap = el('div', 'd-flex align-items-center gap-2 text-secondary');
-  fSupWrap.textContent = 'Suppressed findings: ' + fSup + ' (each keeps its reason on record).';
-  triBody.appendChild(fSupWrap);
-  const viewAssur = el('button', 'btn btn-primary ms-auto');
-  viewAssur.textContent = 'View in Assurance';
-  viewAssur.addEventListener('click', () => go('assurance'));
-  triBody.appendChild(viewAssur);
-  triCard.appendChild(triBody);
-  explain(triCard, 'Findings triage.',
-    'Findings are raised by the harness and verified offline. Active items need an investigator; suppressed ones stay on record with their reason. Full triage lives in the Assurance add-in.');
-  triCol.appendChild(triCard.ownerCard);
-  triRow.appendChild(triCol);
-  p.appendChild(triRow);
-  return p;
-}
-
-function viewTrust() {
-  const p = page(TITLES.trust);
-  const trustCard = el('div', 'card');
-  const body = el('div', 'card-body');
-  body.appendChild(el('h3', 'card-title', 'Capabilities'));
-  const ul = el('ul', 'list-group list-group-flush');
-  ['Gate decisions over privileged tool calls',
-    'Signed evidence receipts with offline verification',
-    'Full ADR-0001 verification status enum surfaced (no silent blanks)',
-    'Bundle with the gate so agents cannot act without proof'].forEach(x => ul.appendChild(el('li', 'list-group-item', x)));
-  body.appendChild(ul);
-  body.appendChild(el('p', 'mt-2 mb-0', 'Included with licence key - pricing tiers are not shown in product pages.'));
-  trustCard.appendChild(body);
-  explain(body, 'Trust gate / evidence core.', 'Raucle Agent Trust stops a tool call unless its evidence is proven. Connect it to your gate once; the console then shows live counts.');
-  p.appendChild(trustCard);
-  const conn = el('div', 'card mt-3');
-  const cBody = el('div', 'card-body');
-  cBody.appendChild(el('h3', 'card-title', 'Connect your gate'));
-  cBody.appendChild(el('p', null, 'Point the console at your gate configuration by setting the environment variable '));
-  cBody.appendChild(el('p', null, config.trust_gate_env + ' (the path to your gate config). Restart the console after the change; the value itself is never displayed.'));
-  conn.appendChild(cBody);
-  p.appendChild(conn);
-  return p;
-}
-
-function viewAssurance() {
-  const p = page(TITLES.assurance);
-  p.appendChild(el('div', 'banner my-3',
-    'Note: this is a separate add-in process, embedded here in an alpha iframe. Live process embedding via a plugin registry is planned - see the EPIC-N findings.'));
-  const src = config.assurance_url.replace(/\/$/, '') + '/';
-  const frame = el('iframe');
-  frame.title = 'Raucle Agent Assurance - investigation add-in';
-  frame.setAttribute('src', src);
-  frame.setAttribute('referrerpolicy', 'no-referrer');
-  p.appendChild(frame);
-  const note = el('div', 'card my-3');
-  const nBody = el('div', 'card-body');
-  nBody.appendChild(el('h3', 'card-title', 'About this embed'));
-  nBody.appendChild(el('p', null, 'Source (configured, env RAUCLE_ASSURANCE_URL): ' + src));
-  nBody.appendChild(el('p', null, 'If the frame is empty, the add-in process is offline - its page shows the graceful empty state here the moment it is reachable.'));
-  note.appendChild(nBody);
-  p.appendChild(note);
-  return p;
-}
-
-function viewRed() {
-  const p = page(TITLES.red);
-  const c = el('div', 'card');
-  const body = el('div', 'card-body');
-  const h = el('h3', 'card-title d-flex align-items-center gap-2');
-  h.appendChild(el('span', null, 'Raucle Agent Red '));
-  h.appendChild(chipEl('not_purchased'));
-  body.appendChild(h);
-  body.appendChild(el('p', null, 'Coming soon. Wave two of the suite; announcing later.'));
-  const ul = el('ul');
-  ['Adversarial tool-content scenarios', 'Policy edge-case sweeps', 'Reporting that pairs with Raucle Agent Assurance'].forEach(x => {
-    const li = el('li', null, x);
-    ul.appendChild(li);
-  });
-  body.appendChild(ul);
-  body.appendChild(el('p', null, 'Included with licence key once available - pricing tiers are not shown in product pages.'));
-  c.appendChild(body);
-  explain(body, 'Adversarial testing add-in.', 'Raucle Agent Red will attack your agents the way a real caller would: hostile instructions, ambiguous inputs and policy edges. Not purchasable yet.');
-  p.appendChild(c);
-  return p;
-}
-
-function alphaBanner(text) {
-  return el('div', 'banner my-3', text + ' This page is an alpha placeholder - form controls do not persist anything yet.');
-}
-
-function stubForm(fields) {
-  const wrap = el('div', 'card mt-3');
-  const f = el('div', 'card-body');
-  for (const [lbl, type] of fields) {
-    const label = el('label', 'form-label', lbl);
-    const input = el('input');
-    input.type = type;
-    input.className = 'form-control';
-    input.name = lbl.toLowerCase().replace(/[^a-z]+/g, '-');
-    f.appendChild(label);
-    f.appendChild(input);
-  }
-  const save = el('button', 'btn btn-primary mt-3', 'Save (placeholder)');
-  save.type = 'button';
-  f.appendChild(el('div', 'muted mt-2', ' '));
-  f.appendChild(save);
-  save.addEventListener('click', () => {
-    const m = f.querySelector('.muted');
-    m.textContent = 'Placeholder only - nothing is saved in the alpha.';
-  });
-  wrap.appendChild(f);
-  return wrap;
-}
-
-function viewSettings() {
-  const p = page(TITLES.settings);
-  p.appendChild(alphaBanner('Tenant settings for the single alpha tenant.'));
-  p.appendChild(stubForm([['Tenant label', 'text'], ['Contact email', 'email'], ['Gate config path', 'text']]));
-  p.appendChild(el('p', 'text-secondary small', 'Org identity is derived by the server from the ADR tenancy contract; the console never sets a tenant by cookie. Authenticated multi-tenancy is a later epic.'));
-  return p;
-}
-
-function viewProfile() {
-  const p = page(TITLES.profile);
-  p.appendChild(alphaBanner('Your operator profile.'));
-  p.appendChild(stubForm([['Display name', 'text'], ['Email', 'email']]));
-  return p;
-}
-
-function viewNotifications() {
-  const p = page(TITLES.notifications);
-  p.appendChild(alphaBanner('Notification preferences.'));
-  const wrap = el('div', 'card');
-  const list = el('div', 'card-body');
-  list.appendChild(el('h3', 'card-title', 'Unread (from /api/overview)'));
-  const ul = el('div', 'list-group list-group-flush');
-  for (const n of (overview ? overview.notifications.items : [])) {
-    const li = el('div', 'list-group-item d-flex align-items-center gap-2');
-    li.appendChild(chipEl('degraded'));
-    li.appendChild(el('span', null, ' ' + n));
-    ul.appendChild(li);
-  }
-  if (!overview || !overview.notifications.items.length) {
-    ul.appendChild(el('div', 'list-group-item', 'No notifications available.'));
-  }
-  list.appendChild(ul);
-  wrap.appendChild(list);
-  p.appendChild(wrap);
-  p.appendChild(stubForm([['Add-in status alerts (placeholder)', 'checkbox'], ['Weekly summary (placeholder)', 'checkbox']]));
-  return p;
-}
-
-const VIEWS = {
-  overview: viewOverview, trust: viewTrust, assurance: viewAssurance, red: viewRed,
-  settings: viewSettings, profile: viewProfile, notifications: viewNotifications,
-};
-
 function go(route) {
   const v = VIEWS[route] || viewOverview;
   const pageEl = document.getElementById('page');
   pageEl.replaceChildren(v());
+  paintIcons(pageEl);
   markCurrent(route);
   history.replaceState(null, '', '#' + route);
+  document.getElementById('page-title').textContent = TITLES[route] || 'Overview';
+  document.getElementById('cta-primary').hidden = route === 'assurance';
   document.getElementById('view').scrollTop = 0;
+  /* keep relative feed labels honest as the session ages */
+  const els = document.querySelectorAll('#page .rowline .when');
+  els.forEach(node => { /* re-rendered on each navigation */ });
+  attachTips(pageEl);
 }
 
-/* ------------------------------------------------------------ top bar */
+/* ------------------------------------------------------------------ topbar */
 function buildSearch() {
   const q = document.getElementById('q');
   const box = document.getElementById('search-results');
@@ -807,7 +848,7 @@ function buildSearch() {
     const needle = q.value.trim().toLowerCase();
     if (!needle) { box.classList.remove('show'); box.replaceChildren(); return; }
     const hits = [];
-    for (const n of NAV) if (TITLES[n.id].toLowerCase().includes(needle)) hits.push({ label: TITLES[n.id], route: n.id });
+    for (const n of NAV) if (n.label.toLowerCase().includes(needle)) hits.push({ label: n.label, route: n.id });
     for (const li of (overview ? overview.activity : [])) {
       if (li.what.toLowerCase().includes(needle)) hits.push({ label: 'Activity: ' + li.what, route: 'overview' });
     }
@@ -817,7 +858,7 @@ function buildSearch() {
       }
     }
     box.replaceChildren();
-    if (!hits.length) box.appendChild(el('div', 'text-secondary px-2 py-2 small', 'No matches.'));
+    if (!hits.length) box.appendChild(el('div', 'muted', 'No matches.'));
     for (const h of hits.slice(0, 8)) {
       const b = el('button', null, h.label);
       b.addEventListener('click', () => { box.classList.remove('show'); q.value = ''; go(h.route); });
@@ -826,6 +867,9 @@ function buildSearch() {
     box.classList.add('show');
   };
   q.addEventListener('input', render);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === '/' && document.activeElement !== q) { q.focus(); e.preventDefault(); }
+  });
   q.addEventListener('blur', () => setTimeout(() => box.classList.remove('show'), 200));
 }
 
@@ -834,21 +878,78 @@ function buildTopbar() {
   const badge = document.getElementById('bell-count');
   const count = overview ? overview.notifications.count : 0;
   bell.setAttribute('aria-label', 'Notifications, ' + count + ' unread');
+  badge.hidden = !count;
   badge.textContent = String(count);
-  badge.className = 'badge ms-1 ' + (count ? 'bg-red text-white' : 'text-secondary');
   bell.addEventListener('click', () => go('notifications'));
-  const prof = document.getElementById('profile-btn');
-  prof.addEventListener('click', () => go('profile'));
+  /* avatar dropdown: Profile, Settings, Sign out (alpha-disabled) */
+  const menu = document.getElementById('avatar-pop');
+  const menuItems = [
+    ['Profile', 'user', () => go('profile')],
+    ['Settings', 'sliders', () => go('settings')],
+    ['Sign out', 'logout', null],
+  ];
+  for (const [label, ic, fn] of menuItems) {
+    const b = el('button');
+    b.type = 'button';
+    b.appendChild(iconEl(ic, 14));
+    b.appendChild(el('span', null, label));
+    if (!fn) {
+      b.disabled = true;
+      b.title = 'Disabled in the single-tenant alpha';
+      b.setAttribute('aria-disabled', 'true');
+    } else {
+      b.addEventListener('click', () => { menu.classList.remove('show'); fn(); });
+    }
+    menu.appendChild(b);
+  }
+  menu.appendChild(el('div', 'muted small', 'Sign out lands in a later epic.'));
+  menu.lastElementChild.style.padding = '4px 10px';
+  const btn = document.getElementById('avatar-btn');
+  btn.addEventListener('click', () => {
+    const open = !menu.classList.contains('show');
+    menu.classList.toggle('show', open);
+    btn.setAttribute('aria-expanded', String(open));
+  });
+  document.addEventListener('click', (e) => {
+    if (!menu.contains(e.target) && !btn.contains(e.target)) { menu.classList.remove('show'); btn.setAttribute('aria-expanded', 'false'); }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { menu.classList.remove('show'); btn.setAttribute('aria-expanded', 'false'); }
+  });
+  document.getElementById('cta-primary').addEventListener('click', () => go('assurance'));
   buildSearch();
 }
 
-/* ------------------------------------------------------------ theme toggle */
+/* ------------------------------------------------------------------ collapse */
+function buildCollapse() {
+  const shell = document.getElementById('shell');
+  const btn = document.getElementById('shell-collapse');
+  let collapsed = false;
+  try { collapsed = window.localStorage.getItem('rc-collapsed') === '1'; } catch { /* keep open */ }
+  const apply = () => {
+    shell.classList.toggle('collapsed', collapsed);
+    button();
+  };
+  const button = () => {
+    btn.setAttribute('aria-expanded', String(!collapsed));
+    btn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+  };
+  apply();
+  btn.addEventListener('click', () => {
+    collapsed = !collapsed;
+    apply();
+    try { window.localStorage.setItem('rc-collapsed', collapsed ? '1' : '0'); } catch { /* session only */ }
+  });
+}
+
+/* ------------------------------------------------------------------ theme */
 function applyTheme(t) {
-  document.documentElement.setAttribute('data-bs-theme', t);
+  document.documentElement.setAttribute('data-theme', t);
   const btn = document.getElementById('theme-toggle');
-  btn.replaceChildren(iconEl(t === 'dark' ? 'sun' : 'moon', 18));
+  btn.replaceChildren(iconEl(t === 'dark' ? 'sun' : 'moon', 16));
   btn.setAttribute('aria-label', 'Switch to ' + (t === 'dark' ? 'light' : 'dark') + ' theme');
   btn.title = 'Switch to ' + (t === 'dark' ? 'light' : 'dark') + ' theme';
+  btn.setAttribute('data-icon', '');
 }
 function buildTheme() {
   let t = 'light';
@@ -858,28 +959,39 @@ function buildTheme() {
   } catch { /* storage unavailable: keep light */ }
   applyTheme(t);
   document.getElementById('theme-toggle').addEventListener('click', () => {
-    const next = document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
     applyTheme(next);
     try { window.localStorage.setItem('rc-theme', next); } catch { /* keep session-only */ }
   });
 }
 
-/* ------------------------------------------------------------ boot */
+/* ------------------------------------------------------------------ boot */
 async function boot() {
   try { overview = await (await fetch('/api/overview')).json(); } catch { overview = null; }
-  try { config = await (await fetch('/api/config')).json(); } catch { /* defaults kept */ }
+  try { config = { ...config, ...(await (await fetch('/api/config')).json()) }; } catch { /* defaults kept */ }
   try {
     const r = await fetch('/api/assurance/dashboard');
     if (r.ok) dash = await r.json();
   } catch { dash = null; }
-  const t = document.getElementById('tenant-label');
+  try {
+    const r = await fetch('/api/assurance/counts');
+    if (r.ok) counts = await r.json();
+  } catch { counts = null; }
+  try {
+    const r = await fetch('/api/assurance/findings');
+    if (r.ok) findings = await r.json();
+  } catch { findings = null; }
   const tenant = overview && overview.tenants ? overview.tenants[0] : { label: 'default' };
-  t.textContent = tenant.label;
-  document.getElementById('side-nav').replaceChildren();
+  const h = new Date().getHours();
+  const word = h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
+  document.getElementById('page-sub').textContent =
+    'Good ' + word + ' · tenant ' + tenant.label + ' · agent suite alpha';
   buildSidebar();
   buildLegend();
   buildTopbar();
+  buildCollapse();
   buildTheme();
+  paintIcons(document);
   const hash = location.hash.replace('#', '');
   go(VIEWS[hash] ? hash : 'overview');
   window.addEventListener('hashchange', () => {
@@ -889,5 +1001,6 @@ async function boot() {
 }
 boot();
 </script>
+<div id="tip" class="tip" role="status"></div>
 </body>
 </html>
