@@ -7,7 +7,7 @@ addopts = "-q"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-src = ["packages/raucle-adapter/src", "tests", "examples"]
+src = ["packages/raucle-adapter/src", "services/correlation/src", "tests", "examples"]
 extend-exclude = [".venv"]
 
 [tool.ruff.lint]

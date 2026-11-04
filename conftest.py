@@ -7,3 +7,7 @@ import sys
 sys.path.insert(
     0, str(pathlib.Path(__file__).resolve().parent / "packages" / "raucle-adapter" / "src")
 )
+sys.path.insert(
+    0,
+    str(pathlib.Path(__file__).resolve().parent / "services" / "correlation" / "src"),
+)
