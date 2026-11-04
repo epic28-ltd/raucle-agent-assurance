@@ -1,1 +1,293 @@
-[]
+{
+  "findings": [
+    {
+      "confidence": "high",
+      "evidence_ref": {
+        "kind": "fixture_store",
+        "sha256": "0afe93c937b96c304f8cb57cc61905e5e9178d94a92bb7439b26d372a0f95de7",
+        "value": "/home/craigamcw/Projects/open-agent-assurance/services/investigation-ui/demo_data/evidence_store.jsonl"
+      },
+      "explanation": "replay of a real receipt for a different claimed trace id is attributable: receipt_hash equality identifies the resubmission and the signed x_gate trace binding exposes the discrepancy",
+      "finding_id": "1b8533f4-7d53-5637-a652-06cee5a34b6a",
+      "ingested_at": "2026-11-04T16:40:18.194684+00:00",
+      "rule": "RED-009",
+      "rule_label": "receipt-replay-attributable: replay detection by receipt_hash equality verified (PASS)",
+      "severity": "info",
+      "suggested_action": "none: detection confirmed; monitor the index for duplicate hashes",
+      "suite": "tamper"
+    },
+    {
+      "confidence": "high",
+      "evidence_ref": {
+        "kind": "audit_row",
+        "sha256": "90dcb8796fe7b66ecfe2fccc615daeea1a7fad18b13443285192d2e93c3adf8c",
+        "value": "90dcb8796fe7b66ecfe2fccc615daeea1a7fad18b13443285192d2e93c3adf8c"
+      },
+      "explanation": "forged correlation candidates without the signed x_gate binding token did not reach the strong matched state (5 probes; 1 landed on matched_degraded at medium confidence via time-window+actor, which is the documented weaker class)",
+      "finding_id": "1d63dedf-e107-5812-96e2-fd75ab05d282",
+      "ingested_at": "2026-11-04T16:40:18.194720+00:00",
+      "rule": "RED-004",
+      "rule_label": "forge-resisted: forged correlations did not reach the strong matched state (PASS)",
+      "severity": "info",
+      "suggested_action": "none: monitor confidence classes on reconcile outputs",
+      "suite": "forge"
+    },
+    {
+      "confidence": "high",
+      "evidence_ref": {
+        "kind": "receipt_hash",
+        "sha256": "853545c98ac9bba96f19b9a58ce1ef9ce32b22c8bb01efecc33cca5f35816018",
+        "value": "sha256:red-author-gap:eyJkZWNpc2lvbiI6ICJhbGxv"
+      },
+      "explanation": "policy variant 'allow-list-underconstrained-to' permits {\"to_account\": \"ACC-009\"} (call 'to-account-unconstrained') although the author intent bounds every exercised value to the accounts list. Classification: fixture policy issue, not a gate gap - the gate enforced its documented per-field contract (allowed_values semantics are FORALL over named fields; unlisted args are the tool contract's vantage). Reason: 'ok'",
+      "finding_id": "2994738b-7ad8-54c6-9be1-ae4f6252b14b",
+      "ingested_at": "2026-11-04T16:40:18.194742+00:00",
+      "rule": "RED-003",
+      "rule_label": "policy-author-gap: a variant permits more than its author intent while matching configuration",
+      "severity": "medium",
+      "suggested_action": "authoring recipe: name every security-critical field in the allow map, prefer allowed_values whitelists over forbidden_values blacklists (alias-name evasion documented); then feed the corrected candidate into the z3-verified loop",
+      "suite": "policy"
+    },
+    {
+      "confidence": "high",
+      "evidence_ref": {
+        "kind": "audit_row",
+        "sha256": "babd39d4716ce73ef039216f3ad070b9201c4bf07b737596a38d3fb54b4f29af",
+        "value": "babd39d4716ce73ef039216f3ad070b9201c4bf07b737596a38d3fb54b4f29af"
+      },
+      "explanation": "A file:// resource URI escaping the policy prefix was allowed: file:///ledger/coversheets/%2e%2e/%2e%2e/secrets (decision from a starts_with prefix policy). MCP resource addressing let a traversal-shaped URI through the scoped prefix. Classified against raucle's documented constraints semantics: the prefix operator matches the literal string, so the URI layer resolves the escape the policy text never sees; treat as a policy author gap on the URI layer, not a gate DSL gap.",
+      "finding_id": "3a6d7b3d-ca1a-5882-b9fb-0682ab9995d3",
+      "ingested_at": "2026-11-04T16:40:18.194763+00:00",
+      "rule": "RED-017",
+      "rule_label": "mcp-uri-traversal-allowed: an MCP resource URI carrying path traversal was allowed",
+      "severity": "high",
+      "suggested_action": "Constrain resource URIs with resolved-path predicates (normalise, then match) in the tool layer wrapping the gate, or add a canonical-path operator to the policy DSL; re-run this suite after any change.",
+      "suite": "mcp"
+    },
+    {
+      "confidence": "high",
+      "evidence_ref": {
+        "kind": "audit_row",
+        "sha256": "6475aa4b2b517d8a8ccfb7952f7b311961215b2262042e5e03aedf96299f1456",
+        "value": "6475aa4b2b517d8a8ccfb7952f7b311961215b2262042e5e03aedf96299f1456"
+      },
+      "explanation": "The gate allowed an MCP tool-description/metadata override attempt on an argument name the policy does not constrain (system_prompt). Confirmed documented limitation (argument-name scope); the override content is not enforced on the gate layer. A harness lesson, not a gate gap.",
+      "finding_id": "5393c049-eabf-54c5-bdcf-c27bf34e3c32",
+      "ingested_at": "2026-11-04T16:40:18.194782+00:00",
+      "rule": "RED-011",
+      "rule_label": "documented-limitation-observed: the gate admitted an unconstrained (out-of-DSL) argument on an otherwise in-scope call. CONFIRMED against raucle docs/security-model.md (\"the gate enforces on the argument names declared in the policy\"): fixture policy issue, not a gate gap. The tightening recipe lives in docs/findings-format.md",
+      "severity": "low",
+      "suggested_action": "Keep the tightening recipe from docs/findings-format.md: name the description/metadata fields in the policy allow map (they fail closed), or bind tool schemas at the MCP layer.",
+      "suite": "mcp"
+    },
+    {
+      "confidence": "high",
+      "evidence_ref": {
+        "kind": "audit_row",
+        "sha256": "868a3f59db8956980ef27988cc06cd64d13301731cf007a56545a91fff411bba",
+        "value": "868a3f59db8956980ef27988cc06cd64d13301731cf007a56545a91fff411bba"
+      },
+      "explanation": "The gate allowed an MCP tool-description/metadata override attempt on an argument name the policy does not constrain (description). Confirmed documented limitation (argument-name scope); the override content is not enforced on the gate layer. A harness lesson, not a gate gap.",
+      "finding_id": "59f7556a-80d2-5909-986b-ab5d45ca9626",
+      "ingested_at": "2026-11-04T16:40:18.194800+00:00",
+      "rule": "RED-011",
+      "rule_label": "documented-limitation-observed: the gate admitted an unconstrained (out-of-DSL) argument on an otherwise in-scope call. CONFIRMED against raucle docs/security-model.md (\"the gate enforces on the argument names declared in the policy\"): fixture policy issue, not a gate gap. The tightening recipe lives in docs/findings-format.md",
+      "severity": "low",
+      "suggested_action": "Keep the tightening recipe from docs/findings-format.md: name the description/metadata fields in the policy allow map (they fail closed), or bind tool schemas at the MCP layer.",
+      "suite": "mcp"
+    },
+    {
+      "confidence": "high",
+      "evidence_ref": {
+        "kind": "audit_row",
+        "sha256": "b189a16f06b427127afa082183cb3e00e667bb3e370906ce4c3a8cd7d1d2d1d6",
+        "value": "b189a16f06b427127afa082183cb3e00e667bb3e370906ce4c3a8cd7d1d2d1d6"
+      },
+      "explanation": "The gate allowed an MCP tool-description/metadata override attempt on an argument name the policy does not constrain (_meta). Confirmed documented limitation (argument-name scope); the override content is not enforced on the gate layer. A harness lesson, not a gate gap.",
+      "finding_id": "5b2c1300-8a20-52bf-93fc-cebbc11e4802",
+      "ingested_at": "2026-11-04T16:40:18.194818+00:00",
+      "rule": "RED-011",
+      "rule_label": "documented-limitation-observed: the gate admitted an unconstrained (out-of-DSL) argument on an otherwise in-scope call. CONFIRMED against raucle docs/security-model.md (\"the gate enforces on the argument names declared in the policy\"): fixture policy issue, not a gate gap. The tightening recipe lives in docs/findings-format.md",
+      "severity": "low",
+      "suggested_action": "Keep the tightening recipe from docs/findings-format.md: name the description/metadata fields in the policy allow map (they fail closed), or bind tool schemas at the MCP layer.",
+      "suite": "mcp"
+    },
+    {
+      "confidence": "high",
+      "evidence_ref": {
+        "kind": "audit_row",
+        "sha256": "0a26e0e3124b355f86a47bf02453b13b69ef433499a10a5ad005b07fe7bc7f66",
+        "value": "0a26e0e3124b355f86a47bf02453b13b69ef433499a10a5ad005b07fe7bc7f66"
+      },
+      "explanation": "Real-gateway transport verified: 4 parity probes returned identical decisions, reasons and policy ids over HTTP and in-process; malformed X-Trace-Id headers were rejected at transport or handled without a 5xx; the oversized payload was rejected.",
+      "finding_id": "68fe0960-6255-515f-ad8c-3c216e2dd181",
+      "ingested_at": "2026-11-04T16:40:18.194835+00:00",
+      "rule": "RED-015",
+      "rule_label": "http-transport-parity-verified: HTTP and in-process decisions matched for every parity probe (PASS)",
+      "severity": "info",
+      "suggested_action": "Re-run this suite whenever gateway_app's /gate preprocessing changes; the in-process/HTTP pair is the parity contract.",
+      "suite": "gateway_http"
+    },
+    {
+      "confidence": "high",
+      "evidence_ref": {
+        "kind": "audit_row",
+        "sha256": "a916b1a562f6fb04ba3d5a62310810e70b0cf37bd687af7f1d114507575e7b4a",
+        "value": "a916b1a562f6fb04ba3d5a62310810e70b0cf37bd687af7f1d114507575e7b4a"
+      },
+      "explanation": "MCP namespace scoping verified: 10 probes; cross-server and unconfigured MCP tool names denied on policy grounds.",
+      "finding_id": "86f0debe-a3dc-5010-90d4-afc36475bd21",
+      "ingested_at": "2026-11-04T16:40:18.194853+00:00",
+      "rule": "RED-019",
+      "rule_label": "mcp-namespace-scope-verified: MCP-namespaced and cross-server tool names denied on policy grounds (PASS)",
+      "severity": "info",
+      "suggested_action": "Re-run when the gate's tool-name matching changes (normalisation, aliases, MCP gateway fronting).",
+      "suite": "mcp"
+    },
+    {
+      "confidence": "high",
+      "evidence_ref": {
+        "kind": "audit_row",
+        "sha256": "d9556723e992f5de2069f1da558567c2606a834c7ba48f6ad58b582366dc66fc",
+        "value": "d9556723e992f5de2069f1da558567c2606a834c7ba48f6ad58b582366dc66fc"
+      },
+      "explanation": "A file:// resource URI escaping the policy prefix was allowed: file:///ledger/coversheets/././.. (decision from a starts_with prefix policy). MCP resource addressing let a traversal-shaped URI through the scoped prefix. Classified against raucle's documented constraints semantics: the prefix operator matches the literal string, so the URI layer resolves the escape the policy text never sees; treat as a policy author gap on the URI layer, not a gate DSL gap.",
+      "finding_id": "9cc3d900-d307-5b80-a1c4-8bc78d2cd4a2",
+      "ingested_at": "2026-11-04T16:40:18.194870+00:00",
+      "rule": "RED-017",
+      "rule_label": "mcp-uri-traversal-allowed: an MCP resource URI carrying path traversal was allowed",
+      "severity": "high",
+      "suggested_action": "Constrain resource URIs with resolved-path predicates (normalise, then match) in the tool layer wrapping the gate, or add a canonical-path operator to the policy DSL; re-run this suite after any change.",
+      "suite": "mcp"
+    },
+    {
+      "confidence": "high",
+      "evidence_ref": {
+        "kind": "audit_row",
+        "sha256": "8705c36ddb4ff645747bfbce702884349783b6345478c434682f8db99ebce346",
+        "value": "8705c36ddb4ff645747bfbce702884349783b6345478c434682f8db99ebce346"
+      },
+      "explanation": "An oversized /gate payload (>= 2000000 extra argument characters) was processed to a full verdict without a size bound being applied (HTTP 200, decision allow). No request-size guard is enforced.",
+      "finding_id": "a21af73a-a9dc-5a1c-885d-7ddcec03ae13",
+      "ingested_at": "2026-11-04T16:40:18.194888+00:00",
+      "rule": "RED-013",
+      "rule_label": "http-oversize-accepted: an oversized /gate payload was processed to a full verdict with no size bound",
+      "severity": "medium",
+      "suggested_action": "Add a bounded request-size guard (max body bytes / max argument characters) in the gateway preprocessing layer, or document the deployed reverse-proxy limit as the enforcement point for this layer.",
+      "suite": "gateway_http"
+    },
+    {
+      "confidence": "high",
+      "evidence_ref": {
+        "kind": "receipt_hash",
+        "sha256": "853545c98ac9bba96f19b9a58ce1ef9ce32b22c8bb01efecc33cca5f35816018",
+        "value": "sha256:red-author-gap:eyJkZWNpc2lvbiI6ICJhbGxv"
+      },
+      "explanation": "policy variant 'require-none' permits {\"to_account\": \"ACC-009\"} (call 'omit-to-account-no-require') although the author intent bounds every exercised value to the accounts list. Classification: fixture policy issue, not a gate gap - the gate enforced its documented per-field contract (allowed_values semantics are FORALL over named fields; unlisted args are the tool contract's vantage). Reason: 'ok'",
+      "finding_id": "ad3d3a6c-344a-5cb4-ab4c-2fac303d5753",
+      "ingested_at": "2026-11-04T16:40:18.194906+00:00",
+      "rule": "RED-003",
+      "rule_label": "policy-author-gap: a variant permits more than its author intent while matching configuration",
+      "severity": "medium",
+      "suggested_action": "authoring recipe: name every security-critical field in the allow map, prefer allowed_values whitelists over forbidden_values blacklists (alias-name evasion documented); then feed the corrected candidate into the z3-verified loop",
+      "suite": "policy"
+    },
+    {
+      "confidence": "high",
+      "evidence_ref": {
+        "kind": "audit_row",
+        "sha256": "6df13e5f42a39a0e792d7a52d2994cc1cd2aa3c4984cf89191922b2c3da5e76f",
+        "value": "6df13e5f42a39a0e792d7a52d2994cc1cd2aa3c4984cf89191922b2c3da5e76f"
+      },
+      "explanation": "A file:// resource URI escaping the policy prefix was allowed: file:///ledger/coversheets/../../etc/passwd (decision from a starts_with prefix policy). MCP resource addressing let a traversal-shaped URI through the scoped prefix. Classified against raucle's documented constraints semantics: the prefix operator matches the literal string, so the URI layer resolves the escape the policy text never sees; treat as a policy author gap on the URI layer, not a gate DSL gap.",
+      "finding_id": "c156dc1b-7cac-5e44-a176-e44573267a6c",
+      "ingested_at": "2026-11-04T16:40:18.194923+00:00",
+      "rule": "RED-017",
+      "rule_label": "mcp-uri-traversal-allowed: an MCP resource URI carrying path traversal was allowed",
+      "severity": "high",
+      "suggested_action": "Constrain resource URIs with resolved-path predicates (normalise, then match) in the tool layer wrapping the gate, or add a canonical-path operator to the policy DSL; re-run this suite after any change.",
+      "suite": "mcp"
+    },
+    {
+      "confidence": "medium",
+      "evidence_ref": {
+        "kind": "audit_row",
+        "sha256": "9b1441080d463d6ecd89e448a58ff1608bd79b806c82e90e6442b66d4771c35d",
+        "value": "9b1441080d463d6ecd89e448a58ff1608bd79b806c82e90e6442b66d4771c35d"
+      },
+      "explanation": "wrong-agent lease use is not flagged by the Assurance custody rule as shipped (SEC-010 fired: False): the rule matches credential id only and does not compare lease agent with using agent. Observed discrepancy, recorded honestly; intent-free",
+      "finding_id": "d0d93809-5369-56c5-adf2-0e157ac7eff5",
+      "ingested_at": "2026-11-04T16:40:18.194940+00:00",
+      "rule": "RED-006",
+      "rule_label": "custody-rule-coverage-gap: an Assurance custody rule misses a lease-misuse shape",
+      "severity": "medium",
+      "suggested_action": "extend the custody rule with per-agent lease binding",
+      "suite": "lease"
+    },
+    {
+      "confidence": "high",
+      "evidence_ref": {
+        "kind": "audit_row",
+        "sha256": "75d1d0a0efe8ce7aee012b6c3446523c02e4f888fe9341f207c2f3a15b136cde",
+        "value": "75d1d0a0efe8ce7aee012b6c3446523c02e4f888fe9341f207c2f3a15b136cde"
+      },
+      "explanation": "expired-lease use is not flagged by the Assurance custody rule as shipped (SEC-010 fired: False): the rule keys on issued-lease presence only, so expiry enforcement stays out of band. Observed discrepancy, recorded honestly; intent-free",
+      "finding_id": "d6ad0546-3487-52be-a1c2-aa4ec44b77eb",
+      "ingested_at": "2026-11-04T16:40:18.194956+00:00",
+      "rule": "RED-006",
+      "rule_label": "custody-rule-coverage-gap: an Assurance custody rule misses a lease-misuse shape",
+      "severity": "high",
+      "suggested_action": "extend the custody rule with lease expiry windows in the Assurance backlog",
+      "suite": "lease"
+    },
+    {
+      "confidence": "high",
+      "evidence_ref": {
+        "kind": "audit_row",
+        "sha256": "2146e2026d3ab8a933c7c340fca1891b43cfa0e07771aad9b633f7960ae43fb5",
+        "value": "2146e2026d3ab8a933c7c340fca1891b43cfa0e07771aad9b633f7960ae43fb5"
+      },
+      "explanation": "credential consumed with no matching issued lease generated the SEC-010 critical finding from a raw board-ingestible custody audit row (ref lease-use-1); rules-engine explanation: credential 'cred-red-probe-1' consumed for custody-covered tool 'vault_read' with no matching issued lease \u2014 custody violation (ADR-0004 high-confidence signal)",
+      "finding_id": "e5778e64-2d34-5fd8-bde6-9746bb9de82c",
+      "ingested_at": "2026-11-04T16:40:18.194973+00:00",
+      "rule": "RED-007",
+      "rule_label": "custody-sec010-verified: lease-less consumption produces the SEC-010 finding (PASS)",
+      "severity": "info",
+      "suggested_action": "none: custody coverage path verified end to end",
+      "suite": "lease"
+    },
+    {
+      "confidence": "high",
+      "evidence_ref": {
+        "kind": "receipt_hash",
+        "sha256": "853545c98ac9bba96f19b9a58ce1ef9ce32b22c8bb01efecc33cca5f35816018",
+        "value": "sha256:red-author-gap:eyJkZWNpc2lvbiI6ICJhbGxv"
+      },
+      "explanation": "policy variant 'allow-list-empty-string-member' permits {\"to_account\": \"\"} (call 'list-member-empty-string') although the author intent bounds every exercised value to the accounts list. Classification: fixture policy issue, not a gate gap - the gate enforced its documented per-field contract (allowed_values semantics are FORALL over named fields; unlisted args are the tool contract's vantage). Reason: 'ok'",
+      "finding_id": "ea51afdc-5beb-5ca7-9a0d-ebaebbca242d",
+      "ingested_at": "2026-11-04T16:40:18.194991+00:00",
+      "rule": "RED-003",
+      "rule_label": "policy-author-gap: a variant permits more than its author intent while matching configuration",
+      "severity": "medium",
+      "suggested_action": "authoring recipe: name every security-critical field in the allow map, prefer allowed_values whitelists over forbidden_values blacklists (alias-name evasion documented); then feed the corrected candidate into the z3-verified loop",
+      "suite": "policy"
+    },
+    {
+      "confidence": "high",
+      "evidence_ref": {
+        "kind": "receipt_hash",
+        "sha256": "4ef4ef9fe038cc05679f5a53c486d45be5eea7dfebe35e42f4f41070fe0ae948",
+        "value": "sha256:red-note:eyJleGVyY2lzZWQiOiB7ImFs"
+      },
+      "explanation": "variant 'extra-argument' probe 'extra-alias-account' allowed a call exercising {\"alt_account\": \"ACC-009\"} outside the policy's DSL-named fields. Classified per raucle's documented enforcement contract (argument-name scope, docs/security-model.md): fixture-level note, not a gate vulnerability",
+      "finding_id": "ee58e6b8-5328-54de-b613-6eebf16420be",
+      "ingested_at": "2026-11-04T16:40:18.195009+00:00",
+      "rule": "RED-011",
+      "rule_label": "documented-limitation-observed: the gate admitted an unconstrained (out-of-DSL) argument on an otherwise in-scope call. CONFIRMED against raucle docs/security-model.md (\"the gate enforces on the argument names declared in the policy\"): fixture policy issue, not a gate gap. The tightening recipe lives in docs/findings-format.md",
+      "severity": "info",
+      "suggested_action": "tool-side schema binding is the documented future hardening",
+      "suite": "policy"
+    }
+  ],
+  "source": "red-mvp"
+}

@@ -126,6 +126,9 @@ const ICONS = {
   sliders: ['M6 4v6', 'M6 14v6', 'M4 10h4', 'M12 4v2', 'M12 10v10', 'M10 6h4', 'M18 4v8', 'M18 16v4', 'M16 12h4'],
   clock: ['M12 21a9 9 0 1 0 -9 -9a9 9 0 0 0 9 9', 'M11 7h1v4l3 3'],
   info: ['M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0', 'M12 9h.01', 'M11 12h1v4h1'],
+  shield_check: ['M12 3l7 2.8v5.4c0 4.6-3 7.9-7 9.8-4-1.9-7-5.2-7-9.8V5.8L12 3z', 'M8.6 12.2l2.6 2.6l4.6 -5'],
+  scope: ['M12 12m-8 0a8 8 0 1 0 16 0a8 8 0 1 0 -16 0', 'M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0', 'M12 2v3', 'M12 19v3', 'M2 12h3', 'M19 12h3'],
+  bug: ['M13 10.5a4.5 4.5 0 0 0 -4.5 4.5a4.5 4.5 0 0 0 9 0a4.5 4.5 0 0 0 -4.5 -4.5', 'M13 10.5v-2.5', 'M11.2 8h3.6', 'M6 15h2.5', 'M17.5 15h2.5', 'M6 19h2.5', 'M17.5 19h2.5', 'M13 6.5v-1.5'],
 };
 function iconEl(name, size) {
   const svg = document.createElementNS(SVG_NS, 'svg');
@@ -149,7 +152,8 @@ function iconEl(name, size) {
 function paintIcons(root) {
   for (const holder of (root.querySelectorAll ? root.querySelectorAll('[data-icon]') : [])) {
     if (holder.firstChild) continue;
-    holder.appendChild(iconEl(holder.dataset.icon, 16));
+    const big = holder.classList && holder.classList.contains('side-icon') ? 19 : 16;
+    holder.appendChild(iconEl(holder.dataset.icon, big));
   }
 }
 
@@ -1062,13 +1066,13 @@ function attachTips(pageEl) {
 
 /* ------------------------------------------------------------------ router */
 const NAV = [
-  { id: 'overview', label: 'Overview', group: 'suite' },
-  { id: 'trust', label: 'Raucle Agent Trust', group: 'products' },
-  { id: 'assurance', label: 'Raucle Agent Assurance', group: 'products' },
-  { id: 'red', label: 'Raucle Agent Red', group: 'products' },
-  { id: 'settings', label: 'Settings', group: 'account' },
-  { id: 'profile', label: 'Profile', group: 'account' },
-  { id: 'notifications', label: 'Notifications', group: 'account' },
+  { id: 'overview', label: 'Overview', group: 'suite', icon: 'apps' },
+  { id: 'trust', label: 'Raucle Agent Trust', group: 'products', icon: 'shield_check' },
+  { id: 'assurance', label: 'Raucle Agent Assurance', group: 'products', icon: 'scope' },
+  { id: 'red', label: 'Raucle Agent Red', group: 'products', icon: 'bug' },
+  { id: 'settings', label: 'Settings', group: 'account', icon: 'sliders' },
+  { id: 'profile', label: 'Profile', group: 'account', icon: 'user' },
+  { id: 'notifications', label: 'Notifications', group: 'account', icon: 'bell' },
 ];
 const TITLES = Object.fromEntries(NAV.map(n => [n.id, n.label]));
 const VIEWS = {
@@ -1088,6 +1092,9 @@ function buildSidebar() {
       a.dataset.route = item.id;
       a.title = item.label;
       const status = overview && overview.addins ? overview.addins.find(x => x.id === item.id) : null;
+      const iconHolder = el('span', 'side-icon');
+      iconHolder.dataset.icon = item.icon;
+      a.appendChild(iconHolder);
       a.appendChild(el('span', status ? dotCls(status.status) : 'side-dot dot-good'));
       a.appendChild(el('span', 'side-text', item.label));
       if (item.id === 'notifications') {

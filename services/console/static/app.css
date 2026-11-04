@@ -345,3 +345,8 @@ button:focus-visible,input:focus-visible,a:focus-visible,[tabindex]:focus-visibl
 .banner-link { display: flex; text-decoration: none; }
 .banner-link:hover, .banner-link:focus-visible { outline: 1px solid var(--ink, #1D1D1B); outline-offset: 1px; }
 .banner-link .detail { text-decoration: none; }
+
+/* sidebar: black lined icon per nav item (stroke uses currentColor = ink) */
+.side-icon{display:inline-flex;align-items:center;justify-content:center;
+  width:20px;height:20px;flex:none;color:var(--ink);opacity:.85}
+.side-item[aria-current="page"] .side-icon{opacity:1}
