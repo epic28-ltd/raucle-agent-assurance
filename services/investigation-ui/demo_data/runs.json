@@ -1,0 +1,231 @@
+{
+  "version": 1,
+  "note": "UI-01 demo fixture. Synthetic rows are test index data (never canonical evidence). The hostile attribute values below are intentional XSS/link-injection probes (threat model T5) — they MUST render escaped and unlinked.",
+  "runs": [
+    {
+      "run_id": "run-obs01-01",
+      "agent": "oaa-spike",
+      "release": "rel-0.9.2",
+      "started": "2026-11-04T08:43:30+00:00",
+      "traces": [
+        {
+          "trace_id": "e8263e06f259316a6797f9e2b5e21375",
+          "label": "obs01 spike trace (live Langfuse e8263e...)",
+          "window_start": "2026-11-04T08:43:35+00:00",
+          "window_end": "2026-11-04T08:43:44+00:00",
+          "spans": [
+            {
+              "span_id": "sp-01",
+              "parent_id": null,
+              "name": "agent.turn",
+              "tool": null,
+              "privileged": false,
+              "receipt_hash": null,
+              "started": "2026-11-04T08:43:30+00:00",
+              "attrs": {
+                "oaa.release": "rel-0.9.2",
+                "oaa.note": "<script>alert('ui-01-xss')</script>",
+                "oaa.console_url": "javascript:alert(1)//oaa-console"
+              }
+            },
+            {
+              "span_id": "sp-02",
+              "parent_id": "sp-01",
+              "name": "tool.write_file",
+              "tool": "write_file",
+              "privileged": true,
+              "receipt_hash": "sha256:7ad7bb9a68f0c3d50b1d24451b4caa2059ced33d33d0e53755fe94fc18b787db",
+              "started": "2026-11-04T08:43:39+00:00",
+              "attrs": {
+                "oaa.decision_seen": "deny",
+                "oaa.note": "<script>alert('ui-01-xss')</script>"
+              }
+            },
+            {
+              "span_id": "sp-03",
+              "parent_id": "sp-01",
+              "name": "tool.shell",
+              "tool": "shell",
+              "privileged": true,
+              "receipt_hash": null,
+              "started": "2026-11-04T08:43:41+00:00",
+              "attrs": {"oaa.note": "no gate receipt observed at ingest time"}
+            },
+            {
+              "span_id": "sp-04",
+              "parent_id": "sp-01",
+              "name": "llm.generate",
+              "tool": null,
+              "privileged": false,
+              "receipt_hash": null,
+              "started": "2026-11-04T08:43:42+00:00",
+              "attrs": {"oaa.model": "claude-sonnet-4-6"}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": "run-sim-02",
+      "agent": "oaa-sim",
+      "release": "rel-0.9.3",
+      "started": "2026-11-04T09:10:00+00:00",
+      "traces": [
+        {
+          "trace_id": "t-sim-amb-0000000000000000000000000000aa",
+          "label": "ambiguous: two distinct receipts for one trace",
+          "window_start": "2026-11-04T09:10:10+00:00",
+          "window_end": "2026-11-04T09:10:30+00:00",
+          "spans": [
+            {
+              "span_id": "sp-a1",
+              "parent_id": null,
+              "name": "tool.http_fetch",
+              "tool": "http_fetch",
+              "privileged": true,
+              "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000001",
+              "started": "2026-11-04T09:10:12+00:00",
+              "attrs": {"oaa.note": "duplicate producer claim for the same trace"}
+            },
+            {
+              "span_id": "sp-a2",
+              "parent_id": "sp-a1",
+              "name": "tool.http_fetch.retry",
+              "tool": "http_fetch",
+              "privileged": true,
+              "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000002",
+              "started": "2026-11-04T09:10:20+00:00",
+              "attrs": {"oaa.note": "second, distinct receipt for the same trace"}
+            }
+          ]
+        },
+        {
+          "trace_id": "t-sim-dup-0000000000000000000000000000bb",
+          "label": "duplicate: same receipt delivered twice",
+          "window_start": "2026-11-04T09:11:10+00:00",
+          "window_end": "2026-11-04T09:11:30+00:00",
+          "spans": [
+            {
+              "span_id": "sp-d1",
+              "parent_id": null,
+              "name": "tool.file_write",
+              "tool": "file_write",
+              "privileged": true,
+              "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000003",
+              "started": "2026-11-04T09:11:12+00:00",
+              "attrs": {"oaa.note": "two ingest deliveries collapsed to one logical record"}
+            }
+          ]
+        },
+        {
+          "trace_id": "t-sim-late-000000000000000000000000000cc",
+          "label": "late_arrival: receipt outside event window + grace",
+          "window_start": "2026-11-04T09:12:10+00:00",
+          "window_end": "2026-11-04T09:12:30+00:00",
+          "spans": [
+            {
+              "span_id": "sp-l1",
+              "parent_id": null,
+              "name": "tool.shell",
+              "tool": "shell",
+              "privileged": true,
+              "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000004",
+              "started": "2026-11-04T09:12:12+00:00",
+              "attrs": {"oaa.note": "receipt event_time outside window + 30s grace"}
+            }
+          ]
+        },
+        {
+          "trace_id": "t-sim-pend-0000000000000000000000000000dd",
+          "label": "verification pending (async ingest)",
+          "window_start": "2026-11-04T09:13:10+00:00",
+          "window_end": "2026-11-04T09:13:30+00:00",
+          "spans": [
+            {
+              "span_id": "sp-p1",
+              "parent_id": null,
+              "name": "tool.file_write",
+              "tool": "file_write",
+              "privileged": true,
+              "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000005",
+              "started": "2026-11-04T09:13:12+00:00",
+              "attrs": {"oaa.note": "verification queued; not yet decided"}
+            }
+          ]
+        },
+        {
+          "trace_id": "t-sim-na-00000000000000000000000000000ee",
+          "label": "not_applicable: tool outside gate policy scope",
+          "window_start": "2026-11-04T09:14:10+00:00",
+          "window_end": "2026-11-04T09:14:30+00:00",
+          "spans": [
+            {
+              "span_id": "sp-n1",
+              "parent_id": null,
+              "name": "tool.file_write",
+              "tool": "file_write",
+              "privileged": true,
+              "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000006",
+              "started": "2026-11-04T09:14:12+00:00",
+              "attrs": {"oaa.note": "gate marked the call out of scope (not_applicable)"}
+            }
+          ]
+        },
+        {
+          "trace_id": "t-sim-unav-000000000000000000000000000ff",
+          "label": "verification unavailable: verifier offline at ingest",
+          "window_start": "2026-11-04T09:15:10+00:00",
+          "window_end": "2026-11-04T09:15:30+00:00",
+          "spans": [
+            {
+              "span_id": "sp-u1",
+              "parent_id": null,
+              "name": "tool.shell",
+              "tool": "shell",
+              "privileged": true,
+              "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000007",
+              "started": "2026-11-04T09:15:12+00:00",
+              "attrs": {"oaa.note": "verifier unreachable at ingest — fail-visible gap"}
+            }
+          ]
+        },
+        {
+          "trace_id": "t-sim-match-000000000000000000000000000088",
+          "label": "matched: one receipt in window, verified valid",
+          "window_start": "2026-11-04T09:17:10+00:00",
+          "window_end": "2026-11-04T09:17:30+00:00",
+          "spans": [
+            {
+              "span_id": "sp-m1",
+              "parent_id": null,
+              "name": "tool.file_write",
+              "tool": "file_write",
+              "privileged": true,
+              "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000008",
+              "started": "2026-11-04T09:17:12+00:00",
+              "attrs": {"oaa.note": "receipt inside event window; correlated matched"}
+            }
+          ]
+        },
+        {
+          "trace_id": "t-sim-sup-0000000000000000000000000000aa",
+          "label": "receipt_missing, suppressed SEC-001 (documented)",
+          "window_start": "2026-11-04T09:16:10+00:00",
+          "window_end": "2026-11-04T09:16:30+00:00",
+          "spans": [
+            {
+              "span_id": "sp-s1",
+              "parent_id": null,
+              "name": "tool.shell",
+              "tool": "shell",
+              "privileged": true,
+              "receipt_hash": null,
+              "started": "2026-11-04T09:16:12+00:00",
+              "attrs": {"oaa.note": "known maintenance-window coverage gap (documented suppression)"}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

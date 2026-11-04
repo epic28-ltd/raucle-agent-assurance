@@ -1,0 +1,10 @@
+{
+  "note": "UI-01 rules fixture: SEC-002 verification failure + SEC-001 receipt_missing, with one documented suppression (suppressed findings are RETAINED, per RULE-01).",
+  "suppressions": [
+    {
+      "rule_id": "SEC-001",
+      "reason": "documented maintenance-window coverage gap on t-sim-sup trace (CHANGELOG 2026-11-04)",
+      "trace_id": "t-sim-sup-0000000000000000000000000000aa"
+    }
+  ]
+}

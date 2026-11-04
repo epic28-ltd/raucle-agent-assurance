@@ -1,0 +1,12 @@
+# Verification INDEX rows (status per receipt_hash, recorded at ingest/verify
+# time — NOT canonical evidence). Synthetic rows are test fixtures only.
+{"receipt_hash": "sha256:a3e29df11123ffc4c65fd50a5841d356b191a0fa85ff5b04fe970ed6f74379d5", "status": "valid", "checked_at": "2026-11-04T08:43:40+00:00", "verifier": "raucle ProvenanceVerifier (obs01 p5 run)", "detail": "verify_before == true (p5_receipts_report.json)"}
+{"receipt_hash": "sha256:7ad7bb9a68f0c3d50b1d24451b4caa2059ced33d33d0e53755fe94fc18b787db", "status": "valid", "checked_at": "2026-11-04T08:43:40+00:00", "verifier": "raucle ProvenanceVerifier (obs01 p5 run)", "detail": "verify_after == true (p5_receipts_report.json)"}
+{"receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000001", "status": "valid", "checked_at": "2026-11-04T09:10:30+00:00", "verifier": "demo fixture", "detail": "synthetic index row"}
+{"receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000002", "status": "unknown_key", "checked_at": "2026-11-04T09:10:30+00:00", "verifier": "demo fixture", "detail": "signing key absent from trust-root archive"}
+{"receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000003", "status": "valid", "checked_at": "2026-11-04T09:11:32+00:00", "verifier": "demo fixture", "detail": "synthetic index row"}
+{"receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000004", "status": "unsupported_schema", "checked_at": "2026-11-04T09:14:30+00:00", "verifier": "demo fixture", "detail": "unknown critical jose header parameter"}
+{"receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000005", "status": "pending", "checked_at": "2026-11-04T09:13:32+00:00", "verifier": "demo fixture", "detail": "async verification queued, not yet decided"}
+{"receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000006", "status": "not_applicable", "checked_at": "2026-11-04T09:14:32+00:00", "verifier": "demo fixture", "detail": "schema v0 out of verifier scope"}
+{"receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000007", "status": "unavailable", "checked_at": "2026-11-04T09:15:32+00:00", "verifier": "demo fixture", "detail": "verifier unreachable at ingest time"}
+{"receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000008", "status": "valid", "checked_at": "2026-11-04T09:17:32+00:00", "verifier": "demo fixture", "detail": "synthetic index row"}

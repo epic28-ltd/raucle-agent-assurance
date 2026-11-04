@@ -1,0 +1,175 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OAA investigation — UI-01</title>
+<link rel="stylesheet" href="/static/styles.css">
+<style>
+  nav { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; }
+  h2 { margin: .4rem 0; }
+  .crumbs { font-size: .85rem; color: #567; cursor: pointer; }
+  .tree { list-style: none; padding-left: 1.2rem; border-left: 1px dotted #bbc; }
+  .row { padding: .15rem 0; }
+  /* every dynamic value goes in a .v element rendered with textContent */
+</style>
+</head>
+<body>
+<nav>
+  <strong>Open Agent Assurance — investigation (UI-01)</strong>
+  <span id="nav-runs" class="crumbs">runs</span>
+</nav>
+<main id="app"></main>
+
+<script>
+// SPDX-License-Identifier: Apache-2.0
+// Threat model T5: no unsafe HTML injection anywhere — all model/tool
+// content is set with textContent; no external fetches; no auto-link
+// resolution; JWS is never rendered, only linked as a download.
+"use strict";
+const app = document.getElementById("app");
+
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text; // hostile text: escaped by construction
+  return n;
+}
+function td(parent, text, cls) {
+  const c = el("td", cls); c.textContent = text === null || text === undefined ? "" : String(text);
+  parent.appendChild(c); return c;
+}
+const UNCERTAIN_VERIFY = new Set(["invalid", "unknown_key", "unsupported_schema", "pending", "unavailable", "not_applicable", "unavailable-no-receipt"]);
+const UNCERTAIN_CORR = new Set(["receipt_missing", "trace_missing", "ambiguous", "late_arrival", "duplicate", "pending"]);
+
+function badge(parent, clsKey, text, uncertainSet) {
+  const cls = uncertainSet.has(text) ? "badge badge-unknown" : "badge badge-ok";
+  parent.appendChild(el("span", cls, text)); // token = full state enum, never blank
+}
+function crumb(label, fn) {
+  const c = el("span", "crumbs", label); c.onclick = fn; return c;
+}
+function table(head) {
+  const t = el("table"); const tr = el("tr");
+  head.forEach(h => { const c = el("th", null, h); tr.appendChild(c); });
+  t.appendChild(tr); return t;
+}
+
+function api(path, opts) { return fetch(path, opts).then(r => r.json()); }
+
+function showRuns() {
+  api("/api/runs").then(runs => {
+    app.replaceChildren();
+    const t = table(["run", "agent", "release", "spans", "verification", "correlation (privileged)"]);
+    runs.forEach(r => {
+      const tr = el("tr");
+      const runCell = td(tr, r.run_id); runCell.style.color = "#04478c"; runCell.style.cursor = "pointer";
+      runCell.onclick = () => { location.hash = "run/" + r.run_id; };
+      td(tr, r.agent); td(tr, r.release); td(tr, r.span_count + " (" + r.privileged_span_count + " privileged)");
+      td(tr, Object.entries(r.verification_summary).map(([k, v]) => k + ":" + v).join(", ") || "(none)");
+      td(tr, Object.entries(r.correlation_summary).map(([k, v]) => k + ":" + v).join(", ") || "(none)");
+      t.appendChild(tr);
+    });
+    app.appendChild(el("h2", null, "Runs"));
+    app.appendChild(t);
+  });
+}
+
+function showRun(runId) {
+  api("/api/runs/" + encodeURIComponent(runId)).then(run => {
+    app.replaceChildren();
+    app.appendChild(crumb("runs", showRuns));
+    app.append(el("h2", null, run.run_id + " — " + run.agent + " @ " + run.release));
+    const ft = table(["rule", "severity", "confidence", "subject", "suppressed", "suppression_reason"]);
+    (run.findings || []).forEach(f => {
+      const tr = el("tr");
+      td(tr, f.rule_id); td(tr, f.severity); td(tr, f.confidence); td(tr, f.subject || "");
+      const se = td(tr, f.suppressed ? "yes" : "no"); se.className = f.suppressed ? "badge badge-unknown" : "";
+      td(tr, f.suppression_reason || "");
+      ft.appendChild(tr);
+    });
+    app.appendChild(el("h3", null, "Findings (suppressed retained)"));
+    if ((run.findings || []).length) app.appendChild(ft);
+    else app.appendChild(el("p", null, "no findings for this run"));
+    run.traces.forEach(trace => {
+      app.appendChild(el("h3", null, "trace " + trace.trace_id));
+      const head = el("div", "row");
+      head.appendChild(el("span", null, "label: " + trace.label + "  correlation: "));
+      badge(head, null, trace.correlation ? trace.correlation.state : "pending", UNCERTAIN_CORR);
+      app.appendChild(head);
+      const t = table(["span", "tool", "privileged", "receipt_hash (evidence)", "verification", "correlation", "attrs"]);
+      trace.spans.forEach(span => {
+        const tr = el("tr"); t.appendChild(tr);
+        td(tr, span.name); td(tr, span.tool || ""); td(tr, span.privileged ? "yes" : "no");
+        if (span.receipt_hash) {
+          const h = td(tr, span.receipt_hash);
+          h.style.color = "#04478c"; h.style.cursor = "pointer";
+          h.onclick = () => { location.hash = "receipt/" + span.receipt_hash; };
+        } else {
+          td(tr, "no receipt observed (explicit gap)", "badge badge-unknown");
+        }
+        const vc = el("td");
+        badge(vc, null, span.verification.status, UNCERTAIN_VERIFY);
+        vc.title = span.verification.detail || "";
+        tr.appendChild(vc);
+        const cc = el("td");
+        badge(cc, null, span.correlation.state, UNCERTAIN_CORR);
+        cc.title = span.correlation.notes || "";
+        tr.appendChild(cc);
+        const at = el("td");
+        Object.entries(span.attrs || {}).forEach(([k, v]) => {
+          at.append(el("div", null, k + " = " + v)); // textContent — escaped, unlinked
+        });
+        tr.appendChild(at);
+      });
+      app.appendChild(t);
+    });
+  });
+}
+
+function showReceipt(hash) {
+  api("/api/receipts/" + encodeURIComponent(hash)).then(meta => {
+    app.replaceChildren();
+    app.appendChild(crumb("runs", showRuns));
+    app.append(el("h2", null, "Evidence"));
+    const t = table(["field", "value"]);
+    [["receipt_hash", meta.receipt_hash], ["schema_version", meta.schema_version],
+     ["gate decision", meta.decision], ["policy_ref", meta.policy_ref],
+     ["tool", meta.tool], ["trace_id", meta.trace_id], ["event_time", meta.event_time]]
+      .forEach(([k, v]) => { const tr = el("tr"); td(tr, k); td(tr, v); t.appendChild(tr); });
+    app.appendChild(t);
+    const vrow = table(["verification at ingest", "detail"]);
+    const vr = el("tr");
+    const st = el("td"); badge(st, null, meta.verification.status, UNCERTAIN_VERIFY); vr.appendChild(st);
+    td(vr, meta.verification.detail || ""); vrow.appendChild(vr);
+    app.appendChild(vrow);
+    const btn = el("button", null, "Verify offline");
+    const out = el("pre");
+    btn.onclick = () => {
+      out.textContent = "running offline classify (raucle ProvenanceVerifier over canonical bytes)...";
+      api("/api/receipts/" + encodeURIComponent(hash) + "/verify", { method: "POST" }).then(r => {
+        out.textContent = JSON.stringify(r, null, 2); // textContent — escaped by construction
+      });
+    };
+    app.appendChild(btn); app.appendChild(out);
+    if (meta.jws_available) {
+      const a = el("a", null, "JWS available for download (value never rendered)");
+      a.href = "/api/receipts/" + encodeURIComponent(hash) + "/jws";
+      a.setAttribute("download", hash + ".jws");
+      app.appendChild(a);
+    }
+  });
+}
+
+function route() {
+  const h = decodeURIComponent(location.hash.replace(/^#/, ""));
+  if (h.startsWith("receipt/")) showReceipt(h.slice(8));
+  else if (h.startsWith("run/")) showRun(h.slice(4));
+  else showRuns();
+}
+window.addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>

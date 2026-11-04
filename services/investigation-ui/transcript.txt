@@ -1,0 +1,207 @@
+# UI-01 investigation-flow transcript (curl level)
+# app: uvicorn oaa_investigation_ui.app:app on 127.0.0.1:8899
+# captured 2026-11-04T10:00:02+00:00
+
+## 1) runs list (alert -> relevant run)
+$ curl http://127.0.0.1:8899/api/runs
+[
+ {
+  "run_id": "run-obs01-01",
+  "agent": "oaa-spike",
+  "release": "rel-0.9.2",
+  "started": "2026-11-04T08:43:30+00:00",
+  "span_count": 4,
+  "privileged_span_count": 2,
+  "verification_summary": {
+   "valid": 1,
+   "unavailable": 1
+  },
+  "correlation_summary": {
+   "ambiguous": 1,
+   "pending": 1
+  },
+  "pending_correlation": 0
+ },
+ {
+  "run_id": "run-sim-02",
+  "agent": "oaa-sim",
+  "release": "rel-0.9.3",
+  "started": "2026-11-04T09:10:00+00:00",
+  "span_count": 9,
+  "privileged_span_count": 9,
+  "verification_summary": {
+   "valid": 3,
+   "unknown_key": 1,
+   "unsupported_schema": 1,
+   "pending": 1,
+   "not_applicable": 1,
+   "unavailable": 2
+  },
+  "correlation_summary": {
+   "ambiguous": 2,
+   "duplicate": 1,
+   "late_arrival": 1,
+   "matched": 4,
+   "receipt_missing": 1
+  },
+  "pending_correlation": 0
+ }
+]
+
+## 2) trace drilldown t-sim-match (matched correlation, valid verification)
+$ curl http://127.0.0.1:8899/api/runs/run-sim-02   (selected trace below; 8 traces in full)
+{
+ "trace_id": "t-sim-match-000000000000000000000000000088",
+ "correlation": {
+  "state": "matched",
+  "trace_id": "t-sim-match-000000000000000000000000000088",
+  "receipt_hashes": [
+   "sha256:synth0000000000000000000000000000000000000000000000000000000008"
+  ],
+  "decision": "allow",
+  "notes": "",
+  "provenance": [],
+  "receipt_event_times": [
+   "2026-11-04T09:17:12+00:00"
+  ],
+  "trace_observed_at": "2026-11-04T09:17:10+00:00",
+  "pending": false
+ },
+ "spans": [
+  {
+   "span_id": "sp-m1",
+   "parent_id": null,
+   "name": "tool.file_write",
+   "tool": "file_write",
+   "privileged": true,
+   "started": "2026-11-04T09:17:12+00:00",
+   "attrs": {
+    "oaa.note": "receipt inside event window; correlated matched"
+   },
+   "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000008",
+   "verification": {
+    "status": "valid",
+    "detail": "synthetic index row",
+    "checked_at": "2026-11-04T09:17:32+00:00",
+    "recorded": true,
+    "explicit_unknown": false
+   },
+   "correlation": {
+    "state": "matched",
+    "trace_id": "t-sim-match-000000000000000000000000000088",
+    "receipt_hashes": [
+     "sha256:synth0000000000000000000000000000000000000000000000000000000008"
+    ],
+    "decision": "allow",
+    "notes": "",
+    "provenance": [],
+    "receipt_event_times": [
+     "2026-11-04T09:17:12+00:00"
+    ],
+    "trace_observed_at": "2026-11-04T09:17:10+00:00",
+    "pending": false
+   }
+  }
+ ]
+}
+
+## 3) privileged span -> evidence panel (metadata only; JWS never rendered)
+$ curl http://127.0.0.1:8899/api/receipts/sha256:synth0000000000000000000000000000000000000000000000000000000008
+{"receipt_hash":"sha256:synth0000000000000000000000000000000000000000000000000000000008","schema_version":"provenance-receipt/v1","decision":"allow","policy_ref":"policies.yaml","tool":"file_write","trace_id":"t-sim-match-000000000000000000000000000088","event_time":"2026-11-04T09:17:12+00:00","jws_available":false,"canonical":false,"verification":{"status":"valid","detail":"synthetic index row","checked_at":"2026-11-04T09:17:32+00:00","recorded":true,"explicit_unknown":false},"correlation":{"state":"matched","trace_id":"t-sim-match-000000000000000000000000000088","receipt_hashes":["sha256:synth0000000000000000000000000000000000000000000000000000000008"],"decision":"allow","notes":"","provenance":[],"receipt_event_times":["2026-11-04T09:17:12+00:00"],"trace_observed_at":"2026-11-04T09:17:10+00:00","pending":false},"jws":"available for download","jws_download":"/api/receipts/sha256:synth0000000000000000000000000000000000000000000000000000000008/jws"}
+
+## 3b) canonical receipt panel: obs01 deny receipt (write_file span sp-02, e826 trace)
+$ curl http://127.0.0.1:8899/api/receipts/sha256:7ad7bb9a...8787db
+{"receipt_hash":"sha256:7ad7bb9a68f0c3d50b1d24451b4caa2059ced33d33d0e53755fe94fc18b787db","schema_version":"provenance-receipt/v1","decision":"deny","policy_ref":"policies.yaml","tool":"write_file","trace_id":"e8263e06f259316a6797f9e2b5e21375","event_time":"2026-11-04T08:43:39+00:00","jws_available":true,"canonical":true,"verification":{"status":"valid","detail":"verify_after == true (p5_receipts_report.json)","checked_at":"2026-11-04T08:43:40+00:00","recorded":true,"explicit_unknown":false},"correlation":{"state":"ambiguous","trace_id":"e8263e06f259316a6797f9e2b5e21375","receipt_hashes":["sha256:7ad7bb9a68f0c3d50b1d24451b4caa2059ced33d33d0e53755fe94fc18b787db","sha256:a3e29df11123ffc4c65fd50a5841d356b191a0fa85ff5b04fe970ed6f74379d5"],"decision":null,"notes":"2 distinct receipts map to 1 trace-side record(s); needs human/ingest review","provenance":["evidence_store.jsonl","evidence_store.jsonl"],"receipt_event_times":["2026-11-04T08:43:39+00:00","2026-11-04T08:43:39+00:00"],"trace_observed_at":"2026-11-04T08:43:35+00:00","pending":false},"jws":"available for download","jws_download":"/api/receipts/sha256:7ad7bb9a68f0c3d50b1d24451b4caa2059ced33d33d0e53755fe94fc18b787db/jws"}
+
+## 4) Verify offline: evidence_plane.classify over canonical envelope bytes
+$ curl -X POST http://127.0.0.1:8899/api/receipts/sha256:7ad7bb9a...8787db/verify
+{"receipt_hash":"sha256:7ad7bb9a68f0c3d50b1d24451b4caa2059ced33d33d0e53755fe94fc18b787db","verification_status":"valid","detail":"","checks_performed":["jose_header_parsed (kid='1515bd8cf636bf4b', crit=['raucle/v1'], alg='EdDSA')","event_time from signed iat: 2026-11-04T08:43:39+00:00","trust_roots_at_event_time -> ['1515bd8cf636bf4b']","receipt_hash == sha256(compact jws)","ProvenanceVerifier.verify_chain(temp, strict=True)","report.valid == True; errors=[]"],"verifier_available":true,"checked_at":"2026-11-04T10:00:02+00:00","verifier_version":"raucle 0.23.5 (git 63edacd)","trust_policy_version":"evd-trust-1"}
+
+## 4b) receipt_missing state demo (t-sim-sup trace; SEC-001 finding)
+$ curl http://127.0.0.1:8899/api/runs/run-sim-02 (t-sim-sup...)
+{
+ "trace_id": "t-sim-sup-0000000000000000000000000000aa",
+ "label": "receipt_missing, suppressed SEC-001 (documented)",
+ "window_start": "2026-11-04T09:16:10+00:00",
+ "window_end": "2026-11-04T09:16:30+00:00",
+ "correlation": {
+  "state": "receipt_missing",
+  "trace_id": "t-sim-sup-0000000000000000000000000000aa",
+  "receipt_hashes": [],
+  "decision": null,
+  "notes": "no receipt within grace",
+  "provenance": [],
+  "receipt_event_times": [],
+  "trace_observed_at": "2026-11-04T09:16:10+00:00",
+  "pending": false
+ },
+ "spans": [
+  {
+   "span_id": "sp-s1",
+   "parent_id": null,
+   "name": "tool.shell",
+   "tool": "shell",
+   "privileged": true,
+   "started": "2026-11-04T09:16:12+00:00",
+   "attrs": {
+    "oaa.note": "known maintenance-window coverage gap (documented suppression)"
+   },
+   "receipt_hash": null,
+   "verification": {
+    "status": "unavailable",
+    "detail": "no gate receipt observed for this span (absence is a coverage gap, not a result)",
+    "recorded": false,
+    "explicit_unknown": true
+   },
+   "correlation": {
+    "state": "receipt_missing",
+    "trace_id": "t-sim-sup-0000000000000000000000000000aa",
+    "receipt_hashes": [],
+    "decision": null,
+    "notes": "no receipt within grace",
+    "provenance": [],
+    "receipt_event_times": [],
+    "trace_observed_at": "2026-11-04T09:16:10+00:00",
+    "pending": false
+   },
+   "evidence_canonical": false
+  }
+ ]
+}
+
+## 4c) findings: suppressed retained with suppression_reason
+$ curl http://127.0.0.1:8899/api/findings
+[
+ {
+  "rule_id": "SEC-001",
+  "rule_version": "1.0.0",
+  "severity": "high",
+  "confidence": "high",
+  "evidence_refs": [
+   "t-sim-sup-0000000000000000000000000000aa"
+  ],
+  "explanation": "gate receipt missing after grace for privileged tool 'shell' on trace 't-sim-sup-0000000000000000000000000000aa'",
+  "subject": "shell",
+  "suppressed": true,
+  "suppression_reason": "documented maintenance-window coverage gap on t-sim-sup trace (CHANGELOG 2026-11-04)"
+ },
+ {
+  "rule_id": "SEC-002",
+  "rule_version": "1.0.0",
+  "severity": "medium",
+  "confidence": "high",
+  "evidence_refs": [
+   "sha256:synth0000000000000000000000000000000000000000000000000000000004"
+  ],
+  "explanation": "receipt verification state 'unsupported_schema' (definitive failure, ADR-0001)",
+  "subject": null,
+  "suppressed": false,
+  "suppression_reason": null
+ }
+]
+
+## 5) server-rendered drilldown (hostile text HTML-escaped, no <script>)
+$ curl http://127.0.0.1:8899/view/run/run-obs01-01
+<!doctype html><html lang='en'><head><meta charset='utf-8'><title>OAA investigation — run-obs01-01</title><link rel='stylesheet' href='/static/styles.css'></head><body><h1>Open Agent Assurance — run-obs01-01</h1><h3>trace e8263e06f259316a6797f9e2b5e21375 <span class='badge badge-unknown'>ambiguous</span> — obs01 spike trace (live Langfuse e8263e...)</h3><table><tr><th>span</th><th>tool</th><th>priv</th><th>receipt_hash</th><th>verification</th><th>correlation</th></tr><tr><td>agent.turn</td><td></td><td>no</td><td>— no receipt —</td><td><span class='badge badge-unknown'>unavailable</span></td><td><span class='badge badge-unknown'>pending</span></td></tr><tr class='note'><td colspan='6'>note: &lt;script&gt;alert(&#x27;ui-01-xss&#x27;)&lt;/script&gt;</td></tr><tr><td>tool.write_file</td><td>write_file</td><td>yes</td><td>sha256:7ad7bb9a68f0c3d50b1d24451b4caa2059ced33d33d0e53755fe94fc18b787db</td><td><span class='badge badge-ok'>valid</span></td><td><span class='badge badge-unknown'>ambiguous</span></td></tr><tr class='note'><td colspan='6'>note: &lt;script&gt;alert(&#x27;ui-01-xss&#x27;)&lt;/script&gt;</td></tr><tr><td>tool.shell</td><td>shell</td><td>yes</td><td>— no receipt —</td><td><span class='badge badge-unknown'>unavailable</span></td><td><span class='badge badge-unknown'>pending</span></td></tr><tr class='note'><td colspan='6'>note: no gate receipt observed at ingest time</td></tr><tr><td>llm.generate</td><td></td><td>no</td><td>— no receipt —</td><td><span class='badge badge-unknown'>unavailable</span></td><td><span class='badge badge-unknown'>pending</span></td></tr><tr class='note'><td colspan='6'>note: </td></tr></table><h2>findings</h2><table><tr><th>rule</th><th>severity</th><th>confidence</th><th>suppressed</th><th>suppression_reason</th></tr></table><p><a href='/view/runs'>&larr; runs</a></p></body></html>
+
+# scripted flow wall time (curl chain): 0.140s
