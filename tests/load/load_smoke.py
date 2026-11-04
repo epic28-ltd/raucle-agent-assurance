@@ -49,17 +49,16 @@ def build_provider(export: bool, url: str, pk: str, sk: str):
     if export:
         exporter = OTLPSpanExporter(
             endpoint=f"{url}/api/public/otel/v1/traces",
-            headers={
-                "Authorization": "Basic "
-                + base64.b64encode(f"{pk}:{sk}".encode()).decode()
-            },
+            headers={"Authorization": "Basic " + base64.b64encode(f"{pk}:{sk}".encode()).decode()},
             timeout=20,
         )
         provider.add_span_processor(BatchSpanProcessor(exporter, max_export_batch_size=512))
     else:
         # no-export baseline: batch processor with an InMemory sink (same queueing
         # shape, no HTTP egress; bounded window keeps memory trivial)
-        provider.add_span_processor(BatchSpanProcessor(InMemorySpanExporter(), max_export_batch_size=512))
+        provider.add_span_processor(
+            BatchSpanProcessor(InMemorySpanExporter(), max_export_batch_size=512)
+        )
     return provider
 
 
@@ -136,7 +135,6 @@ def main() -> int:
     url = args.url or env.get("OAA_LF_URL", "http://127.0.0.1:3301")
     pk = env["OAA_LF_PUBLIC_KEY"] or env["LANGFUSE_INIT_PROJECT_PUBLIC_KEY"]
     sk = env["OAA_LF_SECRET_KEY"] or env["LANGFUSE_INIT_PROJECT_SECRET_KEY"]
-
 
     # baseline (no export)
     provider = build_provider(False, url, pk, sk)
