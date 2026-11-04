@@ -1,0 +1,11 @@
+#.bandit config: match repo posture (tests use fixtures with fake secrets)
+exclude_dirs:
+  - .venv
+  - ops/scratch
+  - deploy/reference/store
+.skips:
+  # test-suite noise: asserts in tests, seeded-RNG determinism, deliberate leak-fixture urlopen
+  - B101
+  - B311
+  - B404
+  - B310

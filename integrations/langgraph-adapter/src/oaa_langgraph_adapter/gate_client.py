@@ -15,6 +15,7 @@ from __future__ import annotations
 import importlib
 import json
 import os
+import urllib.error
 import urllib.request
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -161,6 +162,15 @@ class InProcessRaucleGate:
         )
 
 
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Refuse every redirect: the gate endpoint is pinned (threat model T2)."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[override]
+        raise urllib.error.HTTPError(
+            req.full_url, code, "gate endpoint redirected; refusing", headers, fp
+        )
+
+
 class HttpGateClient:
     """POST the gate request to a Raucle gateway HTTP endpoint as JSON.
 
@@ -176,8 +186,25 @@ class HttpGateClient:
         agent_id: str = "",
         source: str = "langgraph",
         fail_open: bool = False,
+        allow_http: bool = False,
         extra_body: Mapping[str, Any] | None = None,
     ) -> None:
+        # Security: urlopen follows redirects and historically permits file://
+        # (bandit B310). Enforce https in production; plain http only for
+        # explicit local development targeting loopback.
+        if endpoint.startswith("https://"):
+            parsed_scheme = "https"
+        elif endpoint.startswith("http://"):
+            parsed_scheme = "http"
+        else:
+            raise ValueError(f"HttpGateClient unsupported endpoint scheme: {endpoint!r}")
+        if parsed_scheme == "http" and not endpoint.startswith(
+            ("http://127.0.0.1", "http://localhost")
+        ):
+            raise ValueError(
+                "HttpGateClient endpoint must be https:// (plain http is allowed "
+                "only for loopback endpoints)"
+            )
         self._endpoint = endpoint
         self._timeout_s = timeout_s
         self._agent_id = agent_id
@@ -212,7 +239,10 @@ class HttpGateClient:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=self._timeout_s) as resp:
+            # No redirects: the gate endpoint is pinned; a redirect must never
+            # escape the enforcement path to another host or scheme.
+            opener = urllib.request.build_opener(_NoRedirectHandler())
+            with opener.open(req, timeout=self._timeout_s) as resp:
                 payload = json.loads(resp.read().decode("utf-8"))
         except Exception as exc:  # gate failure — resolution is the caller's job
             return GateDecision(
