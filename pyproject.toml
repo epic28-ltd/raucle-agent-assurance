@@ -1,0 +1,22 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+# raucle is an optional dependency; its absence must surface as a SKIP reason
+# (see tests/conformance/test_fixture_conformance.py), not an error.
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["packages/raucle-adapter/src", "tests", "examples"]
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "SIM", "RUF", "PLC"]
+ignore = [
+  "E501",  # long prose/doc lines in evidence-plane and findings-derived files
+]
+
+[tool.ruff.lint.per-file-ignores]
+# reference-agent and probe examples mirror the spike scripts verbatim
+"examples/reference-agent/*" = ["E402", "B007", "B015", "E731", "F811"]
+"packages/raucle-adapter/examples/*" = ["E402"]

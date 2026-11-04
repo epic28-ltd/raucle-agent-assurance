@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest
+      - name: ruff format check
+        run: ruff format --check .
+      - name: ruff check
+        run: ruff check .
+      - name: pytest (raucle-free set; raucle-dependent tests skip with reason)
+        run: pytest tests/ -rs
+        env:
+          PYTHONPATH: packages/raucle-adapter/src
+
+# NOTE: this workflow file exists locally only during the LOCAL-ONLY phase —
+# the repository deliberately has no remote and nothing is pushed/enabled.
+# See docs/spikes/ and REPO-INIT findings for the pending hosting decision.

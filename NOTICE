@@ -1,0 +1,15 @@
+Open Agent Assurance
+Copyright 2026 Craig McW
+
+This product includes software developed as part of the Open Agent Assurance
+companion project.
+
+The raucle adapter interfaces with raucle, which is licensed separately;
+raucle itself is NOT distributed in this repository and must be installed
+from the pinned v0.23.5 distribution (see packages/raucle-adapter/README.md).
+
+This project includes example instrumentation against the OpenTelemetry
+Python SDK and OpenInference semantic conventions (Apache-2.0), and a
+docker-compose file adapted from Langfuse v4.74.0 (MIT Expat; the Langfuse
+ee/ tree is under a separate commercial licence — see
+https://github.com/langfuse/langfuse).

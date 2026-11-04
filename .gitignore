@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Secrets — never commit
+.env
+*.env
+!*.env.example
+*.pem
+*.key
+secrets/
+
+# Local run artefacts
+evidence.jsonl.bak
