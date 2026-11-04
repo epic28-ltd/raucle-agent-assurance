@@ -81,7 +81,10 @@
     </div>
 
     <main class="content" id="view" tabindex="0">
-      <p class="alpha-line">Alpha preview: figures reflect this session. Demo fixtures are used where an add-in is offline.</p>
+      <div class="alpha-box">
+        <p class="alpha-line">Alpha preview: figures reflect this session. Demo fixtures are used where an add-in is offline.</p>
+        <p class="alpha-def" id="page-def"></p>
+      </div>
       <div id="legend" class="legendbar" aria-label="Legend"></div>
       <div id="page" aria-live="polite"></div>
     </main>
@@ -163,7 +166,8 @@ let dash = null;      /* add-in dashboard proxy payload; null when offline */
 let counts = null;    /* add-in /api/counts proxy payload; null when offline */
 let findings = null;  /* add-in findings proxy payload; null when offline  */
 let trends = null;    /* per-run trend series from the console /api/trends */
-let config = { assurance_url: 'http://127.0.0.1:3411', trust_gate_env: 'RAUCLE_TRUST_GATE_CONFIG', coverage_target_pct: 95 };
+let portalPolicies = null; /* portal policy summary proxy; {pending:true} when offline/unauthorised */
+let config = { assurance_url: 'http://127.0.0.1:3411', trust_portal_url: 'http://127.0.0.1:8090', trust_gate_env: 'RAUCLE_TRUST_GATE_CONFIG', coverage_target_pct: 95 };
 const COVERAGE_DEFAULT = 95;
 
 const PILL_NAME = { connected: 'Connected', degraded: 'Degraded', not_purchased: 'Not purchased' };
@@ -885,6 +889,34 @@ function viewTrust() {
   cc.body.appendChild(el('p', null, 'Point the console at your gate configuration by setting the environment variable ' + config.trust_gate_env + ' (the path to your gate config). Restart the console after the change; the value itself is never displayed.'));
   cc.explain('The gate config path is read from the environment; the console never displays or echoes the value itself.');
   p.appendChild(cc.root);
+  /* Manage policies (Trust-dashboard reconcile, 4 Nov): the H1 portal
+     is the Trust add-in's management UI - one editor, one version
+     history, one audit trail. This card narrates and links; it never
+     renders a second editor. */
+  const pc = card('Manage policies', 'the portal owns deep management');
+  const where = el('p');
+  where.textContent = 'Policy authoring lives in the operator portal (' + (config.trust_portal_url || 'http://127.0.0.1:8090') + '): the structured policy editor, the immutable version history with diffs, the Trust Ladder, manual activate/disable with signed deployment receipts, and filtered receipt search.';
+  pc.body.appendChild(where);
+  const open = el('a', 'pill tok-info', 'Open the portal');
+  open.href = (config.trust_portal_url || 'http://127.0.0.1:8090') + '/';
+  open.target = '_blank';
+  open.rel = 'noopener';
+  pc.body.appendChild(open);
+  const sum = portalPolicies;
+  if (sum && !sum.pending && sum.total !== undefined) {
+    const chips = el('p');
+    chips.appendChild(el('span', 'pill tok-good', 'active ' + (sum.active || 0)));
+    chips.appendChild(el('span', 'pill tok-look', 'draft ' + (sum.draft || 0)));
+    chips.appendChild(el('span', 'pill tok-exempt', 'disabled ' + (sum.disabled || 0)));
+    chips.appendChild(el('span', 'muted small', 'inventory summary from the portal'));
+    pc.body.appendChild(chips);
+  } else {
+    const pend = el('p', 'muted small');
+    pend.textContent = sum && sum.status === 401 ? 'Portal owns deep management; summary endpoint pending (the console holds no portal credential in alpha).' : 'Portal owns deep management; summary endpoint pending (portal offline).';
+    pc.body.appendChild(pend);
+  }
+  pc.explain('One editor, one version history, one audit trail: deep policy management happens in the portal, this page only narrates and links.');
+  p.appendChild(pc.root);
   return p;
 }
 
@@ -1482,6 +1514,14 @@ function markCurrent(route) {
   });
 }
 
+/* per-product definition, shown in the alpha box under the top notice */
+const PAGE_DEF = {
+  trust: 'Raucle Agent Trust is the gate. It sits between your agents and their tools, checks every privileged call against the policy you signed off before anything executes, and mints a signed receipt for each decision. It proves what was allowed: receipts are signed locally on your own infrastructure and verifiable offline by anyone you authorise, without trusting us.',
+  assurance: 'Raucle Agent Assurance correlates every gate receipt with the agent\u2019s full trace and the tool side\u2019s own audit records. It surfaces what ran outside the gate, evidence gaps and receipts that fail verification, as findings with plain guidance for the analyst. It detects what ran outside; it never re-authorises anything.',
+  red: 'Raucle Agent Red attacks your own gate the way an adversary would: policy scope fuzzing, transport-level attack probes, evidence tampering and credential lease misuse. Every attack it makes is itself gated and receipted, so the testing tool cannot bypass the product it tests. It finds what gets through.',
+  overview: 'One console for the suite: Trust proves what was allowed, Assurance detects what ran outside, Red finds what gets through. Each product is an add-in here, sharing one receipt contract and one honest-evidence rule: valid is never inferred from missing data.',
+};
+
 function go(route) {
   /* drill routes: #/rules/<rule-id> renders the per-rule drill view */
   const clean = route.replace(/^\//, '');
@@ -1494,6 +1534,8 @@ function go(route) {
   paintIcons(pageEl);
   markCurrent(clean);
   history.replaceState(null, '', '#' + clean);
+  const defEl = document.getElementById('page-def');
+  if (defEl) defEl.textContent = ruleMatch ? '' : (PAGE_DEF[clean] || '');
   document.getElementById('page-title').textContent = ruleMatch
     ? ruleMatch[1] + ' drill'
     : (TITLES[clean] || 'Overview');
@@ -1650,6 +1692,10 @@ async function boot() {
     const r = await fetch('/api/trends');
     if (r.ok) trends = await r.json();
   } catch { trends = null; }
+  try {
+    const r = await fetch('/api/trust/policies/summary');
+    if (r.ok) portalPolicies = await r.json(); else portalPolicies = { pending: true };
+  } catch { portalPolicies = { pending: true }; }
   const tenant = overview && overview.tenants ? overview.tenants[0] : { label: 'default' };
   const h = new Date().getHours();
   const word = h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';

@@ -350,3 +350,8 @@ button:focus-visible,input:focus-visible,a:focus-visible,[tabindex]:focus-visibl
 .side-icon{display:inline-flex;align-items:center;justify-content:center;
   width:20px;height:20px;flex:none;color:var(--ink);opacity:.85}
 .side-item[aria-current="page"] .side-icon{opacity:1}
+
+/* alpha box: dashed notice + per-product definition under it */
+.alpha-box{border:1px dashed var(--border);border-radius:10px;padding:10px 14px;margin:0 0 12px}
+.alpha-box .alpha-line{margin-bottom:0;background:none;padding:0;border:0;border-radius:0;color:var(--secondary)}
+.alpha-def{margin:6px 0 0;font-size:12.5px;line-height:1.45;color:var(--muted);max-width:70ch}

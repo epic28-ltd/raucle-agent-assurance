@@ -51,6 +51,7 @@ if _investigation_src.is_dir() and str(_investigation_src) not in sys.path:
 # the URL the console was told to use for an add-in, which the operator set.
 ASSURANCE_URL_DEFAULT = "http://127.0.0.1:3411"
 RED_RUNNER_URL_DEFAULT = "http://127.0.0.1:3415"
+TRUST_PORTAL_URL_DEFAULT = "http://127.0.0.1:8090"
 TRUST_GATE_ENV = "RAUCLE_TRUST_GATE_CONFIG"
 
 # Red presets the console previews to the operator. The runner remains the
@@ -262,6 +263,9 @@ def create_app() -> fastapi.FastAPI:
     def _assurance_url() -> str:
         return os.environ.get("RAUCLE_ASSURANCE_URL", ASSURANCE_URL_DEFAULT)
 
+    def _trust_portal_url() -> str:
+        return os.environ.get("RAUCLE_TRUST_PORTAL_URL", TRUST_PORTAL_URL_DEFAULT)
+
     # ------------------------------------------------------------ API (JSON)
     @app.get("/api/overview")
     def api_overview() -> dict:
@@ -328,11 +332,40 @@ def create_app() -> fastapi.FastAPI:
             url = f"http://{host}:3411"
         return {
             "assurance_url": url,
+            "trust_portal_url": _trust_portal_url(),
             "addins": _addins_catalogue(),
             "assurance_reachable": False,  # SPA probes the URL itself
             "trust_gate_env": TRUST_GATE_ENV,
             "coverage_target_pct": COVERAGE_TARGET_PCT,
         }
+
+    @app.get("/api/trust/policies/summary")
+    def api_trust_policies_summary() -> JSONResponse:
+        """Same-origin proxy for the H1 portal's /api/v1/policies/summary
+        (Trust-dashboard reconcile decision, 4 Nov: the portal owns deep
+        policy management; the console narrates and links, never edits).
+        The portal's summary endpoint is authenticated and the console
+        holds no portal credential in alpha, so a 401/403 from the portal
+        is passed through as the honest pending state - never guessed,
+        never faked. Same graceful degradation contract as the other
+        add-in proxies."""
+        try:
+            r = httpx.get(
+                _trust_portal_url().rstrip("/") + "/api/v1/policies/summary",
+                timeout=3.0,
+            )
+            if r.status_code == 200:
+                return JSONResponse(r.json())
+            return JSONResponse(
+                {"error": "portal summary unavailable",
+                 "status": r.status_code},
+                status_code=r.status_code,
+            )
+        except Exception as exc:  # offline: explicit, never a blank
+            return JSONResponse(
+                {"error": "portal offline", "detail": type(exc).__name__},
+                status_code=503,
+            )
 
     @app.get("/api/assurance/dashboard")
     def api_assurance_dashboard() -> JSONResponse:
