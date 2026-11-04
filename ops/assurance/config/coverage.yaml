@@ -1,0 +1,12 @@
+# GOV-01 tool-side coverage map (ADR-0004 custody coverage, config-driven).
+# Tools NOT listed here default to `unverified` in the GOV-01 assurance report.
+# `coverage: gate` = the gate signed receipts for this tool and the custody
+# plane observed its credential leases; anything less is not a coverage claim.
+version: 1
+tools:
+  shell:
+    coverage: gate
+  file_write:
+    coverage: gate
+  http_fetch:
+    coverage: gate
