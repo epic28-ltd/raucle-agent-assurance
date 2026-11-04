@@ -80,10 +80,18 @@ class ReceiptRecord:
     event_time: dt.datetime
     provenance: str | None = None
     synthetic: bool = False  # explicit marker: hand-built index row, NOT evidence
+    # Gate identity: which gate instance minted this receipt. REQUIRED for
+    # evidence-backed rows (ADR-0005): a many-gate deployment must be able to
+    # attribute every receipt to its issuing gate, and correlation must never
+    # silently merge identities. Synthetic rows may omit it (they are marked,
+    # not evidence).
+    gate_id: str | None = None
 
     def __post_init__(self) -> None:
         if not self.receipt_hash:
             raise ValueError("receipt_hash is required (empty string is not a digest)")
+        if not self.synthetic and not self.gate_id:
+            raise ValueError("gate_id is required for non-synthetic receipt rows")
         object.__setattr__(self, "event_time", _as_utc(self.event_time))
 
 
@@ -399,6 +407,7 @@ def load_receipt_index(
                 event_time=dt.datetime.fromisoformat(row["event_time"]),
                 provenance=row.get("provenance"),
                 synthetic=bool(row.get("synthetic", False)),
+                gate_id=row.get("gate_id"),
             )
         )
     return records, before

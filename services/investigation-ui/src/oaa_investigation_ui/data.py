@@ -164,6 +164,7 @@ class DemoData:
                     decision=meta["decision"],
                     event_time=dt.datetime.fromisoformat(meta["event_time"]),
                     provenance="evidence_store.jsonl",
+                    gate_id=meta.get("gate_id") or "gateway",
                 )
             )
         # Synthetic index rows (explicit markers).
