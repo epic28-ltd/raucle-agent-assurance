@@ -228,7 +228,7 @@ const TONE = { good: 'var(--good-bar)', look: 'var(--look-bar)', act: 'var(--act
 
 /* ------------------------------------------------------------------ gauge */
 function gaugeCard(health) {
-  const c = card('Verification health', 'share of receipts verifying valid');
+  const c = card('Verification health', 'share of receipts verifying valid · ' + (health.source_label || 'demo'));
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('viewBox', '0 0 128 128');
   svg.setAttribute('width', '128');
@@ -589,6 +589,9 @@ function redPreviewCard() {
   link.rel = 'noreferrer';
   foot.appendChild(link);
   c.footer(foot);
+  const df = el('p', 'muted small', 'Dogfooding: reading the red agent receipt trail...');
+  c.body.appendChild(df);
+  api('/api/red/dogfood').then(d => { if (d && d.available) { df.textContent = 'Dogfooded: ' + d.receipted + ' of ' + d.attempts + ' red attempts left their own signed receipts. Findings: ' + d.findings_total + '.'; } else { df.textContent = 'Dogfooding counters unavailable (red corpora not found; nothing guessed).'; } });
   c.explain('A preview of the Red add-in before it ships: adversarial gate fuzzing and tamper attempts pair with the Assurance findings board so red work becomes actionable findings.');
   return c.root;
 }
@@ -798,7 +801,8 @@ function vState() {
       dist, rows,
       valid: dist.valid, unproven: rows - dist.valid,
       src: 'Shared counting module over the demo fixture set, fetched this session via the add-in.',
-      caption: 'of ' + rows + ' span receipts (index-plane)',
+      source_label: 'live add-in',
+      caption: 'verified',
     };
   }
   /* Offline branch falls back to the shared counting module output the
@@ -815,7 +819,8 @@ function vState() {
     dist, rows,
     valid, unproven: rows - valid,
     src: 'Shared counting module over the pinned demo fixture set; the add-in is offline.',
-    caption: 'of ' + rows + ' span receipts (demo)',
+    source_label: 'demo fixtures',
+    caption: 'verified',
   };
 }
 
@@ -900,6 +905,19 @@ function viewRed() {
   const p = el('div');
   const c = card('Raucle Agent Red', 'Not purchased');
   c.body.appendChild(pill('not_purchased'));
+  // Dogfood strip: the red agent runs UNDER the gate, so its attack attempts
+  // leave their own signed receipts. Shown here from the red repo corpora.
+  const dog = el('div', 'card');
+  dog.style.margin = '12px 0';
+  const dogTitle = el('div', 'card-title', 'Own receipts (dogfooding)');
+  dog.appendChild(dogTitle);
+  const dogWrap = el('p', 'muted', 'Reading the red agent receipt trail...');
+  dog.appendChild(dogWrap);
+  c.body.appendChild(dog);
+  api('/api/red/dogfood').then(d => {
+    if (!d || !d.available) { dogWrap.textContent = 'Red corpora not found locally: dogfood counters unavailable (nothing guessed).'; return; }
+    dogWrap.textContent = 'Every attack this product makes is itself gated: ' + d.receipted + ' of ' + d.attempts + ' red attempts left a signed receipt (' + d.share + '%). Findings emitted: ' + d.findings_total + ' (by severity: ' + Object.entries(d.findings_by_severity).map(([k, v]) => k + ' ' + v).join(', ') + ').';
+  });
   const note = el('p'); note.style.margin = '10px 0';
   note.textContent = 'Coming soon. Wave two of the suite; announcing later.';
   c.body.appendChild(note);

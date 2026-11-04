@@ -25,6 +25,7 @@ UX hard rules (threat model T5, shared with investigation-ui):
 from __future__ import annotations
 
 import datetime
+import json
 import os
 import pathlib
 import sys
@@ -147,6 +148,47 @@ ADDINS = [
 # moment plus fixture offsets), in UTC ISO-8601. The SPA derives honest
 # relative labels ("4m ago") from these; the server never fakes a trend.
 _now = datetime.datetime.now(datetime.UTC)
+
+
+def _red_dogfood() -> dict:
+    """Raucle Agent Red dogfood telemetry: the red agent runs UNDER the gate,
+    so every attack attempt leaves its own signed receipt. Counts derive from
+    the red repo's corpora (local path only; absent files degrade to zeroed
+    honest stubs)."""
+    home = pathlib.Path(
+        os.environ.get("RAUCLE_RED_HOME", "~/Projects/raucle-agent-red")
+    ).expanduser()
+    corpus = home / "corpora"
+    out = {
+        "attempts": 0,
+        "receipted": 0,
+        "findings_total": 0,
+        "findings_by_severity": {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0},
+        "available": False,
+    }
+    attempts_file = corpus / "policy_attempts.jsonl"
+    findings_file = corpus / "findings.jsonl"
+    if attempts_file.exists():
+        for line in attempts_file.read_text().splitlines():
+            if not line.strip():
+                continue
+            rec = json.loads(line)
+            out["attempts"] += 1
+            if rec.get("red_receipt_present"):
+                out["receipted"] += 1
+            if rec.get("decision") == "allow":
+                out["red_receipted_allow"] = out.get("red_receipted_allow", 0) + 1
+        out["available"] = True
+    if findings_file.exists():
+        for line in findings_file.read_text().splitlines():
+            if not line.strip():
+                continue
+            rec = json.loads(line)
+            out["findings_total"] += 1
+            sev = rec.get("severity", "info")
+            out["findings_by_severity"][sev] = out["findings_by_severity"].get(sev, 0) + 1
+    out["share"] = round(100 * out["receipted"] / out["attempts"]) if out["attempts"] else 0
+    return out
 
 
 def _ago(seconds: float) -> str:
@@ -298,6 +340,11 @@ def create_app() -> fastapi.FastAPI:
         console figure); the add-in's live runs replace these when the
         proxy contract is extended with windows."""
         return _trend_series()
+
+    @app.get("/api/red/dogfood")
+    def api_red_dogfood() -> dict:
+        """The red agent's own gate receipts (dogfooding, EPIC L invariant 1)."""
+        return _red_dogfood()
 
     @app.get("/api/health")
     def api_health() -> dict:
