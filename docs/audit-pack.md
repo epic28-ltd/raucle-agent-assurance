@@ -1,9 +1,9 @@
 # The auditor export pack (AUD-01)
 
-*Status: P1.7a/P1.7b. The pack is a directory plus a `.zip`. It is produced
-by `ops/audit-pack/pack.py` (operator CLI: `scripts/build_audit_pack.py`)
-and checked offline by the standalone verifier
-`tools/verifier/verify_pack.py`.*
+*Status: P1.7a/P1.7b, extended by P1.1c (self-contained offline export).
+The pack is a directory plus a `.zip`. It is produced by
+`ops/audit-pack/pack.py` (operator CLI: `scripts/build_audit_pack.py`) and
+checked offline by the standalone verifier `tools/verifier/verify_pack.py`.*
 
 ## What the pack is
 
@@ -16,10 +16,11 @@ private keys, and no help from the operator.
 | file | contents |
 | --- | --- |
 | `receipts.jsonl` | the receipt envelopes, byte-exactly as stored |
-| `keys/` | the trust-root snapshot (public halves only) |
+| `keys/` | the pinned key snapshot (public halves only), embedded so the pack verifies against nothing outside itself |
+| `signatures/` | the full signature bundle: chain receipts a resolved graph depends on that sit outside the query window |
 | `timestamps/` | RFC 3161 anchor tokens for receipts that claim them; an honest absence note when none do |
 | `policies/` | policy files and their deployment-chain receipts when accessible; an explicit absence note otherwise |
-| `chain_graph.json` | reserved slot, currently `pending P1.1a wire-up` |
+| `chain_graph.json` | the chain-graph slot: `pending P1.1a wire-up` without the RAUCLE_OSS_HOME opt-in, or resolved graphs whose node signatures were verified against the pinned snapshot |
 | `claims.md` | the plain-English claim sheet with its mandatory no-claim guard |
 | `manifest.json` | sha256 of every file above |
 | `verify-notes.md` | how to check all of it, offline |
@@ -68,3 +69,34 @@ Absences are statements too, and they are stated, not papered over:
   here is not absence everywhere.
 
 That boundary is the whole scope; nothing in the pack reaches past it.
+
+## P1.1c: the export is self-contained, and that is proven
+
+Since P1.1c the export is self-contained in a checked sense:
+
+- The build refuses to run when an in-window receipt is signed by a key the
+  pinned snapshot does not carry: a pack that could not verify offline is
+  never shipped. The refused build names the uncovered key.
+- The manifest carries a `pinned_key_snapshot` block (file digest from the
+  pack itself plus the pinned key ids) and a `self_contained` block
+  (`network: none`, `raucle: not required at verification time`); the
+  verifier re-checks the declared digest against the embedded bytes.
+- When chain graphs are resolved (the `RAUCLE_OSS_HOME` opt-in), the
+  resolver is fed the pinned snapshot itself, so embedded node signature
+  states are real verify results, and every receipt the graphs depend on
+  beyond the query window ships inside `signatures/`. The verifier fails a
+  resolved pack whose graphs depend on receipts that are not shipped.
+- The verifier's offline path is proven at runtime, not just asserted: an
+  import-boundary test (AST scan) confines it to stdlib plus
+  `cryptography`, and a runtime test monkeypatches `socket.socket`,
+  `socket.create_connection`, `getaddrinfo`, `http.client` and
+  `urllib.request` and asserts verification of both the unpacked pack and
+  the zip completes green with zero connection attempts.
+
+Known honest gap: RFC 3161 anchoring is at present local-equivalent only.
+Tokens embedded in receipts are exported and matched byte-for-byte, but
+the pack performs no external timestamping call when building, and does
+not claim TSA-backed anchoring. Tokens extracted from the evidence store
+are checked for presence and identity, not TSA-chain validation; a
+receipt that claims an anchor carries its token, and that is the whole of
+the assertion.

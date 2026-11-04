@@ -49,6 +49,7 @@ GUARD_SENTINEL = (
     " accreditation, no attestation, and no warranty of any kind."
 )
 CHAIN_GRAPH_PENDING = "pending P1.1a wire-up"
+CHAIN_GRAPH_RESOLVED = "resolved-by-pinned-verifier"
 MANIFEST_NAME = "manifest.json"
 EXCLUDED = {MANIFEST_NAME}  # not hashed by itself (would be circular)
 
@@ -190,6 +191,79 @@ def _check_signature(jws: str, pem: str) -> str | None:
     return None
 
 
+def _verify_one_envelope(line: str, label: str, keys: dict[str, dict]) -> str | None:
+    """Per-envelope offline checks; return a failure reason or None."""
+    try:
+        rec = json.loads(line)
+        header, payload_b64, _sig = rec["jws"].split(".")
+        header_d = json.loads(_b64d(header))
+        payload = json.loads(_b64d(payload_b64))
+    except Exception as exc:
+        return f"{label}: unreadable envelope ({exc})"
+    want = "sha256:" + hashlib.sha256(rec["jws"].encode()).hexdigest()
+    if rec["receipt_hash"] != want:
+        return f"{label}: receipt_hash does not re-derive from the receipt bytes (tampered)"
+    kid = header_d.get("kid")
+    if kid not in keys:
+        return f"{label}: signing key {kid!r} is not in the key snapshot — the pack cannot vouch for it"
+    root = keys[kid]
+    iat = int(payload.get("iat", 0))
+    event_time = dt.datetime.fromtimestamp(iat, tz=dt.UTC)
+    start = dt.datetime.fromisoformat(root["valid_from"])
+    end = dt.datetime.fromisoformat(root["valid_until"]) if root.get("valid_until") else None
+    if event_time < start or (end and event_time >= end):
+        return f"{label}: event at {event_time.isoformat()} falls outside key {kid!r} validity window"
+    reason = _check_signature(rec["jws"], root["public_key_pem"])
+    if reason:
+        return f"{label}: {reason}"
+    return None
+
+
+def _envelope_files(pack: pathlib.Path) -> list[pathlib.Path]:
+    """Every envelope file in the pack: receipts.jsonl plus the full
+    signature bundle under signatures/."""
+    files = [pack / "receipts.jsonl"]
+    sig_dir = pack / "signatures"
+    if sig_dir.is_dir():
+        files += sorted(sig_dir.glob("*.jsonl"))
+    return files
+
+
+def check_signature_bundle(pack: pathlib.Path, report: Report, keys: dict[str, dict]) -> None:
+    """Verify every bundle envelope beyond the query window (P1.1c):
+    the chain receipts a resolved graph depends on must carry their own
+    valid signatures inside the pack."""
+    sig_dir = pack / "signatures"
+    if not sig_dir.is_dir():
+        return  # packs built before P1.1c carry no signatures/ directory
+    bundle_files = sorted(sig_dir.glob("*.jsonl"))
+    if not bundle_files:
+        report.checks.append(
+            Check(
+                "signature-bundle",
+                "PASS",
+                "No chain receipts beyond the query window were needed; the bundle directory states this rather than implying a gap.",
+            )
+        )
+        return
+    total = ok = 0
+    failures = []
+    for path in bundle_files:
+        for i, line in enumerate(
+            (ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()), 1
+        ):
+            total += 1
+            reason = _verify_one_envelope(line, f"{path.name} line {i}", keys)
+            if reason:
+                failures.append(reason)
+            else:
+                ok += 1
+    if failures:
+        report.checks.append(Check("signature-bundle", "FAIL", f"{len(failures)} of {total} bundle receipt(s) FAILED: {'; '.join(failures)}"))
+    else:
+        report.checks.append(Check("signature-bundle", "PASS", f"{ok} of {total} chain receipt(s) in signatures/: receipt_hash re-derived, signature valid against the pinned snapshot."))
+
+
 def check_receipts(pack: pathlib.Path, report: Report, keys: dict[str, dict], key_problems: list[str]) -> None:
     if key_problems or not (pack / "keys").is_dir():
         report.checks.append(Check("key-snapshot", "FAIL", "; ".join(key_problems) or "keys/ directory absent"))
@@ -314,12 +388,64 @@ def check_chain_graph(pack: pathlib.Path, report: Report) -> None:
         return
     data = json.loads(p.read_text(encoding="utf-8"))
     status = data.get("status", "")
+    # P1.1c self-containment: every receipt a RESOLVED graph depends on
+    # must be shipped inside the pack (receipts.jsonl or signatures/).
+    if status == CHAIN_GRAPH_RESOLVED:
+        shipped: set[str] = set()
+        for path in _envelope_files(pack):
+            if path.is_file():
+                for ln in path.read_text(encoding="utf-8").splitlines():
+                    if ln.strip():
+                        try:
+                            shipped.add(json.loads(ln)["receipt_hash"])
+                        except Exception as exc:
+                            report.checks.append(Check("chain-graph-slot", "FAIL", f"undecodable envelope in {path.name}: {exc}"))
+                            return
+        holes: list[str] = []
+        for rh, g in data.get("graphs", {}).items():
+            if isinstance(g, dict) and g.get("status") == "unresolved":
+                continue
+            for node in (g or {}).get("nodes", []):
+                if isinstance(node, dict) and node.get("kind") == "receipt":
+                    rid = node.get("id", "")
+                    if rid.startswith("sha256:") and rid not in shipped:
+                        holes.append(f"{rh[:24]}… depends on {rid[:24]}… which is not shipped in the pack")
+        if holes:
+            report.checks.append(Check("chain-graph-slot", "FAIL", "; ".join(holes[:5])))
+            return
     msg = (
         f"Chain-graph slot is {status!r}: the pack ships without receipt-chain resolution; individual receipts fully verify, but the pack does not yet assert how chains connect."
         if status == CHAIN_GRAPH_PENDING
         else f"Chain-graph slot reports {status!r}."
     )
     report.checks.append(Check("chain-graph-slot", "PASS", msg))
+
+
+def check_pinned_key_snapshot(pack: pathlib.Path, report: Report) -> None:
+    """P1.1c: the manifest's pinned_key_snapshot digest must match the
+    embedded snapshot bytes (pack self-containment is itself checked)."""
+    m = pack / MANIFEST_NAME
+    if not m.is_file():
+        return  # already failed as manifest missing
+    block = json.loads(m.read_text(encoding="utf-8")).get("pinned_key_snapshot")
+    if not block:
+        report.checks.append(
+            Check(
+                "pinned-key-snapshot",
+                "PASS",
+                "Pack carries no pinned-key-snapshot manifest block (pre-P1.1c layout); receipt checks still ran against keys/.",
+                warnings=["this pack does not declare a pinned key snapshot digest; ask the operator for a P1.1c export"],
+            )
+        )
+        return
+    rel = block.get("file", "")
+    f = pack / rel
+    if not f.is_file():
+        report.checks.append(Check("pinned-key-snapshot", "FAIL", f"declared snapshot {rel!r} is missing from the pack"))
+    elif _sha256_file(f) != block.get("sha256"):
+        report.checks.append(Check("pinned-key-snapshot", "FAIL", f"declared snapshot digest for {rel!r} does not match the embedded bytes"))
+    else:
+        report.checks.append(Check("pinned-key-snapshot", "PASS", f"The declared pinned key snapshot {rel} matches its recorded digest ({len(block.get('key_ids', []))} key id(s)); verification depends on nothing outside the pack."))
 
 
 # ----------------------------------------------------------------- CLI -----
@@ -335,9 +461,11 @@ def verify_pack(target: pathlib.Path) -> Report:
         check_manifest(pack, report)
         keys, key_problems = load_key_snapshot(pack)
         check_receipts(pack, report, keys, key_problems)
+        check_signature_bundle(pack, report, keys)
         check_timestamps(pack, report)
         check_claim_sheet(pack, report)
         check_chain_graph(pack, report)
+        check_pinned_key_snapshot(pack, report)
     finally:
         if is_temp:
             shutil.rmtree(pack.parent, ignore_errors=True)

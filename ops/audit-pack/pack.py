@@ -77,6 +77,7 @@ GUARD_SENTINEL = (
 )
 
 CHAIN_GRAPH_PENDING = "pending P1.1a wire-up"
+CHAIN_GRAPH_RESOLVED = "resolved-by-pinned-verifier"
 
 ZIP_NAME = "audit-pack.zip"
 
@@ -164,6 +165,7 @@ def build_claim_sheet(
     timestamp_tokens: int,
     policies: str,
     chain_graph: str,
+    bundle: str = "complete within the query window",
     clock: dt.datetime | None = None,
 ) -> str:
     """Plain-English claim sheet, GOV-01 honest-report pattern.
@@ -188,6 +190,11 @@ def build_claim_sheet(
         f"- **{timestamp_tokens}** RFC 3161 timestamp token(s) extracted into `timestamps/`.",
         f"- Policy evidence: {policies}",
         f"- Chain-graph slot: {chain_graph}",
+        f"- Signature bundle: {bundle} (the pack is self-contained: every",
+        "  envelope a claim here depends on is shipped inside it).",
+        "- A pinned key snapshot with the public half of every signing key used",
+        "  inside the window, so re-verification needs nothing else (no network,",
+        "  no raucle installation, no operator access).",
         "- This file (`claims.md`), a `manifest.json` of per-file sha256 digests, and",
         "  `verify-notes.md` telling you how to check all of it, offline.",
         "",
@@ -221,7 +228,119 @@ def build_claim_sheet(
     return text
 
 
-# -------------------------------------------------------------- build ------
+def _snapshot_rows(trust_roots: pathlib.Path) -> list[dict]:
+    rows = []
+    for line in trust_roots.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line:
+            rows.append(json.loads(line))
+    return rows
+
+
+def _envelope_kids(envelopes: list[str]) -> set[str]:
+    kids: set[str] = set()
+    for line in envelopes:
+        payload = _envelope_payload(line)
+        kid = payload.get("agent_key_id") or payload.get("kid")
+        if isinstance(kid, str) and kid:
+            kids.add(kid)
+    return kids
+
+
+# --------------------------------------------------------------- bundle -----
+
+
+def _graph_receipt_ids(graph_status: str, graphs: dict) -> set[str]:
+    """Receipt hashes a resolved graph depends on (nodes of kind receipt)."""
+    if graph_status != CHAIN_GRAPH_RESOLVED:
+        return set()
+    ids: set[str] = set()
+    for g in graphs.values():
+        for node in g.get("nodes", []):
+            if isinstance(node, dict) and node.get("kind") == "receipt":
+                rid = node.get("id")
+                if isinstance(rid, str) and rid.startswith("sha256:"):
+                    ids.add(rid)
+    return ids
+
+
+def build_signature_bundle(
+    evidence_store: pathlib.Path,
+    in_window: list[str],
+    graph_status: str,
+    graphs: dict,
+    out_dir: pathlib.Path,
+) -> tuple[int, str]:
+    """The full signature bundle: every envelope a pack claim depends on.
+
+    In-window receipts live in ``receipts.jsonl``; any receipt a resolved
+    chain graph references that is NOT already in the window is copied
+    byte-exactly into ``signatures/chain_receipts.jsonl``. Returns
+    (extra_count, honest note for the claim sheet).
+    """
+    sig_dir = out_dir / "signatures"
+    sig_dir.mkdir()
+    window_hashes: set[str] = set()
+    in_store_all: dict[str, str] = {}
+    for raw in evidence_store.read_text(encoding="utf-8").splitlines():
+        line = raw.rstrip("\n")
+        if not line:
+            continue
+        try:
+            rh = json.loads(line)["receipt_hash"]
+        except Exception as exc:  # already reported by select_envelopes
+            print(f"audit-pack: signature bundle skipped undecodable store line: {exc}", file=sys.stderr)
+            continue
+        in_store_all[rh] = line
+    for line in in_window:
+        try:
+            window_hashes.add(json.loads(line)["receipt_hash"])
+        except Exception as exc:
+            print(f"audit-pack: signature bundle skipped undecodable window line: {exc}", file=sys.stderr)
+    wanted = sorted(_graph_receipt_ids(graph_status, graphs) - window_hashes)
+    extra: list[str] = []
+    missing: list[str] = []
+    for rid in wanted:
+        line = in_store_all.get(rid)
+        if line is None:
+            # the resolver cannot resolve it either; the graph already
+            # records it as unknown - state it in the bundle, never fake it
+            (sig_dir / "README.md").write_text(
+                "# Signature bundle\n\n"
+                "Some receipts referenced by the resolved chain graphs were\n"
+                "not present in the evidence store at pack time. The graphs\n"
+                "record them as unknown states; this is stated here rather\n"
+                "than papered over.\n",
+                encoding="utf-8",
+            )
+            missing.append(rid)
+            continue
+        extra.append(line)
+    if extra:
+        (sig_dir / "chain_receipts.jsonl").write_text("\n".join(extra) + "\n", encoding="utf-8")
+    if not extra and not missing:
+        (sig_dir / "README.md").write_text(
+            "# Signature bundle\n\nEvery receipt the resolved chain graphs\n"
+            "reference is already carried in `receipts.jsonl`. Nothing extra\n"
+            "was needed; this directory exists so the contract stays stable.\n",
+            encoding="utf-8",
+        )
+    if extra and missing:
+        note = (
+            f"{len(extra)} chain receipt(s) embedded in `signatures/`; "
+            f"{len(missing)} referenced receipt(s) were absent from the evidence store and the graphs record them as unknown"
+        )
+    elif extra:
+        note = f"{len(extra)} chain receipt(s) embedded in `signatures/chain_receipts.jsonl` beyond the query window"
+    elif missing:
+        note = "referenced chain receipts were absent from the evidence store and the graphs record them as unknown"
+    else:
+        note = (
+            "complete within the query window: every receipt the resolved chain"
+            " graphs reference is carried in `receipts.jsonl`"
+        )
+    return len(extra), note
+
 
 
 def build_pack(
@@ -253,10 +372,26 @@ def build_pack(
     pack = out_dir / "audit-pack"
     pack.mkdir(parents=True)
 
+    # Key snapshot coverage: the pinned snapshot travels in the pack, so it
+    # MUST carry the public half of every signing key used inside the window.
+    # A pack that could not be verified offline is not exported at all.
+    snapshot_rows = _snapshot_rows(trust_roots)
+    snapshot_kids = {str(row["key_id"]) for row in snapshot_rows}
+    used_kids = _envelope_kids(envelopes)
+    uncovered = sorted(used_kids - snapshot_kids)
+    if uncovered:
+        raise ValueError(
+            "cannot build a self-contained export: signing key(s) "
+            + ", ".join(repr(k) for k in uncovered)
+            + " are used by in-window receipts but absent from the pinned "
+            "key snapshot; extend the snapshot instead of shipping an "
+            "export that cannot verify offline"
+        )
+
     # receipts.jsonl — canonical byte-exact envelope lines.
     (pack / "receipts.jsonl").write_text("\n".join(envelopes) + "\n", encoding="utf-8")
 
-    # keys/ — verbatim trust-root snapshot (public halves only).
+    # keys/ — verbatim pinned key snapshot (public halves only).
     keys_dir = pack / "keys"
     keys_dir.mkdir()
     shutil.copyfile(trust_roots, keys_dir / trust_roots.name)
@@ -346,22 +481,37 @@ def build_pack(
     # source for the wire-up; without it the pack degrades to the pending
     # slot - never a fake graph.
     _oss = os.environ.get("RAUCLE_OSS_HOME")
+    _cg_path = None
     if _oss and pathlib.Path(_oss).is_dir():
-        sys.path.insert(0, str(pathlib.Path(_oss)))
-    try:
-        import raucle.chain_graph as _cg  # noqa: PLC0415 - optional dependency, P1.1a wire-up
+        # The pinned raucle install in the venv may shadow the OSS tree and
+        # ship without chain_graph, so load the resolver straight from the
+        # declared OSS home instead of relying on sys.path order.
+        cand = pathlib.Path(_oss) / "raucle" / "chain_graph.py"
+        if cand.is_file():
+            _cg_path = cand
+    if _cg_path is not None:
+        spec = importlib.util.spec_from_file_location(
+            "raucle_chain_graph_p1_1a", _cg_path
+        )
+        assert spec is not None and spec.loader is not None
+        _cg = importlib.util.module_from_spec(spec)
+        sys.modules.setdefault(spec.name, _cg)
+        spec.loader.exec_module(_cg)
 
+        # Self-contained (P1.1c): the pinned snapshot is embedded in the pack,
+        # so it is also fed to the resolver: per-node signature states become
+        # real verify results, not "key_absent" placeholders.
+        public_keys = {str(r["key_id"]): r["public_key_pem"] for r in snapshot_rows}
         for line in envelopes:
             rh = json.loads(line)["receipt_hash"]
             try:
                 graphs[rh] = _cg.resolve_chain_graph(
-                    rh, [json.loads(env_line) for env_line in envelopes]
+                    rh, [json.loads(env_line) for env_line in envelopes],
+                    public_keys=public_keys,
                 )
             except Exception as exc:  # per-receipt: a graph state, not a crash
                 graphs[rh] = {"status": "unresolved", "reason": type(exc).__name__}
-        graph_status = "resolved-by-pinned-verifier"
-    except ImportError:
-        graphs = {}
+        graph_status = CHAIN_GRAPH_RESOLVED
     (pack / "chain_graph.json").write_text(
         json.dumps(
             {
@@ -382,6 +532,13 @@ def build_pack(
         encoding="utf-8",
     )
 
+    # signatures/ — the full signature bundle (P1.1c): every envelope the
+    # pack's claims depend on, inside the query window or referenced by a
+    # resolved chain graph, so re-verification needs nothing but the pack.
+    bundle_extra, bundle_note = build_signature_bundle(
+        evidence_store, envelopes, graph_status, graphs, pack
+    )
+
     # claims.md — honest-report pattern, no-claim guard preserved.
     if receipt_hash is not None:
         window = f"single receipt {receipt_hash}"
@@ -395,7 +552,8 @@ def build_pack(
         keys=n_keys,
         timestamp_tokens=token_count,
         policies=policies_note,
-        chain_graph=f"`chain_graph.json` is reserved and currently {CHAIN_GRAPH_PENDING}.",
+        chain_graph=f"`chain_graph.json` is recorded as {graph_status}.",
+        bundle=bundle_note,
         clock=clock,
     )
     (pack / "claims.md").write_text(claims, encoding="utf-8")
@@ -411,6 +569,7 @@ def build_pack(
         str(p.relative_to(pack)): _sha256_file(p) for p in sorted(pack.rglob("*")) if p.is_file()
     }
     now = (clock or dt.datetime.now(dt.UTC)).replace(microsecond=0)
+    snapshot_digest = _sha256_file(keys_dir / trust_roots.name)
     manifest = {
         "schema_version": PACK_SCHEMA_VERSION,
         "pack": "AUD-01 auditor export pack",
@@ -420,11 +579,24 @@ def build_pack(
             "to": to_utc.isoformat() if to_utc else None,
             "receipt_hash": receipt_hash,
         },
+        "pinned_key_snapshot": {
+            "file": f"keys/{trust_roots.name}",
+            "sha256": snapshot_digest,
+            "key_ids": sorted(snapshot_kids),
+            "note": "verbatim pinned snapshot, public halves only; re-verification depends on nothing outside the pack",
+        },
+        "self_contained": {
+            "offline": True,
+            "requires": "Python 3.11+ standard library plus the cryptography package",
+            "network": "none",
+            "raucle": "not required at verification time",
+        },
         "counts": {
             "receipts": len(envelopes),
             "keys": n_keys,
             "timestamp_tokens": token_count,
             "policy_files": len(copied_policies),
+            "chain_receipts": bundle_extra,
         },
         "files": files,
     }
@@ -456,7 +628,9 @@ def _verify_notes(receipts: int, timestamps: int, policies: str) -> str:
 
 You need only Python 3.11+ with the `cryptography` package (`pip install
 cryptography`). No network connection is used, wanted, or trusted at any
-step. The verifier ships separately as `tools/verifier/verify_pack.py` in
+step, and the pack itself carries the pinned key snapshot it is checked
+against: no raucle installation, no gateway, and no operator access are
+involved. The verifier ships separately as `tools/verifier/verify_pack.py` in
 the source repository; ask the operator to hand it to you alongside this
 pack, or write your own — the manifest tells you everything it should check.
 
@@ -474,10 +648,14 @@ pack, or write your own — the manifest tells you everything it should check.
 ## Expected contents
 
 - `receipts.jsonl` — {receipts} receipt envelope(s), byte-exact.
-- `keys/` — the trust-root snapshot (public keys only).
+- `keys/` — the pinned key snapshot (public keys only), embedded so the pack
+  verifies against nothing outside itself.
+- `signatures/` — the full signature bundle: every envelope a pack claim
+  depends on, including chain receipts a resolved graph references beyond
+  the query window (see that directory's README when none were needed).
 - `timestamps/` — {timestamps} RFC 3161 token(s) (see that directory's README when none).
 - `policies/` — {policies}.
-- `chain_graph.json` — reserved slot, pending P1.1a wire-up.
+- `chain_graph.json` — the chain-graph slot (its resolved status is reported by the verifier).
 - `claims.md` — the plain-English claim sheet with its mandatory no-claim guard.
 
 If any of the above is missing, the verifier will say so by name. It is

@@ -13,11 +13,15 @@ import ast
 import base64
 import datetime as dt
 import hashlib
+import http.client
 import importlib.util
 import json
+import os
 import pathlib
 import shutil
+import socket
 import sys
+import urllib.request
 
 import pytest
 from cryptography.hazmat.primitives import serialization as ser
@@ -25,6 +29,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 DEMO = REPO_ROOT / "services" / "investigation-ui" / "demo_data"
+RAUCLE_OSS_HOME = pathlib.Path(os.environ.get("RAUCLE_OSS_HOME", "~/Projects/raucle")).expanduser()
 CLOCK = dt.datetime(2026, 11, 5, 12, 0, 0, tzinfo=dt.UTC)
 MANIFEST = "manifest.json"
 
@@ -291,3 +296,141 @@ def test_verifier_import_boundary_stdlib_plus_cryptography_only() -> None:
     assert "raucle" not in roots
     assert "oaa_raucle_adapter" not in roots
     assert "oaa_investigation_ui" not in roots
+
+
+# ------------------------------------------------- P1.1c offline export ----
+
+
+def test_verify_makes_no_network_attempt(built: dict, monkeypatch: pytest.MonkeyPatch) -> None:
+    """P1.1c contract proven at runtime: re-verification succeeds with the
+    network gone. Sockets are monkeypatched to count and refuse any
+    connection attempt; the run stays green and the counter stays at zero
+    for the unpacked pack and the shipped zip."""
+    attempts: list[str] = []
+
+    class _RefusingSocket:
+        def __init__(self, *a: object, **k: object) -> None:
+            attempts.append(f"socket.socket({a!r})")
+
+        def __getattr__(self, name: str):  # pragma: no cover - refusal first
+            raise AssertionError("network attempted during offline verification")
+
+    monkeypatch.setattr(socket, "socket", _RefusingSocket)
+    monkeypatch.setattr(socket, "create_connection", lambda *a, **k: attempts.append("socket.create_connection"))
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: attempts.append(f"socket.getaddrinfo({a!r})"))
+    monkeypatch.setattr(http.client.HTTPConnection, "connect", lambda self: attempts.append("http.client.HTTPConnection.connect"))
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: attempts.append("urllib.request.urlopen"))
+
+    for target in (pathlib.Path(built["pack_dir"]), pathlib.Path(built["zip"])):
+        attempts.clear()
+        report = verify_pack.verify_pack(target)
+        assert not report.failed, report.render()
+        assert attempts == [], f"verifier attempted network use: {attempts}"
+
+
+def test_manifest_declares_pinned_snapshot_and_self_containment(built: dict) -> None:
+    m = json.loads((pathlib.Path(built["pack_dir"]) / MANIFEST).read_text())
+    snap = m["pinned_key_snapshot"]
+    keys_file = pathlib.Path(built["pack_dir"]) / snap["file"]
+    assert keys_file.is_file()
+    assert hashlib.sha256(keys_file.read_bytes()).hexdigest() == snap["sha256"]
+    assert snap["key_ids"], "snapshot must name the pinned key ids"
+    assert m["self_contained"] == {
+        "offline": True,
+        "requires": "Python 3.11+ standard library plus the cryptography package",
+        "network": "none",
+        "raucle": "not required at verification time",
+    }
+    # verifier agrees, and does not warn on a P1.1c pack
+    report = verify_pack.verify_pack(pathlib.Path(built["pack_dir"]))
+    pk = next(c for c in report.checks if c.name == "pinned-key-snapshot")
+    assert pk.status == "PASS" and not report.warned
+
+
+def test_build_refuses_key_not_in_pinned_snapshot(tmp_path: pathlib.Path) -> None:
+    """A self-contained export is impossible when the window uses a key the
+    embedded snapshot does not carry: the build refuses, naming the key."""
+    key = Ed25519PrivateKey.generate()
+    kid = "deadbeefdeadbeef"
+    key.public_key().public_bytes(ser.Encoding.PEM, ser.PublicFormat.SubjectPublicKeyInfo).decode()
+    payload = {"agent_id": "agent:x", "agent_key_id": kid, "iat": 1700000000}
+    hp = base64.urlsafe_b64encode(json.dumps({"alg": "EdDSA", "kid": kid, "typ": "provenance-receipt/v1"}).encode()).rstrip(b"=").decode()
+    pp = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode()).rstrip(b"=").decode()
+    sig = base64.urlsafe_b64encode(key.sign(f"{hp}.{pp}".encode())).rstrip(b"=").decode()
+    jws = f"{hp}.{pp}.{sig}"
+    store = tmp_path / "evidence_store.jsonl"
+    store.write_text(json.dumps({"receipt_hash": "sha256:" + hashlib.sha256(jws.encode()).hexdigest(), "jws": jws}) + "\n")
+    # a snapshot that intentionally misses the signing key
+    roots = tmp_path / "trust_roots.jsonl"
+    other = Ed25519PrivateKey.generate()
+    other_pem = other.public_key().public_bytes(ser.Encoding.PEM, ser.PublicFormat.SubjectPublicKeyInfo).decode()
+    roots.write_text(json.dumps({"key_id": "other", "public_key_pem": other_pem, "valid_from": "1970-01-01T00:00:00+00:00", "valid_until": None}) + "\n")
+    with pytest.raises(ValueError, match="deadbeefdeadbeef"):
+        pack.build_pack(store, roots, tmp_path / "out")
+
+
+@pytest.mark.skipif(not RAUCLE_OSS_HOME.is_dir(), reason="RAUCLE_OSS_HOME tree not present on this machine")
+def test_resolved_pack_with_pinned_keys_self_contained(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """With RAUCLE_OSS_HOME opt-in the resolved graphs embed real verify
+    results from the pinned snapshot, and any receipt the graphs reference
+    beyond the window ships in signatures/ (the full signature bundle)."""
+    monkeypatch.setenv("RAUCLE_OSS_HOME", str(RAUCLE_OSS_HOME))
+    built = pack.build_pack(DEMO / "evidence_store.jsonl", DEMO / "trust_roots.jsonl", tmp_path / "out", clock=CLOCK)
+    d = pathlib.Path(built["pack_dir"])
+    cg = json.loads((d / "chain_graph.json").read_text())
+    assert cg["status"] == "resolved-by-pinned-verifier"
+    graphs = cg["graphs"]
+    assert graphs, "demo receipts must resolve"
+    sig_states = [n["signature"]["status"] for g in graphs.values() for n in g.get("nodes", []) if n.get("kind") == "receipt" and isinstance(n.get("signature"), dict)]
+    assert sig_states and all(s == "verified" for s in sig_states), sig_states
+    bundle = d / "signatures" / "chain_receipts.jsonl"
+    # every graph receipt id is carried inside the pack
+    report = verify_pack.verify_pack(d)
+    assert not report.failed, report.render()
+    names = [c.name for c in report.checks]
+    assert "signature-bundle" in names
+    if bundle.is_file():
+        packed_hashes = set()
+        for rel in ("receipts.jsonl", "signatures/chain_receipts.jsonl"):
+            for ln in (d / rel).read_text().splitlines():
+                if ln.strip():
+                    packed_hashes.add(json.loads(ln)["receipt_hash"])
+        node_ids = {n["id"] for g in graphs.values() for n in g.get("nodes", []) if n.get("kind") == "receipt"}
+        assert node_ids <= packed_hashes
+        report2 = verify_pack.verify_pack(d)
+        assert any(c.name == "signature-bundle" and c.status == "PASS" for c in report2.checks)
+
+
+def test_chain_pack_graph_coverage_check_fails_without_bundle(
+    built: dict, tmp_path: pathlib.Path
+) -> None:
+    """A tampered export that drops the bundle while keeping a resolved
+    graph is caught: the coverage check names the missing dependency."""
+    d = tmp_path / "stripped"
+    shutil.copytree(pathlib.Path(built["pack_dir"]), d)
+    cg = d / "chain_graph.json"
+    data = json.loads(cg.read_text())
+    assert data["status"] == "pending P1.1a wire-up"
+    data["status"] = verify_pack.CHAIN_GRAPH_RESOLVED
+    data["graphs"] = {"sha256:aa" * 1: {"nodes": [{"id": "sha256:" + "aa" * 32, "kind": "receipt"}]}}
+    cg.write_text(json.dumps(data))
+    m = json.loads((d / MANIFEST).read_text())
+    m["files"]["chain_graph.json"] = hashlib.sha256(cg.read_bytes()).hexdigest()
+    (d / MANIFEST).write_text(json.dumps(m, indent=2, sort_keys=True) + "\n")
+    report = verify_pack.verify_pack(d)
+    assert report.failed
+    check = next(c for c in report.checks if c.name == "chain-graph-slot")
+    assert check.status == "FAIL" and "not shipped" in check.message
+
+
+def test_signature_bundle_tamper_fails_named(built: dict, tmp_path: pathlib.Path) -> None:
+    d = tmp_path / "bundle-tamper"
+    shutil.copytree(pathlib.Path(built["pack_dir"]), d)
+    p = d / "signatures" / "chain_receipts.jsonl"
+    if not p.is_file():
+        pytest.skip("demo window needed no off-window chain receipts")
+    p.write_text(p.read_text() + "\n")  # corrupt: extra newline changes bytes
+    report = verify_pack.verify_pack(d)
+    assert report.failed
+    check = next(c for c in report.checks if c.name == "manifest-integrity")
+    assert "chain_receipts.jsonl" in check.message
