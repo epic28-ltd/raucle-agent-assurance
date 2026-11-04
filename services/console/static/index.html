@@ -1694,7 +1694,7 @@ async function boot() {
   } catch { trends = null; }
   try {
     const r = await fetch('/api/trust/policies/summary');
-    if (r.ok) portalPolicies = await r.json(); else portalPolicies = { pending: true };
+    if (r.ok) portalPolicies = await r.json(); else portalPolicies = { pending: true, status: r.status_code };
   } catch { portalPolicies = { pending: true }; }
   const tenant = overview && overview.tenants ? overview.tenants[0] : { label: 'default' };
   const h = new Date().getHours();

@@ -459,9 +459,18 @@ def test_red_runner_proxy_offline_is_explicit_503(client: TestClient):
         r = client.get(path)
         if r.status_code == 503:
             assert r.json()["error"] == "red runner offline"
-        # if a local runner happens to be up, the proxy must return 200/2xx
+        # if a local runner happens to be up, honest upstream state passes
+        # through unchanged: 2xx, or a runner-side 404 (results requested
+        # before a run has completed). The proxy never masks a runner state
+        # as "offline" and never fakes a success.
         else:
-            assert r.status_code in (200, 204)
+            assert r.status_code in (200, 204, 404)
+    up = client.get("/api/red/status").status_code == 200
+    if up:
+        # a live runner would EXECUTE the submit: do not trigger real work
+        # from a test; the run/stop forwarding shape is pinned elsewhere
+        # against a stubbed runner.
+        return
     for path in ("/api/red/stop", "/api/red/run"):
         r = client.post(path, json={"preset": "quick", "target": "demo"})
         if r.status_code == 503:
@@ -655,3 +664,41 @@ def test_docs_console_red_ops_findings_spike():
     assert "idempoten" in text.lower() and "3415" in text
     em_dash = chr(0x2014)
     assert em_dash not in text
+
+
+# ------------------------------------------------------ trust portal (reconcile)
+def test_config_carries_trust_portal_url(client: TestClient):
+    body = client.get("/api/config").json()
+    assert body["trust_portal_url"] == "http://127.0.0.1:8090"
+
+
+def test_trust_portal_url_configurable():
+    os.environ["RAUCLE_TRUST_PORTAL_URL"] = "http://127.0.0.1:9410"
+    try:
+        c = TestClient(create_app())
+        assert (
+            c.get("/api/config").json()["trust_portal_url"]
+            == "http://127.0.0.1:9410"
+        )
+    finally:
+        del os.environ["RAUCLE_TRUST_PORTAL_URL"]
+
+
+def test_trust_policies_summary_proxy_degrades_honestly(client: TestClient):
+    """The portal is not running (test port): the proxy returns an explicit
+    503 'portal offline' - never a blank, never a guessed number."""
+    r = client.get("/api/trust/policies/summary")
+    assert r.status_code == 503
+    assert r.json()["error"] == "portal offline"
+
+
+def test_trust_page_narrates_and_links_the_portal():
+    """The Manage policies card: the portal is the deep editor, the console
+    narrates + links - no parallel editor markup exists."""
+    html = (STATIC / "index.html").read_text(encoding="utf-8")
+    assert "Manage policies" in html
+    assert "Open the portal" in html
+    # the reconcile decision is pinned in the page copy
+    assert "one version history, one audit trail" in html
+    # the honest pending state copy ships even while the portal is offline
+    assert "summary endpoint pending" in html
