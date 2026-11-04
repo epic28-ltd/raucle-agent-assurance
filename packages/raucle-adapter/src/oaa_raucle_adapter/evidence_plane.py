@@ -269,6 +269,8 @@ def classify(
             checks,
             f"key_id {kid!r} not trusted at event time {event_time.isoformat()}",
         )
+    # raucle 0.23.x ProvenanceVerifier requires dict[str, bytes] PEMs
+    keys_bytes = {k: (v.encode() if isinstance(v, str) else v) for k, v in keys.items()}
 
     want = "sha256:" + hashlib.sha256(jws.encode()).hexdigest()
     checks.append("receipt_hash == sha256(compact jws)")
@@ -276,7 +278,7 @@ def classify(
     if not hash_ok:
         checks.append("integrity check: receipt_hash mismatch (record tampered)")
 
-    v = raucle.provenance.ProvenanceVerifier(public_keys=keys)
+    v = raucle.provenance.ProvenanceVerifier(public_keys=keys_bytes)
     checks.append("ProvenanceVerifier.verify_chain(temp, strict=True)")
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="evd-")) / "one.jsonl"
     try:
