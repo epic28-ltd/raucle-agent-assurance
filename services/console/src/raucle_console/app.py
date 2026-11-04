@@ -273,12 +273,19 @@ def create_app() -> fastapi.FastAPI:
         }
 
     @app.get("/api/config")
-    def api_config() -> dict:
-        """Client configuration. The iframe target is the configured add-in
-        origin only; no secrets or environment dumps appear here. The
-        coverage allowance (UI-02.3) is a constant of the alpha contract."""
+    def api_config(request: fastapi.Request) -> dict:
+        """Client configuration. The iframe target must be reachable FROM THE
+        BROWSER, so when no explicit RAUCLE_ASSURANCE_URL override is set the
+        origin is derived per request from the Host header (same host, add-in
+        port) - a remote visitor embedding 127.0.0.1 would otherwise load the
+        iframe from their own machine. No secrets or env dumps appear here."""
+        if "RAUCLE_ASSURANCE_URL" in os.environ:
+            url = _assurance_url()
+        else:
+            host = (request.headers.get("host") or "127.0.0.1").split(":", 1)[0]
+            url = f"http://{host}:3411"
         return {
-            "assurance_url": _assurance_url(),
+            "assurance_url": url,
             "assurance_reachable": False,  # SPA probes the URL itself
             "trust_gate_env": TRUST_GATE_ENV,
             "coverage_target_pct": COVERAGE_TARGET_PCT,
