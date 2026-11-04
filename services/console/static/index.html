@@ -591,7 +591,7 @@ function redPreviewCard() {
   c.footer(foot);
   const df = el('p', 'muted small', 'Dogfooding: reading the red agent receipt trail...');
   c.body.appendChild(df);
-  api('/api/red/dogfood').then(d => { if (d && d.available) { df.textContent = 'Dogfooded: ' + d.receipted + ' of ' + d.attempts + ' red attempts left their own signed receipts. Findings: ' + d.findings_total + '.'; } else { df.textContent = 'Dogfooding counters unavailable (red corpora not found; nothing guessed).'; } });
+  fetch('/api/red/dogfood').then(r => r.json()).then(d => { if (d && d.available) { df.textContent = 'Dogfooded: ' + d.receipted + ' of ' + d.attempts + ' red attempts left their own signed receipts. Findings: ' + d.findings_total + '.'; } else { df.textContent = 'Dogfooding counters unavailable (red corpora not found; nothing guessed).'; } });
   c.explain('A preview of the Red add-in before it ships: adversarial gate fuzzing and tamper attempts pair with the Assurance findings board so red work becomes actionable findings.');
   return c.root;
 }
@@ -914,7 +914,7 @@ function viewRed() {
   const dogWrap = el('p', 'muted', 'Reading the red agent receipt trail...');
   dog.appendChild(dogWrap);
   c.body.appendChild(dog);
-  api('/api/red/dogfood').then(d => {
+  fetch('/api/red/dogfood').then(r => r.json()).then(d => {
     if (!d || !d.available) { dogWrap.textContent = 'Red corpora not found locally: dogfood counters unavailable (nothing guessed).'; return; }
     dogWrap.textContent = 'Every attack this product makes is itself gated: ' + d.receipted + ' of ' + d.attempts + ' red attempts left a signed receipt (' + d.share + '%). Findings emitted: ' + d.findings_total + ' (by severity: ' + Object.entries(d.findings_by_severity).map(([k, v]) => k + ' ' + v).join(', ') + ').';
   });
