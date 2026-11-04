@@ -1,0 +1,482 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raucle Console</title>
+<style>
+  /* ---------------------------------------------- semantic colour system
+     green = proven / connected; amber = un-proven / degraded;
+     red = action needed; grey = exempt / not purchased. */
+  :root{
+    --c-good:#2e7d32;   --c-good-bg:#e6f2e7;
+    --c-look:#b26a00;   --c-look-bg:#fdf1dd;
+    --c-act:#b3261e;    --c-act-bg:#fbe9e8;
+    --c-exempt:#5f6b76; --c-exempt-bg:#e8ebee;
+    --ink:#1c2733; --line:#d4dae0; --soft:#5f6b76; --accent:#0b4a8f;
+    --bg:#f2f4f7; --panel:#ffffff; --side:#12202e; --side-ink:#cfd8e0;
+  }
+  *{box-sizing:border-box}
+  body{font:15px/1.45 system-ui,sans-serif;color:var(--ink);margin:0;background:var(--bg)}
+  .shell{display:grid;grid-template-columns:240px 1fr;grid-template-rows:auto 1fr;
+    grid-template-areas:"side top" "side main";min-height:100vh}
+  /* -------- sidebar */
+  aside{grid-area:side;background:var(--side);color:var(--side-ink);padding:1rem .8rem 2rem}
+  .brand{font-size:1.05rem;font-weight:700;color:#fff;margin:.2rem 0 1.4rem;padding-left:.6rem}
+  .brand small{display:block;font-weight:400;font-size:.72rem;color:var(--side-ink)}
+  aside h2{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;
+    color:#8ba0b3;margin:1.2rem 0 .3rem;padding-left:.6rem}
+  aside nav button{display:flex;justify-content:space-between;align-items:center;gap:.5rem;
+    width:100%;text-align:left;font:inherit;color:var(--side-ink);background:none;border:0;
+    border-radius:6px;padding:.42rem .6rem;cursor:pointer}
+  aside nav button:hover{background:#1c3040}
+  aside nav button[aria-current="page"]{background:#234a63;color:#fff;font-weight:600}
+  .chip{display:inline-block;padding:.05rem .45rem;border-radius:4px;border:1px solid;
+    font-size:.68rem;white-space:nowrap}
+  .tok-good{color:var(--c-good);background:var(--c-good-bg);border-color:var(--c-good)}
+  .tok-look{color:var(--c-look);background:var(--c-look-bg);border-color:var(--c-look)}
+  .tok-act{color:var(--c-act);background:var(--c-act-bg);border-color:var(--c-act)}
+  .tok-exempt{color:#55301f;background:#83909c;border-color:#83909c}
+  /* -------- top bar */
+  .topbar{grid-area:top;background:var(--panel);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:1rem;padding:.55rem 1.2rem;position:relative;flex-wrap:wrap}
+  .topbar input[type="search"]{flex:0 1 340px;font:inherit;padding:.4rem .7rem;
+    border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+  .topbar button{font:inherit;border:1px solid var(--line);background:var(--bg);
+    border-radius:6px;padding:.35rem .7rem;cursor:pointer;color:var(--ink)}
+  .tenant{font-size:.85rem;color:var(--soft)}
+  .tenant b{color:var(--ink)}
+  .search-results{position:absolute;top:100%;left:200px;z-index:10;background:var(--panel);
+    border:1px solid var(--line);border-radius:0 0 8px 8px;min-width:340px;display:none;
+    box-shadow:0 4px 14px rgba(20,35,50,.15)}
+  .search-results.show{display:block}
+  .search-results button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line)}
+  .bell::after{content:"";display:inline-block;width:.5rem;height:.5rem;border-radius:50%;
+    background:var(--c-look);margin-left:.3rem;vertical-align:middle}
+  .bell[data-empty="true"]::after{background:var(--c-exempt)}
+  /* -------- main */
+  main{grid-area:main;padding:1.2rem 1.6rem 3rem;max-width:1400px;width:100%}
+  .legend{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;font-size:.78rem;color:var(--soft);margin-bottom:1rem}
+  h1{font-size:1.2rem;margin:.1rem 0 .8rem}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin:.8rem 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem}
+  .card h3{margin:.1rem 0 .3rem;font-size:1rem}
+  .card p{margin:.3rem 0;color:var(--soft);font-size:.9rem}
+  .explain{border-top:1px dashed var(--line);margin-top:.7rem;padding-top:.55rem;
+    font-size:.8rem;color:var(--soft)}
+  .explain b{color:var(--ink)}
+  .big{font-size:1.9rem;font-weight:700;display:block}
+  .counter-row{display:flex;gap:1rem;flex-wrap:wrap;margin:.5rem 0}
+  .counter{flex:1 1 90px;border:1px solid var(--line);border-radius:6px;padding:.5rem .6rem;background:var(--bg)}
+  .counter[data-tone="good"]{border-top:5px solid var(--c-good)}
+  .counter[data-tone="look"]{border-top:5px solid var(--c-look)}
+  .counter[data-tone="act"]{border-top:5px solid var(--c-act)}
+  .counter .lbl{font-size:.78rem;color:var(--soft)}
+  .banner{display:flex;gap:.6rem;align-items:center;border:1px dashed var(--c-look);
+    background:var(--c-look-bg);color:#6b4d00;border-radius:8px;padding:.55rem .9rem;
+    margin:.6rem 0;font-size:.88rem}
+  .banner.red{border-color:var(--c-act);background:var(--c-act-bg);color:#7b1a14}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem;margin:.8rem 0}
+  ul.plain{list-style:none;margin:.4rem 0;padding:0}
+  ul.plain li{padding:.35rem 0;border-bottom:1px solid var(--line);font-size:.9rem}
+  ul.plain li:last-child{border-bottom:0}
+  label{display:block;font-size:.85rem;font-weight:600;margin:.7rem 0 .2rem}
+  input[type="text"],input[type="email"],input[type="checkbox"]{font:inherit;padding:.4rem .6rem;
+    border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+  iframe{width:100%;height:78vh;border:1px solid var(--line);border-radius:8px;background:#fff}
+  .muted{color:var(--soft);font-size:.82rem}
+  code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:.05rem .35rem;font-size:.82rem}
+  button:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside>
+    <div class="brand">Raucle Console<small>agent suite shell - alpha</small></div>
+    <nav id="side-nav" aria-label="Console navigation"></nav>
+    <p class="muted" style="padding-left:.6rem;margin-top:1.4rem">Single-tenant alpha: one tenant (<code>default</code>), org identity derived by the server per the tenancy ADR.</p>
+  </aside>
+
+  <header class="topbar">
+    <input id="q" type="search" placeholder="Search the console…" aria-label="Global search">
+    <span class="tenant">Tenant: <b id="tenant-label">default</b></span>
+    <button id="bell" class="bell" data-empty="true" aria-label="Notifications">Notifications</button>
+    <button id="profile-btn" aria-haspopup="menu">Profile</button>
+    <div id="search-results" class="search-results" role="listbox"></div>
+  </header>
+
+  <main id="view">
+    <div id="legend" class="legend"></div>
+    <div id="page" aria-live="polite"></div>
+  </main>
+</div>
+
+<script type="module">
+/* Raucle Console SPA - EPIC-N. Vanilla JS, textContent only (threat-model T5:
+   no markup-injection sinks anywhere, no external script/stylesheet fetches).
+   The only network call this page makes is to the configured Assurance add-in
+   origin, shown in place. */
+
+'use strict';
+
+const el = (tag, cls, text) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+};
+const chipName = { connected: 'Connected', degraded: 'Degraded', not_purchased: 'Not purchased' };
+const chipTone = { connected: 'tok-good', degraded: 'tok-look', not_purchased: 'tok-exempt' };
+const chipEl = (status) => el('span', ['chip', chipTone[status] || 'tok-exempt'].join(' '), chipName[status] || 'Unknown');
+
+let overview = null;
+let config = { assurance_url: 'http://127.0.0.1:3411', trust_gate_env: 'RAUCLE_TRUST_GATE_CONFIG' };
+const NAV = [
+  { id: 'overview', label: 'Overview', section: 'overview' },
+  { id: 'trust', label: 'Raucle Agent Trust', section: 'products' },
+  { id: 'assurance', label: 'Raucle Agent Assurance', section: 'products' },
+  { id: 'red', label: 'Raucle Agent Red', section: 'products' },
+  { id: 'settings', label: 'Settings', section: 'tenant' },
+  { id: 'profile', label: 'Profile', section: 'tenant' },
+  { id: 'notifications', label: 'Notifications', section: 'tenant' },
+];
+const TITLES = Object.fromEntries(NAV.map(n => [n.id, n.label]));
+
+function buildSidebar() {
+  const nav = document.getElementById('side-nav');
+  for (const section of ['overview', 'products', 'tenant']) {
+    nav.appendChild(el('h2', null,
+      section === 'overview' ? 'Overview' : section === 'products' ? 'Products' : 'Tenant'));
+    for (const item of NAV.filter(n => n.section === section)) {
+      const b = el('button', null);
+      b.appendChild(el('span', null, item.label));
+      if (item.section === 'products') {
+        const status = overview && overview.addins
+          ? overview.addins.find(a => a.id === item.id)
+          : null;
+        b.appendChild(chipEl(status ? status.status : 'not_purchased'));
+      }
+      b.addEventListener('click', () => go(item.id));
+      b.dataset.route = item.id;
+      nav.appendChild(b);
+    }
+  }
+}
+
+function buildLegend() {
+  const legend = document.getElementById('legend');
+  legend.appendChild(el('span', null, 'Legend:'));
+  legend.appendChild(chipEl('connected'));
+  legend.appendChild(el('span', null, 'add-in connected'));
+  legend.appendChild(chipEl('degraded'));
+  legend.appendChild(el('span', null, 'add-in offline (degraded)'));
+  legend.appendChild(chipEl('not_purchased'));
+  legend.appendChild(el('span', null, 'not purchased'));
+}
+
+function markCurrent(route) {
+  document.querySelectorAll('[data-route]').forEach(n => {
+    if (n.dataset.route === route) n.setAttribute('aria-current', 'page');
+    else n.removeAttribute('aria-current');
+  });
+}
+
+/* ------------------------------------------------------------ views */
+function page(title) {
+  const p = el('div');
+  p.appendChild(el('h1', null, title));
+  return p;
+}
+
+function explain(node, what, text) {
+  const e = el('div', 'explain');
+  e.appendChild(el('b', null, 'What is this? '));
+  e.appendChild(el('span', null, text));
+  node.appendChild(e);
+  node.appendChild(el('p', null, '')); // spacing
+  return e;
+}
+
+function viewOverview() {
+  const p = page('Overview');
+  if (!overview) {
+    p.appendChild(el('div', 'banner red', 'Suite data not loaded - the console API did not respond. Reload to retry.'));
+    return p;
+  }
+  const cards = el('div', 'cards');
+
+  /* Trust card - embedded demo counts */
+  const t = el('div', 'card');
+  const tHead = el('h3');
+  tHead.appendChild(el('span', null, 'Raucle Agent Trust '));
+  tHead.appendChild(chipEl('connected'));
+  t.appendChild(tHead);
+  const tRow = el('div', 'counter-row');
+  for (const [n, lbl, tone] of [
+    [overview.trust.receipts_minted, 'Receipts minted', 'look'],
+    [overview.trust.receipts_valid, 'Verified valid', 'good'],
+    [overview.trust.receipts_verified, 'Verification rows', 'look'],
+  ]) {
+    const c = el('div', 'counter'); c.dataset.tone = tone;
+    c.appendChild(el('span', 'big', String(n)));
+    c.appendChild(el('span', 'lbl', lbl));
+    tRow.appendChild(c);
+  }
+  t.appendChild(tRow);
+  t.appendChild(el('p', null, 'Counts come from the pinned demo fixture set.'));
+  explain(t, 'Trust gate / evidence core.', 'Every privileged tool call can be bound to a signed evidence receipt; these counters summarise the demo data shipped with the suite.');
+  cards.appendChild(t);
+
+  /* Assurance card - live counters via add-in fetch */
+  const a = el('div', 'card');
+  const aHead = el('h3');
+  aHead.appendChild(el('span', null, 'Raucle Agent Assurance '));
+  aHead.appendChild(chipEl(overview.addins.find(x => x.id === 'assurance').status));
+  a.appendChild(aHead);
+  a.appendChild(el('p', null, 'Loading traffic-light counters from the add-in process…'));
+  explain(a, 'Investigation add-in.', 'This add-in lets an investigator follow a tool call from trace to evidence receipt and see findings with their suppression reasons.');
+  const dashUrl = '/api/assurance/dashboard'; // console proxies the add-in (no CORS alpha)
+  fetch(dashUrl).then(r => { if (!r.ok) throw new Error('http ' + r.status); return r.json(); }).then(d => {
+    a.removeChild(a.querySelector('p'));
+    const row = el('div', 'counter-row');
+    for (const [n, lbl, tone] of [
+      [d.healthy, 'Healthy', 'good'],
+      [d.at_risk, 'At risk', 'look'],
+      [d.needs_investigation, 'Needs investigation', 'act'],
+    ]) {
+      const c = el('div', 'counter'); c.dataset.tone = tone;
+      c.appendChild(el('span', 'big', String(n)));
+      c.appendChild(el('span', 'lbl', lbl));
+      row.appendChild(c);
+    }
+    a.insertBefore(row, a.lastElementChild);
+  }).catch(() => {
+    a.removeChild(a.querySelector('p'));
+    a.insertBefore(el('div', 'banner', 'Add-in offline - Assurance counters unavailable. Start the Raucle Agent Assurance process to see live figures.'), a.lastElementChild);
+  });
+  cards.appendChild(a);
+
+  /* Red card */
+  const r = el('div', 'card');
+  const rHead = el('h3');
+  rHead.appendChild(el('span', null, 'Raucle Agent Red '));
+  rHead.appendChild(chipEl('not_purchased'));
+  r.appendChild(rHead);
+  r.appendChild(el('p', null, 'Coming soon. Wave two of the suite; announcing later.'));
+  explain(r, 'Adversarial testing add-in.', 'When it ships, this add-in will stress agents against hostile content and policy edges. There is nothing to configure today.');
+  cards.appendChild(r);
+  p.appendChild(cards);
+
+  /* recent activity */
+  const act = el('div', 'panel');
+  act.appendChild(el('h2', null, 'Recent activity'));
+  const ul = el('ul', 'plain');
+  for (const item of overview.activity) {
+    const li = el('li');
+    li.appendChild(el('span', 'chip tok-exempt', item.when));
+    li.appendChild(el('span', null, ' ' + item.what));
+    ul.appendChild(li);
+  }
+  act.appendChild(ul);
+  explain(act, 'Activity feed.', 'Recent events across the suite. In the alpha this is demo data; live tenant activity lands with the tenancy epic.');
+  p.appendChild(act);
+  return p;
+}
+
+function viewTrust() {
+  const p = page(TITLES.trust);
+  const c = el('div', 'card');
+  c.appendChild(el('h3', null, 'Capabilities'));
+  const ul = el('ul', 'plain');
+  ['Gate decisions over privileged tool calls',
+    'Signed evidence receipts with offline verification',
+    'Full ADR-0001 verification status enum surfaced (no silent blanks)',
+    'Bundle with the gate so agents cannot act without proof'].forEach(x => ul.appendChild(el('li', null, x)));
+  c.appendChild(ul);
+  c.appendChild(el('p', null, 'Included with licence key - pricing tiers are not shown in product pages.'));
+  explain(c, 'Trust gate / evidence core.', 'Raucle Agent Trust stops a tool call unless its evidence is proven. Connect it to your gate once; the console then shows live counts.');
+  p.appendChild(c);
+  const conn = el('div', 'panel');
+  conn.appendChild(el('h2', null, 'Connect your gate'));
+  conn.appendChild(el('p', null, 'Point the console at your gate configuration by setting the environment variable '));
+  conn.appendChild(el('p', null, config.trust_gate_env + ' (the path to your gate config). Restart the console after the change; the value itself is never displayed.'));
+  p.appendChild(conn);
+  return p;
+}
+
+function viewAssurance() {
+  const p = page(TITLES.assurance);
+  p.appendChild(el('div', 'banner',
+    'Note: this is a separate add-in process, embedded here in an alpha iframe. Live process embedding via a plugin registry is planned - see the EPIC-N findings.'));
+  const src = config.assurance_url.replace(/\/$/, '') + '/';
+  const frame = el('iframe');
+  frame.title = 'Raucle Agent Assurance - investigation add-in';
+  frame.setAttribute('src', src);
+  frame.setAttribute('referrerpolicy', 'no-referrer');
+  p.appendChild(frame);
+  const note = el('div', 'panel');
+  note.appendChild(el('h2', null, 'About this embed'));
+  note.appendChild(el('p', null, 'Source (configured, env RAUCLE_ASSURANCE_URL): ' + src));
+  note.appendChild(el('p', null, 'If the frame is empty, the add-in process is offline - its page shows the graceful empty state here the moment it is reachable.'));
+  p.appendChild(note);
+  return p;
+}
+
+function viewRed() {
+  const p = page(TITLES.red);
+  const c = el('div', 'card');
+  const h = el('h3');
+  h.appendChild(el('span', null, 'Raucle Agent Red '));
+  h.appendChild(chipEl('not_purchased'));
+  c.appendChild(h);
+  c.appendChild(el('p', null, 'Coming soon. Wave two of the suite; announcing later.'));
+  const ul = el('ul', 'plain');
+  ['Adversarial tool-content scenarios', 'Policy edge-case sweeps', 'Reporting that pairs with Raucle Agent Assurance'].forEach(x => ul.appendChild(el('li', null, x)));
+  c.appendChild(ul);
+  c.appendChild(el('p', null, 'Included with licence key once available - pricing tiers are not shown in product pages.'));
+  explain(c, 'Adversarial testing add-in.', 'Raucle Agent Red will attack your agents the way a real caller would: hostile instructions, ambiguous inputs and policy edges. Not purchasable yet.');
+  p.appendChild(c);
+  return p;
+}
+
+function alphaBanner(text) {
+  return el('div', 'banner', text + ' This page is an alpha placeholder - form controls do not persist anything yet.');
+}
+
+function stubForm(fields) {
+  const f = el('div', 'panel');
+  for (const [lbl, type] of fields) {
+    const label = el('label', null, lbl);
+    const input = el('input');
+    input.type = type;
+    input.name = lbl.toLowerCase().replace(/[^a-z]+/g, '-');
+    f.appendChild(label);
+    f.appendChild(input);
+  }
+  const save = el('button', null, 'Save (placeholder)');
+  save.type = 'button';
+  f.appendChild(el('div', 'muted', ' '));
+  f.appendChild(save);
+  save.addEventListener('click', () => {
+    const m = f.querySelector('.muted');
+    m.textContent = 'Placeholder only - nothing is saved in the alpha.';
+  });
+  return f;
+}
+
+function viewSettings() {
+  const p = page(TITLES.settings);
+  p.appendChild(alphaBanner('Tenant settings for the single alpha tenant.'));
+  p.appendChild(stubForm([['Tenant label', 'text'], ['Contact email', 'email'], ['Gate config path', 'text']]));
+  p.appendChild(el('p', 'muted', 'Org identity is derived by the server from the ADR tenancy contract; the console never sets a tenant by cookie. Authenticated multi-tenancy is a later epic.'));
+  return p;
+}
+
+function viewProfile() {
+  const p = page(TITLES.profile);
+  p.appendChild(alphaBanner('Your operator profile.'));
+  p.appendChild(stubForm([['Display name', 'text'], ['Email', 'email']]));
+  return p;
+}
+
+function viewNotifications() {
+  const p = page(TITLES.notifications);
+  p.appendChild(alphaBanner('Notification preferences.'));
+  const list = el('div', 'panel');
+  list.appendChild(el('h2', null, 'Unread (from /api/overview)'));
+  const ul = el('ul', 'plain');
+  for (const n of (overview ? overview.notifications.items : [])) {
+    const li = el('li');
+    li.appendChild(chipEl('degraded'));
+    li.appendChild(el('span', null, ' ' + n));
+    ul.appendChild(li);
+  }
+  if (!overview || !overview.notifications.items.length) {
+    ul.appendChild(el('li', null, 'No notifications available.'));
+  }
+  list.appendChild(ul);
+  p.appendChild(list);
+  p.appendChild(stubForm([['Add-in status alerts (placeholder)', 'checkbox'], ['Weekly summary (placeholder)', 'checkbox']]));
+  return p;
+}
+
+const VIEWS = {
+  overview: viewOverview, trust: viewTrust, assurance: viewAssurance, red: viewRed,
+  settings: viewSettings, profile: viewProfile, notifications: viewNotifications,
+};
+
+function go(route) {
+  const v = VIEWS[route] || viewOverview;
+  const pageEl = document.getElementById('page');
+  pageEl.replaceChildren(v());
+  markCurrent(route);
+  history.replaceState(null, '', '#' + route);
+  document.getElementById('view').scrollTop = 0;
+}
+
+/* ------------------------------------------------------------ top bar */
+function buildSearch() {
+  const q = document.getElementById('q');
+  const box = document.getElementById('search-results');
+  const render = () => {
+    const needle = q.value.trim().toLowerCase();
+    if (!needle) { box.classList.remove('show'); box.replaceChildren(); return; }
+    const hits = [];
+    for (const n of NAV) if (TITLES[n.id].toLowerCase().includes(needle)) hits.push({ label: TITLES[n.id], route: n.id });
+    for (const li of (overview ? overview.activity : [])) {
+      if (li.what.toLowerCase().includes(needle)) hits.push({ label: 'Activity: ' + li.what, route: 'overview' });
+    }
+    for (const a of (overview ? overview.addins : [])) {
+      if (a.blurb.toLowerCase().includes(needle) && !hits.some(h => h.route === a.id)) {
+        hits.push({ label: a.name + ' - match in description', route: a.id });
+      }
+    }
+    box.replaceChildren();
+    if (!hits.length) box.appendChild(el('div', 'muted', 'No matches.'));
+    for (const h of hits.slice(0, 8)) {
+      const b = el('button', null, h.label);
+      b.addEventListener('click', () => { box.classList.remove('show'); q.value = ''; go(h.route); });
+      box.appendChild(b);
+    }
+    box.classList.add('show');
+  };
+  q.addEventListener('input', render);
+  q.addEventListener('blur', () => setTimeout(() => box.classList.remove('show'), 200));
+}
+
+function buildTopbar() {
+  const bell = document.getElementById('bell');
+  const count = overview ? overview.notifications.count : 0;
+  bell.setAttribute('aria-label', 'Notifications, ' + count + ' unread');
+  bell.textContent = 'Notifications';
+  bell.dataset.empty = count === 0 ? 'true' : 'false';
+  bell.insertBefore(el('span', 'chip ' + (count ? 'tok-look' : 'tok-exempt'), String(count)), null);
+  bell.addEventListener('click', () => go('notifications'));
+  const prof = document.getElementById('profile-btn');
+  prof.addEventListener('click', () => go('profile'));
+  buildSearch();
+}
+
+/* ------------------------------------------------------------ boot */
+async function boot() {
+  try { overview = await (await fetch('/api/overview')).json(); } catch { overview = null; }
+  try { config = await (await fetch('/api/config')).json(); } catch { /* defaults kept */ }
+  const t = document.getElementById('tenant-label');
+  const tenant = overview && overview.tenants ? overview.tenants[0] : { label: 'default' };
+  t.textContent = tenant.label;
+  document.getElementById('side-nav').replaceChildren();
+  buildSidebar();
+  buildLegend();
+  buildTopbar();
+  const hash = location.hash.replace('#', '');
+  go(VIEWS[hash] ? hash : 'overview');
+  window.addEventListener('hashchange', () => {
+    const h = location.hash.replace('#', '');
+    if (VIEWS[h]) go(h);
+  });
+}
+boot();
+</script>
+</body>
+</html>
