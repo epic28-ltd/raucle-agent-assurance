@@ -1,4 +1,4 @@
-# Open Agent Assurance
+# Raucle Agent Assurance
 
 A companion to [raucle](https://github.com/craigamcw/raucle) that layers
 workflow correlation, coverage analytics and assurance reporting on top of a
@@ -65,3 +65,7 @@ See CONTRIBUTING.md and packages/raucle-adapter/README.md (raucle pin).
 
 Apache-2.0 (see LICENSE). Spike findings docs are project records under the
 same licence. Langfuse and its licences are described in NOTICE.
+## Naming
+
+- Raucle Agent Trust: product-line name for the raucle gate/evidence core (package/repo identity remains `raucle`).
+- Raucle Agent Assurance: this companion (correlation, coverage analytics, assurance reporting). Internal working title 'Open Agent Assurance' may appear in older spike records.
