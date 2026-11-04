@@ -32,3 +32,42 @@ python verify_p1.py && python p2_p5_correlation.py && python p3_outage.py
 
 `sample-receipts.jsonl` is a truncated sample receipt envelope pair from the
 recorded run (display shorthand, not byte-complete — see findings).
+
+## OBS-03 — second workflow: adapter contract reuses without core rewrites
+
+`workflow_two.py` + `workflow_two_smoke.py` prove the LangGraph adapter
+contract (RaucleGateMiddleware + GateClient + the two sink callbacks)
+reuses as-is for a SECOND synthetic workflow, `compliance-ticket-triage`,
+with a deliberately different shape:
+
+- multi-step instead of flat: AGENT root -> RETRIEVER `retrieve-ticket`
+  -> RETRIEVER `fetch-customer-context` -> LLM stub `propose-action`
+  -> gated TOOL `file_write` -> workflow exit;
+- a designed failure path: an OUT-OF-SCOPE write (`/tmp/oaa-scope/finance/...`)
+  the gate denies; the middleware vetoes (the write executor NEVER runs) and
+  the tool-side `FileWriteLedger` shows the ABSENCE of the row — negative
+  evidence that enforcement held;
+- the same `oaa.*` namespace with the run-two prefix (`oaa-run2-*`,
+  `oaa-trace2-*`) and the same `SpanAttributeSink` /
+  `AuditSink` callback contracts, implemented as plain classes here
+  (loopback-only synthetic `ScopeGateClient` fills the `GateClient` protocol,
+  so no raucle worktree is needed to prove the path).
+
+Shared adapter surfaces used unchanged
+(`integrations/langgraph-adapter/src/oaa_langgraph_adapter/`):
+`RaucleGateMiddleware.wrap_tool_call`, `GateClient.check_tool_call`,
+`GateDecision`, `SpanAttributeSink.set_tool_attributes(call_id, attrs)`,
+`AuditSink.on_gate_event(event)` — including the veto-without-receipt rule
+(`allow` with no signed receipt denies too) and fail_open=False default.
+Differences live entirely in the workflow (shape, gate policy, run-id prefix),
+not in the contract. Gaps (still open): async/streaming tool-call execution,
+live escalation-resolution, real raucle gate in this second-workflow smoke
+(the loopback synthetic client is used; the in-process/pinned-raucle paths
+remain covered by the adapter's own test suite). The optional Langfuse push
+re-uses the stock OTLP exporter but SKIPS unless local creds exist
+(`obs.env`/`LANGFUSE_INIT_*` env vars) and 127.0.0.1-only — no external calls.
+
+Run: `PYTHONPATH=integrations/langgraph-adapter/src .venv/bin/python
+examples/reference-agent/workflow_two_smoke.py` (local-only; prints span
+trees, `oaa.*` readback, gate/ledger evidence, and a PASS/FAIL checklist).
+Regression tests: `tests/assurance/test_obs03_workflow_two.py`.
