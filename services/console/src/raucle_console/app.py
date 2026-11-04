@@ -50,7 +50,25 @@ if _investigation_src.is_dir() and str(_investigation_src) not in sys.path:
 # beyond the documented defaults. Env values are never echoed verbatim - only
 # the URL the console was told to use for an add-in, which the operator set.
 ASSURANCE_URL_DEFAULT = "http://127.0.0.1:3411"
+RED_RUNNER_URL_DEFAULT = "http://127.0.0.1:3415"
 TRUST_GATE_ENV = "RAUCLE_TRUST_GATE_CONFIG"
+
+# Red presets the console previews to the operator. The runner remains the
+# arbiter of what actually runs; these are the registered contract rows the
+# console can show even before (or without) a live runner to ask.
+RED_PRESETS = {
+    "quick": {
+        "label": "Quick pass",
+        "suites": ["policy_edges", "tamper", "replay"],
+        "budget": 40,
+    },
+    "deep": {
+        "label": "Deep sweep",
+        "suites": ["policy_edges", "tamper", "replay", "prompt_surface", "receipt_forgery"],
+        "budget": 200,
+    },
+}
+VALID_RED_PRESETS = tuple(RED_PRESETS)
 
 
 # Embedded demo-data counts: the QA coherence pass found these pinned
@@ -377,6 +395,124 @@ def create_app() -> fastapi.FastAPI:
     def api_red_dogfood() -> dict:
         """The red agent's own gate receipts (dogfooding, EPIC L invariant 1)."""
         return _red_dogfood()
+
+    def _red_runner_url() -> str:
+        return os.environ.get("RAUCLE_RED_RUNNER_URL", RED_RUNNER_URL_DEFAULT)
+
+    def _proxy_red(method: str, path: str, *, body=None):
+        """Forward a call to the red runner with explicit offline handling:
+        an unreachable runner degrades to a 503 the SPA renders honestly -
+        never a blank card, never a guessed status. Runner-side validation
+        errors (e.g. unknown preset) pass their own status through."""
+        try:
+            r = httpx.request(
+                method,
+                _red_runner_url().rstrip("/") + path,
+                json=body,
+                timeout=5.0,
+            )
+            r.raise_for_status()
+            return JSONResponse(r.json())
+        except httpx.HTTPStatusError as exc:
+            try:
+                detail = exc.response.json()
+            except ValueError:
+                detail = {"error": "runner error", "detail": exc.response.text[:300]}
+            return JSONResponse(detail, status_code=exc.response.status_code)
+        except Exception as exc:  # connection refused, timeout, DNS: offline
+            return JSONResponse(
+                {"error": "red runner offline", "detail": type(exc).__name__},
+                status_code=503,
+            )
+
+    @app.get("/api/red/targets")
+    def api_red_targets() -> JSONResponse:
+        """Proxy the runner's /targets: the demo gateway plus any named gates
+        registered with it (with endpoint / policy digest per gate)."""
+        return _proxy_red("GET", "/targets")
+
+    @app.post("/api/red/run")
+    async def api_red_run(request: fastapi.Request) -> JSONResponse:
+        """Proxy the runner's POST /run. The requested preset is checked at
+        the console as well (cheap misuse filter); the runner remains the
+        arbiter and any runner-side rejection is passed through verbatim."""
+        try:
+            body = await request.json()
+        except ValueError:
+            body = {}
+        preset = body.get("preset") if isinstance(body, dict) else None
+        target = body.get("target") if isinstance(body, dict) else None
+        if preset not in VALID_RED_PRESETS:
+            return JSONResponse(
+                {"error": "preset must be one of: " + ", ".join(VALID_RED_PRESETS)},
+                status_code=422,
+            )
+        if not isinstance(target, str) or not target:
+            return JSONResponse({"error": "target must be a non-empty string"}, status_code=422)
+        return _proxy_red("POST", "/run", body={"preset": preset, "target": target})
+
+    @app.get("/api/red/status")
+    def api_red_status() -> JSONResponse:
+        """Proxy the runner's /status for the live results poll."""
+        return _proxy_red("GET", "/status")
+
+    @app.get("/api/red/results")
+    def api_red_results() -> JSONResponse:
+        """Proxy the runner's /results (finding rows + receipts counter)."""
+        return _proxy_red("GET", "/results")
+
+    @app.post("/api/red/stop")
+    def api_red_stop() -> JSONResponse:
+        """Proxy the runner's POST /stop (aborts a run in flight)."""
+        return _proxy_red("POST", "/stop")
+
+    @app.get("/api/assurance/findings/red")
+    def api_assurance_findings_red() -> JSONResponse:
+        """Server-side GET proxy for the add-in's ingested-red-finding slice.
+
+        The SPA must not fetch the add-in cross-origin (the add-in sends no
+        CORS headers by design), so every read the Red page needs goes through
+        this same-origin proxy with the same explicit degradation."""
+        try:
+            r = httpx.get(
+                _assurance_url().rstrip("/") + "/api/findings/red",
+                timeout=5.0,
+            )
+            return JSONResponse(r.json(), status_code=r.status_code)
+        except Exception as exc:  # explicit degradation, never a blank
+            return JSONResponse(
+                {"error": "add-in offline", "detail": type(exc).__name__},
+                status_code=503,
+            )
+
+    @app.post("/api/assurance/findings/ingest")
+    async def api_assurance_findings_ingest(request: fastapi.Request) -> JSONResponse:
+        """Server-side proxy for the add-in's findings intake (the same
+        graceful degradation contract as the GET proxies above). The add-in
+        validates the red schema itself; a 422 passes through so the SPA can
+        show exactly what was rejected. Ingestion is idempotent by
+        finding_id, so a re-post of the same run is a no-op."""
+        body = await request.body()
+        try:
+            r = httpx.post(
+                _assurance_url().rstrip("/") + "/api/findings/ingest",
+                content=body,
+                headers={"content-type": "application/json"},
+                timeout=5.0,
+            )
+            r.raise_for_status()
+            return JSONResponse(r.json())
+        except httpx.HTTPStatusError as exc:
+            try:
+                detail = exc.response.json()
+            except ValueError:
+                detail = {"error": exc.response.text[:300]}
+            return JSONResponse(detail, status_code=exc.response.status_code)
+        except Exception as exc:  # explicit degradation, never a blank
+            return JSONResponse(
+                {"error": "add-in offline", "detail": type(exc).__name__},
+                status_code=503,
+            )
 
     @app.get("/api/health")
     def api_health() -> dict:

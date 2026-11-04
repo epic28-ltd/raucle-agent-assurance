@@ -233,8 +233,10 @@ def test_console_red_copy_rewrite():
     )
     assert expected in text
     # the ingested-findings summary card reads the red slice and keeps every
-    # render textContent-only (no innerHTML / innerText writes)
-    assert "'/api/findings/red'" in text
+    # render textContent-only (no innerHTML / innerText writes). It reads
+    # the same-origin console proxy, never the add-in cross-origin (the
+    # add-in sends no CORS headers by design).
+    assert "'/api/assurance/findings/red'" in text
     assert "Ingested red findings" in text
     assert "red-mvp" in text
     js_window = text[

@@ -5,11 +5,13 @@ semantic colour system guidance and single-tenant alpha contract."""
 from __future__ import annotations
 
 import datetime
+import json
 import os
 import pathlib
 import re
 import sys
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -107,7 +109,10 @@ def test_iframe_configurable_assurance_url():
 
 
 def test_iframe_config_default(client: TestClient):
-    body = client.get("/api/config").json()
+    # base_url pins the Host header: the per-request origin derivation
+    # otherwise uses the client hostname (testserver in the test client).
+    c = TestClient(create_app(), base_url="http://127.0.0.1:3412")
+    body = c.get("/api/config").json()
     assert body["assurance_url"] == "http://127.0.0.1:3411"
     assert body["trust_gate_env"] == "RAUCLE_TRUST_GATE_CONFIG"
     assert body["assurance_reachable"] is False
@@ -440,3 +445,213 @@ def test_spa_dashboard_additions_keep_discipline():
         assert forbidden not in html
     for url in re.findall(r"https?://[^'\"\\s]+", html):
         assert url.startswith("http://127.0.0.1:"), url
+
+
+# ------------------------------------------------------------- wave 2.5 Red ops
+def test_red_runner_proxy_offline_is_explicit_503(client: TestClient):
+    """Runner down (nothing on 3415): every red proxy degrades to an
+    explicit 503 with the honest offline marker - no crash, no blank."""
+    for _method, path in (
+        ("GET", "/api/red/status"),
+        ("GET", "/api/red/results"),
+        ("GET", "/api/red/targets"),
+    ):
+        r = client.get(path)
+        if r.status_code == 503:
+            assert r.json()["error"] == "red runner offline"
+        # if a local runner happens to be up, the proxy must return 200/2xx
+        else:
+            assert r.status_code in (200, 204)
+    for path in ("/api/red/stop", "/api/red/run"):
+        r = client.post(path, json={"preset": "quick", "target": "demo"})
+        if r.status_code == 503:
+            assert r.json()["error"] == "red runner offline"
+
+
+def test_red_run_proxy_validates_preset_and_target(client: TestClient):
+    """The console filters obvious misuse cheaply; the runner stays arbiter."""
+    r = client.post("/api/red/run", json={"preset": "turbo", "target": "demo"})
+    if r.status_code == 422:
+        assert "preset" in r.json()["error"]
+    r = client.post("/api/red/run", json={"preset": "quick", "target": ""})
+    if r.status_code == 422:
+        assert "target" in r.json()["error"]
+
+
+def test_red_run_proxy_forwards_body_to_runner(client: TestClient):
+    """A live-looking runner (stubbed transport) receives exactly the
+    console's own shape: {"preset": ..., "target": ...}."""
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["path"] = request.url.path
+        captured["json"] = json.loads(request.content.decode())
+        return httpx.Response(200, request=request, json={"run": "accepted"})
+
+    def fake_request(method, url, json=None, timeout=None):
+        return handler(httpx.Request(method, url, json=json))
+
+    import raucle_console.app as app_mod  # noqa: PLC0415 (test-local patch target)
+
+    orig = app_mod.httpx.request
+    app_mod.httpx.request = fake_request
+    try:
+        r = client.post("/api/red/run", json={"preset": "quick", "target": "demo"})
+        assert r.status_code == 200, r.text
+        assert r.json() == {"run": "accepted"}
+        assert captured["path"] == "/run"
+        assert captured["json"] == {"preset": "quick", "target": "demo"}
+    finally:
+        app_mod.httpx.request = orig
+
+
+def test_red_status_results_orchestration_mock_flow(client: TestClient):
+    """Mock orchestration: idle -> running -> complete across /status, then
+    /results returns findings rows + receipts; the proxy passes them
+    through untouched."""
+    script = iter(
+        [
+            ({"state": "idle", "attempts": 0}, 200),
+            (
+                {
+                    "state": "running",
+                    "target": "demo",
+                    "suite": "policy_edges",
+                    "attempts": 3,
+                    "allow": 1,
+                    "deny": 2,
+                    "findings": 0,
+                    "receipts": 3,
+                },
+                200,
+            ),
+            (
+                {
+                    "state": "complete",
+                    "target": "demo",
+                    "attempts": 8,
+                    "allow": 2,
+                    "deny": 6,
+                    "findings": 2,
+                    "receipts": 8,
+                },
+                200,
+            ),
+            (
+                {
+                    "findings": [
+                        {"rule": "RED-006", "severity": "high", "explanation": "e"},
+                        {"rule": "RED-011", "severity": "low", "explanation": "e"},
+                    ],
+                    "receipts": 8,
+                },
+                200,
+            ),
+        ]
+    )
+    queue = list(script)
+
+    def fake_request(method, url, json=None, timeout=None):
+        body, code = queue.pop(0)
+        return httpx.Response(code, request=httpx.Request(method, url, json=json), json=body)
+
+    import raucle_console.app as app_mod  # noqa: PLC0415 (test-local patch target)
+
+    orig = app_mod.httpx.request
+    app_mod.httpx.request = fake_request
+    try:
+        c = TestClient(create_app())
+        s1 = c.get("/api/red/status").json()
+        assert s1["state"] == "idle"
+        s2 = c.get("/api/red/status").json()
+        assert s2["state"] == "running" and s2["allow"] == 1 and s2["deny"] == 2
+        s3 = c.get("/api/red/status").json()
+        assert s3["state"] == "complete" and s3["receipts"] == 8
+        res = c.get("/api/red/results").json()
+        assert res["receipts"] == 8
+        assert [f["rule"] for f in res["findings"]] == ["RED-006", "RED-011"]
+    finally:
+        app_mod.httpx.request = orig
+
+
+def test_assurance_ingest_proxy_offline_and_passthrough(client: TestClient, monkeypatch):
+    """Offline add-in: explicit 503. A 422 (schema rejection at the add-in)
+    passes through verbatim so the operator sees what was rejected."""
+    monkeypatch.setenv("RAUCLE_ASSURANCE_URL", "http://127.0.0.1:9")
+    c = TestClient(create_app())
+    r = c.post("/api/assurance/findings/ingest", json={"findings": []})
+    assert r.status_code == 503
+    assert r.json()["error"] == "add-in offline"
+
+    def fake_addin_post(*args, **kwargs):
+        req = httpx.Request("POST", "http://127.0.0.1:3411/api/findings/ingest")
+        resp = httpx.Response(
+            422, request=req, json={"error": "severity not in ['info', 'low', 'medium']"}
+        )
+        return resp
+
+    import raucle_console.app as app_mod  # noqa: PLC0415 (test-local patch target)
+
+    orig_post = app_mod.httpx.post
+    app_mod.httpx.post = fake_addin_post
+    try:
+        c2 = TestClient(create_app())
+        r2 = c2.post("/api/assurance/findings/ingest", json={"findings": []})
+        assert r2.status_code == 422
+        assert "severity" in r2.json()["error"]
+    finally:
+        app_mod.httpx.post = orig_post
+
+
+def test_spa_red_ops_marks_present_and_honest():
+    """The wave 2.5 cards exist with the honest states wired: offline line,
+    scoped preview, semantic state chips, stop button and polling-stop note."""
+    html = (STATIC / "index.html").read_text()
+    for marker in (
+        "Run a test",
+        "Live results",
+        "Gates for testing",
+        "Runner offline: start red runner (port 3415)",
+        "Loopback only",
+        "Synthetic data",
+        "Ingest findings into Assurance",
+        "idempotent by finding_id",
+        "Polling stops on tab hide",
+        "/api/red/run",
+        "/api/red/status",
+        "/api/red/results",
+        "/api/red/stop",
+        "/api/red/targets",
+        "/api/red/dogfood",
+        "/api/assurance/findings/ingest",
+        "visibilitychange",
+        "Nothing starts until Start is pressed",
+    ):
+        assert marker in html
+    # poll loop is 2000ms and cleared when idle/complete
+    assert "setInterval" in html and "clearInterval" in html
+    assert "2000" in html
+    # state chips map to the semantic tints
+    assert "aborted: ['Aborted', 'tok-act']" in html
+    assert "complete: ['Complete', 'tok-good']" in html
+
+
+def test_spa_red_ops_keep_discipline():
+    """The ops view reuses the SPA primitives: no innerHTML, no external
+    URL, no autostart (no /run call outside the Start handler)."""
+    html = (STATIC / "index.html").read_text()
+    for forbidden in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval("):
+        assert forbidden not in html
+    # the /run POST appears exactly once, in the Start handler (no autostart)
+    assert html.count("'/api/red/run'") == 1
+    # textContent-only rendering is present in the ops block too
+    assert "textContent" in html
+
+
+def test_docs_console_red_ops_findings_spike():
+    doc = CONSOLE_DIR.parents[1] / "docs" / "spikes" / "console-red-ops-findings.md"
+    assert doc.is_file()
+    text = doc.read_text()
+    assert "idempoten" in text.lower() and "3415" in text
+    em_dash = chr(0x2014)
+    assert em_dash not in text

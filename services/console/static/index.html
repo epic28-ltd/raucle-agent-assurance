@@ -905,6 +905,72 @@ function viewAssurance() {
   return p;
 }
 
+/* ------------------------------------------------------------------ red ops (wave 2.5) */
+/* Red runner operations. Everything here talks to the runner through the
+   console's own proxy endpoints (/api/red/*), so the SPA's cross-origin
+   rule stays intact and the only fetch targets are this origin. Honest
+   states throughout: a 503 from the proxy renders the offline line below,
+   never a blank card and never a guessed figure. Nothing autostarts: a
+   run begins only when the operator presses Start. */
+const RED_OFFLINE = 'Runner offline: start red runner (port 3415)';
+const RED_POLL_MS = 2000;
+const RED_PRESETS = {
+  quick: { label: 'Quick pass', suites: 'policy_edges, tamper, replay', budget: 'up to 40 probes' },
+  deep: { label: 'Deep sweep', suites: 'policy_edges, tamper, replay, prompt_surface, receipt_forgery', budget: 'up to 200 probes' },
+};
+const RED_STATE_LOOKUP = {
+  idle: ['Idle', 'tok-exempt'],
+  running: ['Running', 'tok-look'],
+  complete: ['Complete', 'tok-good'],
+  aborted: ['Aborted', 'tok-act'],
+};
+/* worst-severity ordering used to fold a run's rows per rule */
+const RED_SEV_ORDER_SEEN = ['unknown', 'info', 'low', 'medium', 'high', 'critical'];
+let redPollTimer = null;
+let redPollLive = null;    /* current view's poll hooks; cleared on re-render */
+let redIngestedReload = null; /* re-reads the intake summary after ingest */
+const redStopPoll = () => { if (redPollTimer) { clearInterval(redPollTimer); redPollTimer = null; } };
+const redStartPoll = (live) => {
+  redStopPoll();
+  redPollLive = live;
+  live.tick();
+  redPollTimer = setInterval(() => live.tick(), RED_POLL_MS);
+};
+/* Polling stops on tab hide and resumes on return if the runner still
+   reports a run in flight. Honesty note: leaving this page (or hiding the
+   tab) pauses the console's watching, not the runner itself; the run keeps
+   going and /status reports it when the page is watched again. */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) redStopPoll();
+  else if (redPollLive && redPollLive.stillRuns()) redStartPoll(redPollLive);
+});
+const redNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+const redChip = (state) => {
+  const row = RED_STATE_LOOKUP[state] || ['Unknown', 'tok-exempt'];
+  return el('span', ['pill', row[1]].join(' '), row[0]);
+};
+function redLoadIngested(ing) {
+  fetch('/api/assurance/findings/red').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
+    ing.textContent = '';
+    const n = Object.values(d.by_severity).reduce((a, v) => a + v, 0);
+    ing.appendChild(el('p', null, n ? 'Ingested into the findings board (source red-mvp): ' + n + ' findings. ' : 'No red findings ingested yet.'));
+    if (n) {
+      const parts = Object.entries(d.by_severity).filter(([, v]) => v).map(([k, v]) => k + ' ' + v);
+      ing.appendChild(el('p', 'muted', 'By severity: ' + parts.join(', ') + '.'));
+      if (d.findings.length) {
+        const latest = d.findings[d.findings.length - 1];
+        ing.appendChild(el('p', 'muted', 'Latest: ' + latest.rule_id + ' (' + latest.severity + ') - ' + latest.explanation));
+      }
+      const link = el('a', 'board-link', 'Open the Assurance findings board (Red findings tagged red-mvp)');
+      link.href = config.assurance_url.replace(/\/$/, '') + '/index.html';
+      link.target = '_blank';
+      link.rel = 'noreferrer';
+      const pl = el('p'); pl.style.margin = '6px 0 0'; pl.appendChild(link);
+      ing.appendChild(pl);
+    }
+  }).catch(() => { ing.textContent = ''; ing.appendChild(el('p', 'muted', 'Ingested red findings unavailable (Assurance add-in offline; nothing guessed).')); });
+}
+
 function viewRed() {
   const p = el('div');
   const status = (config && config.addins && (config.addins.find(a => a.id === 'red') || {}).status) || 'not_purchased';
@@ -932,33 +998,317 @@ function viewRed() {
   ing.style.margin = '12px 0';
   ing.appendChild(el('div', 'card-title', 'Ingested red findings'));
   const ingWrap = el('p', 'muted', 'Reading the Assurance intake...');
-  ing.appendChild(ingWrap);
+  ing.appendChild(ingWrap); /* placeholder node; redLoadIngested replace-fills */
   c.body.appendChild(ing);
-  fetch(config.assurance_url.replace(/\/$/, '') + '/api/findings/red').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
-    ing.textContent = '';
-    const n = Object.values(d.by_severity).reduce((a, v) => a + v, 0);
-    ing.appendChild(el('p', null, n ? 'Ingested into the findings board (source red-mvp): ' + n + ' findings. ' : 'No red findings ingested yet.'));
-    if (n) {
-      const parts = Object.entries(d.by_severity).filter(([, v]) => v).map(([k, v]) => k + ' ' + v);
-      ing.appendChild(el('p', 'muted', 'By severity: ' + parts.join(', ') + '.'));
-      if (d.findings.length) {
-        const latest = d.findings[d.findings.length - 1];
-        ing.appendChild(el('p', 'muted', 'Latest: ' + latest.rule_id + ' (' + latest.severity + ') - ' + latest.explanation));
-      }
-      const link = el('a', 'board-link', 'Open the Assurance findings board (Red findings tagged red-mvp)');
-      link.href = config.assurance_url.replace(/\/$/, '') + '/index.html';
-      link.target = '_blank';
-      link.rel = 'noreferrer';
-      const pl = el('p'); pl.style.margin = '6px 0 0'; pl.appendChild(link);
-      ing.appendChild(pl);
-    }
-  }).catch(() => { ingWrap.textContent = 'Ingested red findings unavailable (Assurance add-in offline; nothing guessed).'; });
+  redLoadIngested(ing);
+  redIngestedReload = () => redLoadIngested(ing);
   const ul = el('ul', 'quiet');
   ['Adversarial tool-content scenarios', 'Policy edge-case sweeps', 'Reporting that pairs with Raucle Agent Assurance'].forEach(x => ul.appendChild(el('li', null, x)));
   c.body.appendChild(ul);
   c.footer(el('span', 'muted small', 'Included with licence key once available - pricing tiers are not shown in product pages.'));
   c.explain('Raucle Agent Red will attack your agents the way a real caller would: hostile instructions, ambiguous inputs and policy edges. Not purchasable yet.');
   p.appendChild(c.root);
+
+  /* ---------------- ops (wave 2.5): run a test, live results, gates ---------------- */
+  /* Any open run stops the poll when the view re-renders (navigating away
+     pauses the console's watching, not the runner itself); the status read
+     below re-attaches honest watching when the operator returns. */
+  redStopPoll();
+  redPollLive = null;
+
+  const runState = { active: false, lastState: 'idle', results: null };
+  const gateNames = new Map([['demo', 'Demo gateway']]);
+
+  /* target selector + shared controls */
+  const selLabel = el('label', 'field-label', 'Target');
+  const sel = el('select', 'input');
+  const addOption = (value, text) => { const o = el('option', null, text); o.value = value; sel.appendChild(o); };
+  addOption('demo', gateNames.get('demo'));
+  const presetLabel = el('label', 'field-label', 'Preset');
+  const presetWrap = el('div');
+  const presets = [];
+  for (const key of Object.keys(RED_PRESETS)) {
+    const wrap = el('label');
+    wrap.style.marginRight = '14px';
+    const r = el('input');
+    r.type = 'radio'; r.name = 'red-preset'; r.value = key;
+    r.checked = key === 'quick';
+    wrap.appendChild(r);
+    wrap.appendChild(el('span', null, ' ' + RED_PRESETS[key].label));
+    presetWrap.appendChild(wrap);
+    presets.push(r);
+  }
+  const preview = el('div', 'muted small');
+  preview.style.margin = '10px 0';
+  const chosenPreset = () => presets.find(r => r.checked);
+  const gateInfo = () => {
+    if (sel.value === 'demo') return 'Demo gateway: the bundled loopback gateway fixture.';
+    const g = runState.gates && runState.gates.find(t => (t.id || t.name) === sel.value);
+    return g && g.endpoint ? 'Endpoint: ' + g.endpoint + (g.policy_digest ? ' (policy digest ' + g.policy_digest + ')' : '') + '.' : null;
+  };
+  const renderPreview = () => {
+    const p = RED_PRESETS[chosenPreset().value];
+    preview.replaceChildren();
+    preview.appendChild(el('div', null, 'Scope preview - exactly what a start means:'));
+    preview.appendChild(el('div', null, 'Suites: ' + p.suites + '.'));
+    preview.appendChild(el('div', null, 'Budget: ' + p.budget + ' (the runner may finish earlier).'));
+    const g = gateInfo();
+    if (g) preview.appendChild(el('div', null, g));
+    for (const line of [
+      'Loopback only: the runner addresses 127.0.0.1 hosts.',
+      'Synthetic data: probes replay corpora fixtures; no production traffic is generated.',
+      'Every probe is itself gated and leaves a receipt (dogfooding).',
+    ]) preview.appendChild(el('div', null, line));
+  };
+  sel.addEventListener('change', () => { renderPreview(); });
+  presets.forEach(r => r.addEventListener('change', renderPreview));
+
+  /* controls enable/disable while a run is in flight; only the stop button
+     stays live */
+  const setControls = (enabled) => {
+    sel.disabled = !enabled && runState.active;
+    presets.forEach(r => { r.disabled = !enabled && runState.active; });
+    startB.disabled = !enabled || runState.active;
+    stopB.hidden = !runState.active;
+    ingestB.disabled = !enabled || runState.active;
+  };
+
+  /* card 1: run a test */
+  const rc = card('Run a test', 'red runner, via the console proxy');
+  rc.body.appendChild(selLabel);
+  rc.body.appendChild(sel);
+  rc.body.appendChild(presetLabel);
+  rc.body.appendChild(presetWrap);
+  rc.body.appendChild(preview);
+  const btnRow = el('div');
+  const startB = el('button', 'cta', 'Start');
+  startB.type = 'button';
+  const stopB = el('button', 'btn-quiet', 'Stop');
+  stopB.type = 'button'; stopB.hidden = true; stopB.style.marginLeft = '8px';
+  const runMsg = el('p', 'muted small');
+  runMsg.style.marginTop = '8px';
+  btnRow.appendChild(startB);
+  btnRow.appendChild(stopB);
+  rc.body.appendChild(btnRow);
+  rc.body.appendChild(runMsg);
+  const runnerState = el('p', 'muted small', 'Probing the runner for registered targets...');
+  rc.body.appendChild(runnerState);
+  rc.footer(el('span', 'muted small', 'Nothing starts until Start is pressed; a stop request goes to the runner and its /status verdict is shown, not assumed.'));
+  rc.explain('Drives the separate red runner process through the console proxy. Pick a gate and a preset, read the scope preview, then start. If the runner is down the offline line appears and no state is invented.');
+
+  /* card 2: live results */
+  const lc = card('Live results', 'polled every ' + (RED_POLL_MS / 1000) + 's while a run is watched');
+  const liveTop = el('div', 'rowline');
+  const chipHolder = el('span');
+  chipHolder.appendChild(redChip(runState.lastState));
+  const liveGrow = el('div', 'grow');
+  const liveLine = el('span', 'why', 'Waiting: no run in flight from this page.');
+  liveGrow.appendChild(liveLine);
+  liveTop.appendChild(chipHolder);
+  liveTop.appendChild(liveGrow);
+  lc.body.appendChild(liveTop);
+  const countersLine = el('p', 'muted small', 'Counters appear here while polling.');
+  const suiteLine = el('p', 'muted small', ' ');
+  const receiptsLine = el('p', 'muted small', ' ');
+  lc.body.appendChild(countersLine);
+  lc.body.appendChild(suiteLine);
+  lc.body.appendChild(receiptsLine);
+  const ruleWrap = el('div');
+  lc.body.appendChild(ruleWrap);
+  const ingestBtnRow = el('div');
+  ingestBtnRow.style.marginTop = '8px';
+  const ingestB = el('button', 'btn-quiet', 'Ingest findings into Assurance');
+  ingestB.type = 'button';
+  ingestB.disabled = true;
+  ingestBtnRow.appendChild(ingestB);
+  const ingestMsg = el('p', 'muted small');
+  ingestMsg.style.marginTop = '6px';
+  ingestBtnRow.appendChild(ingestMsg);
+  ingestBtnRow.appendChild(el('p', 'muted small', 'Ingestion is idempotent by finding_id: re-ingesting the same run replaces its rows rather than duplicating them.'));
+  lc.body.appendChild(ingestBtnRow);
+  lc.footer(el('span', 'muted small', 'Polling stops on tab hide and resumes when the tab is visible again and the runner still reports a run.'));
+  lc.explain('The state chip and counters come from the runner status proxy while a run is watched; on completion the results proxy fills the per-rule summary and the ingest offer. A status failure keeps the last honest state and says so.');
+
+  const markChip = (state) => {
+    runState.lastState = state;
+    chipHolder.replaceChildren(redChip(state));
+  };
+  const setLiveLine = (text) => { liveLine.textContent = text; };
+  const renderRules = (rows) => {
+    ruleWrap.replaceChildren();
+    ingestB.disabled = runState.active || !rows.length;
+    if (!rows.length) {
+      ruleWrap.appendChild(el('p', 'muted small', 'No findings returned by /results (all probes contained, or the run wrote nothing yet; not guessed).'));
+      return;
+    }
+    const byRule = new Map();
+    for (const row of rows) {
+      const rid = row.rule || row.rule_id || 'unknown rule';
+      const slot = byRule.get(rid) || { count: 0, worst: 'info' };
+      slot.count += 1;
+      if (RED_SEV_ORDER_SEEN.indexOf(row.severity) > RED_SEV_ORDER_SEEN.indexOf(slot.worst)) slot.worst = row.severity;
+      byRule.set(rid, slot);
+    }
+    for (const [rid, slot] of byRule) {
+      const r = el('div', 'rowline');
+      const g = el('div', 'grow');
+      g.appendChild(el('b', null, rid));
+      g.appendChild(el('span', 'why', slot.count + ' finding(s) in this run'));
+      r.appendChild(sevPill(slot.worst));
+      r.appendChild(g);
+      ruleWrap.appendChild(r);
+    }
+    runState.results = rows;
+  };
+
+  /* live poll hooks: one tick per RED_POLL_MS while watched */
+  const live = {
+    stillRuns: () => runState.active,
+    tick: () => {
+      fetch('/api/red/status').then(r => { if (r.status === 503) throw new Error('offline'); if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
+        const state = d.state || d.run_state || 'idle';
+        markChip(state);
+        if (state === 'running') {
+          runState.active = true;
+          setLiveLine('Runner reports a run in flight on ' + (d.target || d.gate || 'its target') + '.');
+          const attempts = redNum(d.attempts), allow = redNum(d.allow), deny = redNum(d.deny), found = redNum(d.findings);
+          countersLine.textContent = 'Attempts: ' + attempts + '. Allowed: ' + allow + '. Denied: ' + deny + '. Findings: ' + found + '.';
+          suiteLine.textContent = 'Current suite: ' + (d.suite || d.current_suite || 'starting') + '.';
+          const receiptsIn = d.receipts;
+          if (receiptsIn === undefined) {
+            /* dogfood tick-up while the receipt figure is not in /status yet */
+            fetch('/api/red/dogfood').then(r => r.json()).then(df => {
+              if (df && df.available) receiptsLine.textContent = 'Receipts minted (dogfooding): ' + redNum(df.receipted) + ' of ' + redNum(df.attempts) + ' attempts receipted.';
+            }).catch(() => { receiptsLine.textContent = 'Receipts counter unavailable this tick (nothing guessed).'; });
+          } else receiptsLine.textContent = 'Receipts minted: ' + redNum(receiptsIn) + '.';
+        } else if (runState.active) { /* was running, now complete or aborted */
+          runState.active = false;
+          redStopPoll();
+          setControls(true);
+          if (state === 'aborted') {
+            setLiveLine('Run aborted: the runner reports the run stopped; partial counters are below and /results may hold partial rows.');
+            countersLine.textContent = 'Partial - Attempts: ' + redNum(d.attempts) + '. Allowed: ' + redNum(d.allow) + '. Denied: ' + redNum(d.deny) + '. Findings: ' + redNum(d.findings) + '.';
+          } else {
+            setLiveLine('Run complete: fetching results for a per-rule summary.');
+            countersLine.textContent = 'Final - Attempts: ' + redNum(d.attempts) + '. Allowed: ' + redNum(d.allow) + '. Denied: ' + redNum(d.deny) + '. Findings: ' + redNum(d.findings) + '.';
+            fetch('/api/red/results').then(r => { if (r.status === 503) throw new Error('offline'); if (!r.ok) throw new Error(r.status); return r.json(); }).then(rd => {
+              const rows = Array.isArray(rd) ? rd : (rd.findings || rd.rows || []);
+              renderRules(rows);
+            }).catch(() => { ruleWrap.replaceChildren(el('p', 'muted small', 'Results unavailable (runner did not serve /results; nothing guessed).')); });
+          }
+        }
+      }).catch(() => setLiveLine('Status call failed (runner offline?); the last known chips and counters stay displayed; nothing is guessed.'));
+    },
+  };
+
+  /* start: never automatic */
+  startB.addEventListener('click', () => {
+    const preset = RED_PRESETS[chosenPreset().value];
+    runState.active = true;
+    runState.results = null;
+    ruleWrap.replaceChildren();
+    setControls(true);
+    setLiveLine('Starting ' + preset.label + '...');
+    fetch('/api/red/run', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ preset: chosenPreset().value, target: sel.value }),
+    }).then(r => { if (r.status === 503) throw new Error('offline'); if (!r.ok) throw new Error(r.status); return r.json(); }).then(() => {
+      setLiveLine('Runner accepted the run; watching /status every ' + (RED_POLL_MS / 1000) + 's.');
+      redStartPoll(live);
+    }).catch(() => {
+      runState.active = false;
+      redStopPoll();
+      setControls(true);
+      runMsg.textContent = RED_OFFLINE + ' (start rejected; nothing is running).';
+    });
+  });
+  stopB.addEventListener('click', () => {
+    fetch('/api/red/stop', { method: 'POST' }).then(r => { if (r.status === 503) throw new Error('offline'); if (!r.ok) throw new Error(r.status); return r.json(); }).then(() => {
+      runMsg.textContent = 'Stop request sent to the runner; /status verdict governs (the next poll shows it).';
+    }).catch(() => { runMsg.textContent = 'Stop request failed (runner offline?); the run state stays whatever /status last reported.'; });
+  });
+
+  /* ingest: posts the rows the results proxy fetched into the Assurance
+     intake, then re-reads the ingested-findings summary */
+  ingestB.addEventListener('click', () => {
+    const rows = runState.results || [];
+    if (!rows.length) return;
+    ingestB.disabled = true;
+    ingestMsg.textContent = 'Ingesting ' + rows.length + ' row(s) into the Assurance intake...';
+    fetch('/api/assurance/findings/ingest', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ findings: rows }),
+    }).then(r => r.json()).then(d => {
+      if (d.ingested) {
+        ingestMsg.textContent = 'Ingested: ' + redNum(d.accepted) + ' accepted (' + redNum(d.new) + ' new, ' + redNum(d.replaced) + ' replaced by idempotent finding_id).';
+        if (redIngestedReload) redIngestedReload();
+      } else {
+        ingestB.disabled = false;
+        ingestMsg.textContent = 'The Assurance intake rejected the rows: ' + (d.error || 'unknown error') + ' (nothing ingested).';
+      }
+    }).catch(() => { ingestB.disabled = false; ingestMsg.textContent = 'Assurance add-in offline: findings not ingested; nothing guessed.'; });
+  });
+
+  /* card 3: gates for testing */
+  const gc = card('Gates for testing', 'runner target registry');
+  const gatesWrap = el('p', 'muted small', 'Reading the runner target registry...');
+  gc.body.appendChild(gatesWrap);
+  const gatesList = el('div');
+  gc.body.appendChild(gatesList);
+  gc.footer(el('span', 'muted small', 'Endpoints and policy digests are reported by the runner; the console does not invent them.'));
+  gc.explain('Registered testing targets: the bundled demo gateway plus any named gate an operator registered. Test this gate pre-fills the target selector on the run card.');
+  const selectGate = (id, name) => {
+    addOption(id, name);                     /* replaces/updates the option */
+    sel.value = id;
+    renderPreview();
+  };
+
+  /* probe the runner registry once on render; never blocks the page and
+     never guesses: on failure every card shows the honest offline state */
+  fetch('/api/red/targets').then(r => { if (r.status === 503) throw new Error('offline'); if (!r.ok) throw null; return r.json(); }).then(d => {
+    const gates = d.targets || d.gates || [];
+    runState.gates = gates;
+    gatesWrap.textContent = gates.length ? 'Registered targets reported by the runner this session.' : 'The runner reported no named gates yet: the demo gateway is always available.';
+    gatesList.replaceChildren();
+    for (const g of gates) {
+      const id = g.id || g.name;
+      const name = g.name || g.id;
+      gateNames.set(id, name);
+      if (!sel.querySelector('option[value="' + id + '"]')) addOption(id, name);
+      const row = el('div', 'rowline');
+      const main = el('div', 'grow');
+      main.appendChild(el('b', null, name));
+      main.appendChild(el('span', 'why', (g.endpoint || 'endpoint not exposed') + (g.policy_digest ? ' (policy digest ' + g.policy_digest + ')' : '')));
+      const btn = el('button', 'btn-quiet', 'Test this gate');
+      btn.type = 'button';
+      btn.addEventListener('click', () => selectGate(id, name));
+      row.appendChild(main);
+      row.appendChild(btn);
+      gatesList.appendChild(row);
+    }
+    runnerState.textContent = 'Runner reachable; targets read this session.';
+  }).catch((err) => {
+    if (err && err.message === 'offline') runnerState.textContent = RED_OFFLINE;
+    else runnerState.textContent = 'The runner did not serve /targets this session; demo gateway only (nothing guessed).';
+    gatesWrap.textContent = runnerState.textContent;
+  });
+
+  /* attach and re-attach honest watching: an in-flight run (started before
+     this render or reported by the runner) resumes polling immediately */
+  fetch('/api/red/status').then(r => { if (r.status === 503) throw new Error('offline'); if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
+    if ((d.state || d.run_state) === 'running' || runState.active) {
+      runState.active = true;
+      setControls(true);
+      redStartPoll(live);
+    }
+  }).catch(() => { /* offline or idle: nothing to watch; the honest line stays */ });
+  setControls(true);
+
+  p.appendChild(rc.root);
+  p.appendChild(lc.root);
+  p.appendChild(gc.root);
   return p;
 }
 
