@@ -1,0 +1,164 @@
+[
+  {
+    "checked_at": "2026-11-04T08:41:06+00:00",
+    "checks_performed": [
+      "jose_header_parsed (kid='fcf7f78dbfe44464', crit=['raucle/v1'], alg='EdDSA')",
+      "event_time from signed iat: 2026-11-04T08:41:06+00:00",
+      "trust_roots_at_event_time -> ['fcf7f78dbfe44464']",
+      "receipt_hash == sha256(compact jws)",
+      "ProvenanceVerifier.verify_chain(temp, strict=True)",
+      "report.valid == True; errors=[]"
+    ],
+    "detail": "verbatim store envelope; gateway decision='allow'",
+    "fixture_name": "valid_allow",
+    "trust_policy_version": "evd-trust-1",
+    "verification_status": "valid",
+    "verifier_version": "0.22.0"
+  },
+  {
+    "checked_at": "2026-11-04T08:41:06+00:00",
+    "checks_performed": [
+      "jose_header_parsed (kid='fcf7f78dbfe44464', crit=['raucle/v1'], alg='EdDSA')",
+      "event_time from signed iat: 2026-11-04T08:41:06+00:00",
+      "trust_roots_at_event_time -> ['fcf7f78dbfe44464']",
+      "receipt_hash == sha256(compact jws)",
+      "ProvenanceVerifier.verify_chain(temp, strict=True)",
+      "report.valid == True; errors=[]"
+    ],
+    "detail": "verbatim store envelope; gateway decision='deny'",
+    "fixture_name": "valid_deny",
+    "trust_policy_version": "evd-trust-1",
+    "verification_status": "valid",
+    "verifier_version": "0.22.0"
+  },
+  {
+    "checked_at": "2026-11-04T08:41:06+00:00",
+    "checks_performed": [
+      "jose_header_parsed (kid='fcf7f78dbfe44464', crit=['raucle/v1'], alg='EdDSA')",
+      "event_time from signed iat: 2026-11-04T08:41:06+00:00",
+      "trust_roots_at_event_time -> ['fcf7f78dbfe44464']",
+      "receipt_hash == sha256(compact jws)",
+      "integrity check: receipt_hash mismatch (record tampered)",
+      "ProvenanceVerifier.verify_chain(temp, strict=True)",
+      "report.valid == False; errors=['line 1: receipt_hash mismatch \u2014 record tampered', 'line 1: signature verification failed for agent_key_id=fcf7f78dbfe44464']"
+    ],
+    "detail": "controlled copy: first char of signature segment flipped; signature segment flip proves verify_chain fails (signature + hash mismatch)",
+    "fixture_name": "invalid_sig_flip",
+    "trust_policy_version": "evd-trust-1",
+    "verification_status": "invalid",
+    "verifier_version": "0.22.0"
+  },
+  {
+    "checked_at": "2026-11-04T08:41:06+00:00",
+    "checks_performed": [
+      "jose_header_parsed (kid='fcf7f78dbfe44464', crit=['raucle/v1'], alg='EdDSA')",
+      "event_time from signed iat: 2026-11-04T08:41:06+00:00",
+      "trust_roots_at_event_time -> ['fcf7f78dbfe44464']",
+      "receipt_hash == sha256(compact jws)",
+      "integrity check: receipt_hash mismatch (record tampered)",
+      "ProvenanceVerifier.verify_chain(temp, strict=True)",
+      "report.valid == False; errors=['line 1: receipt_hash mismatch \u2014 record tampered', 'line 1: signature verification failed for agent_key_id=fcf7f78dbfe44464']"
+    ],
+    "detail": "controlled copy: signed payload tool field rewritten; JCS byte-equality + signature fail",
+    "fixture_name": "invalid_payload_tamper",
+    "trust_policy_version": "evd-trust-1",
+    "verification_status": "invalid",
+    "verifier_version": "0.22.0"
+  },
+  {
+    "checked_at": "2026-11-04T08:41:06+00:00",
+    "checks_performed": [
+      "jose_header_parsed (kid='fcf7f78dbfe44464', crit=['raucle/v1', 'raucle/v2b'], alg='EdDSA')",
+      "event_time from signed iat: 2026-11-04T08:41:06+00:00",
+      "trust_roots_at_event_time -> ['fcf7f78dbfe44464']",
+      "receipt_hash == sha256(compact jws)",
+      "integrity check: receipt_hash mismatch (record tampered)",
+      "ProvenanceVerifier.verify_chain(temp, strict=True)",
+      "report.valid == False; errors=[\"line 1: malformed record: unknown critical header parameter(s): ['raucle/v2b']\"]"
+    ],
+    "detail": "controlled copy: JOSE header crit altered to a foreign raucle/v2b family; from_jws raises 'unknown critical header parameter(s)' before signature checks \u2014 raisable without raucle code changes",
+    "fixture_name": "unsupported_schema_crit",
+    "trust_policy_version": "evd-trust-1",
+    "verification_status": "unsupported_schema",
+    "verifier_version": "0.22.0"
+  },
+  {
+    "checked_at": "2026-11-04T08:41:06+00:00",
+    "checks_performed": [
+      "companion-side simulated state (async ingest); no raucle call made",
+      "state synthesised per EVD harness policy: pending"
+    ],
+    "detail": "async ingest is companion-side: envelope captured but verification not yet run; harness synthesises state pending (no raucle call)",
+    "fixture_name": "pending_async_ingest",
+    "trust_policy_version": "evd-trust-1",
+    "verification_status": "pending",
+    "verifier_version": "0.22.0"
+  },
+  {
+    "checked_at": "2026-11-04T08:41:06+00:00",
+    "checks_performed": [
+      "companion-side simulated state (async ingest); no raucle call made",
+      "state synthesised per EVD harness policy: unavailable"
+    ],
+    "detail": "evidence-plane object missing/unreadable at retrieval: harness synthesises state unavailable, never guessed",
+    "fixture_name": "unavailable_store_gone",
+    "trust_policy_version": "evd-trust-1",
+    "verification_status": "unavailable",
+    "verifier_version": "0.22.0"
+  },
+  {
+    "checked_at": "2026-11-04T08:41:06+00:00",
+    "checks_performed": [
+      "jose_header_parsed (kid='fcf7f78dbfe44464', crit=['raucle/v1'], alg='EdDSA')",
+      "event_time from signed iat: 2026-11-04T08:41:06+00:00",
+      "trust_root_lookup(key_id, event_time) -> key_id absent from archive"
+    ],
+    "detail": "verbatim genuine envelope; verified against a trust root containing ONLY key v2 (not the issuing key v1) \u2014 kid absent from archive at event time",
+    "fixture_name": "unknown_key_v2only",
+    "trust_policy_version": "evd-trust-1",
+    "verification_status": "unknown_key",
+    "verifier_version": "0.22.0"
+  },
+  {
+    "checked_at": "2026-11-04T08:41:06+00:00",
+    "checks_performed": [
+      "jose_header_parsed (kid='fcf7f78dbfe44464', crit=['raucle/v1'], alg='EdDSA')",
+      "event_time from signed iat: 2026-11-04T08:41:06+00:00",
+      "trust_roots_at_event_time -> ['fcf7f78dbfe44464']",
+      "receipt_hash == sha256(compact jws)",
+      "ProvenanceVerifier.verify_chain(temp, strict=True)",
+      "report.valid == True; errors=[]"
+    ],
+    "detail": "",
+    "fixture_name": "rotation_historic_v1",
+    "trust_policy_version": "evd-trust-1",
+    "verification_status": "valid",
+    "verifier_version": "0.22.0"
+  },
+  {
+    "checked_at": "2026-11-04T08:41:06+00:00",
+    "checks_performed": [
+      "jose_header_parsed (kid='fcf7f78dbfe44464', crit=['raucle/v1'], alg='EdDSA')",
+      "event_time from signed iat: 2026-11-04T08:41:06+00:00",
+      "trust_root_lookup(key_id, event_time) -> key_id absent from archive"
+    ],
+    "detail": "key_id 'fcf7f78dbfe44464' not in trust-root registry (any event time)",
+    "fixture_name": "rotation_v1_unarchived",
+    "trust_policy_version": "evd-trust-1",
+    "verification_status": "unknown_key",
+    "verifier_version": "0.22.0"
+  },
+  {
+    "checked_at": "2026-11-04T08:41:06+00:00",
+    "checks_performed": [
+      "jose_header_parsed (kid='fcf7f78dbfe44464', crit=['raucle/v1'], alg='EdDSA')",
+      "event_time from signed iat: 2026-11-04T08:41:06+00:00",
+      "trust_root_lookup(key_id, event_time) -> key_id absent from archive"
+    ],
+    "detail": "key_id 'fcf7f78dbfe44464' not in trust-root registry (any event time)",
+    "fixture_name": "unregistered_key",
+    "trust_policy_version": "evd-trust-1",
+    "verification_status": "unknown_key",
+    "verifier_version": "0.22.0"
+  }
+]

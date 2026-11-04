@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oaa-raucle-adapter"
+version = "0.0.1.dev0"
+description = "Open Agent Assurance — raucle evidence adapter: verbatim evidence store, versioned trust roots, conformance fixture classification."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE.txt"]
+authors = [{ name = "Open Agent Assurance contributors" }]
+dependencies = []  # raucle is an OPTIONAL, pinned dependency — see README
+
+[project.optional-dependencies]
+raucle = []  # raucle==0.23.5 pinned via worktree install or PyPI; see README
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/oaa_raucle_adapter"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "SIM", "RUF", "PLC"]
+ignore = [
+  "E501",  # long doc/quote lines in evidence_plane are prose-heavy; kept for review clarity
+]
+
+[tool.ruff.lint.per-file-ignores]
+"examples/**" = ["E402"]
+"examples/reference-agent/**" = ["B007", "E731", "F811"]
+"src/oaa_raucle_adapter/evidence_plane.py" = ["SIM115", "SIM103"]
+"src/oaa_raucle_adapter/fixture_gen.py" = ["SIM115"]

@@ -1,0 +1,52 @@
+{
+  "run_id": "oaa-run-d8534f847381",
+  "release_version": "v0.23.5+63edacd",
+  "trace_label": "oaa-trace-dd1cea326b514e04",
+  "spans": [
+    {
+      "name": "oaa.agent.main",
+      "kind": "AGENT",
+      "attrs": {
+        "openinference.span.kind": "AGENT",
+        "oaa.run_id": "oaa-run-d8534f847381",
+        "oaa.release_version": "v0.23.5+63edacd",
+        "oaa.trace_label": "oaa-trace-dd1cea326b514e04",
+        "oaa.content_class": "synthetic_public",
+        "langfuse.session.id": "sess-oaa-run-d8534f847381",
+        "langfuse.user.id": "user-craig-oaa"
+      }
+    },
+    {
+      "name": "stub-llm-chat",
+      "kind": "LLM",
+      "attrs": {
+        "openinference.span.kind": "LLM",
+        "llm.model_name": "synthetic-stub-1",
+        "llm.input_messages": "[{\"role\": \"user\", \"content\": \"SYNTHETIC_PROMPT_NO_SECRET\"}]",
+        "llm.output_messages": "[{\"role\": \"assistant\", \"content\": \"SYNTHETIC_RESPONSE_OK\"}]",
+        "oaa.stub": true
+      }
+    },
+    {
+      "name": "retrieve-kb",
+      "kind": "RETRIEVER",
+      "attrs": {
+        "openinference.span.kind": "RETRIEVER",
+        "retrieval.documents": "[{\"doc.content\": \"synthetic-doc-1\"}]",
+        "oaa.content_class": "synthetic_public"
+      }
+    },
+    {
+      "name": "tool-read_file",
+      "kind": "TOOL",
+      "attrs": {
+        "openinference.span.kind": "TOOL",
+        "tool.name": "read_file",
+        "tool.parameters": "{\"path\": \"/tmp/report.txt\"}",
+        "oaa.content_class": "synthetic_public"
+      }
+    }
+  ],
+  "otel_trace_id": "e8263e06f259316a6797f9e2b5e21375",
+  "root_span_id": "12bc572a6b1ced1d"
+}
