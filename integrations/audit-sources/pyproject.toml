@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: Apache-2.0
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oaa-audit-sources"
+version = "0.1.0"
+description = "Offline normalizers + gate/audit reconciliation for export-tooling audit sources (Open Agent Assurance, EPIC M K2)"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+dependencies = []
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/oaa_audit_sources"]
