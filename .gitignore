@@ -18,3 +18,4 @@ secrets/
 
 # Local run artefacts
 evidence.jsonl.bak
+nohup.out
