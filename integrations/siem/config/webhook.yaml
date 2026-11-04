@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+# Raucle Agent Assurance — EXP-01 SIEM webhook config, schema v1.
+# See integrations/siem/config/webhook-config.schema.json.
+# The endpoint URL is env/config only: the OAA_SIEM_WEBHOOK_URL environment
+# variable overrides `url` here. Credentials are NEVER carried in this file
+# or the envelope — they belong to the transport layer (mTLS / signed
+# headers added by the SIEM-specific transport, a documented gap in
+# docs/spikes/EXP-01-findings.md).
+version: 1
+
+# url: https://siem.internal.example/events   # set via env or uncomment
+org_id: org-0000
+max_attempts: 4
+backoff_base_seconds: 0.5
+timeout_seconds: 5.0
+dedup_state_path: state/siem-dedup.json
+dead_letter_path: state/siem-dead-letter.jsonl
+dedup_capacity: 10000
+allow_http: false
