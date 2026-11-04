@@ -19,3 +19,4 @@ secrets/
 # Local run artefacts
 evidence.jsonl.bak
 nohup.out
+demo_data/red_findings.json

@@ -1273,7 +1273,13 @@ function showBoard() {
       card.dataset.findingId = f.id;
       card.tabIndex = 0;
       const top = el("div", "card-top");
-      const tile = el("div", "card-tile", f.rule_id.replace("SEC-", ""));
+      const tile = el("div", "card-tile", f.rule_id.replace("SEC-", "").replace("RED-", ""));
+      if (f.source === "red-mvp") {
+        const src = el("div", "card-src", "Red");
+        src.title = "Ingested from Raucle Agent Red";
+        card.dataset.source = "red-mvp";
+        top.appendChild(src);
+      }
       top.appendChild(tile);
       const nameBox = el("div");
       nameBox.appendChild(el("div", "card-name", ruleLabel(f.rule_id)));

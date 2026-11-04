@@ -43,6 +43,15 @@ from .counting import (  # noqa: F401
     now_iso,
 )
 from .data import DemoData, default_data_dir
+from .red_intake import (
+    RED_LENS_BY_SEVERITY,
+    RED_SOURCE,
+    ingest_red_findings,
+    load_red_findings,
+    parse_findings_body,
+    red_board_finding,
+    validate_red_finding,
+)
 from .verify import verify_offline
 
 DATA_DIR = default_data_dir()
@@ -179,6 +188,50 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
     def api_findings():
         return data.findings
 
+    # ---------------------------------------------- RED-INTEGRATION intake
+    @app.post("/api/findings/ingest")
+    async def api_ingest_findings(request: fastapi.Request):
+        """Accepts red findings at run end (see red_intake + the spike doc).
+        Body: a JSON array of findings, an ``{"findings": [...]}`` object, or
+        raw JSONL text — the exact shape of ``corpora/findings.jsonl``.
+        Validated against the red schema (deterministic UUID5 finding_id,
+        severity enum, sha256 evidence integrity re-verified for local path
+        references); merged idempotently into the ``red_findings.json``
+        sidecar so re-posting a run is a no-op. The canonical evidence store
+        is never touched."""
+        body_bytes = await request.body()
+        try:
+            payload = json.loads(body_bytes.decode("utf-8")) if body_bytes else None
+        except ValueError:
+            payload = None
+        try:
+            findings = parse_findings_body(body_bytes.decode("utf-8", "replace"), payload)
+            for raw in findings:
+                validate_red_finding(raw)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+        if not findings:
+            return JSONResponse({"error": "no findings in body"}, status_code=422)
+        summary = ingest_red_findings(data.dir, findings)
+        return {"ingested": True, "source": RED_SOURCE, **summary}
+
+    @app.get("/api/findings/red")
+    def api_red_findings():
+        """The ingested red slice (source-tagged 'red-mvp'), board-shaped."""
+        return {
+            "source": RED_SOURCE,
+            "by_severity": _red_counts(),
+            "findings": [red_board_finding(r) for r in load_red_findings(data.dir)],
+        }
+
+    def _red_counts() -> dict:
+        from .red_intake import RED_SEVERITIES  # noqa: PLC0415
+
+        counts = dict.fromkeys(RED_SEVERITIES, 0)
+        for r in load_red_findings(data.dir):
+            counts[r["severity"]] = counts.get(r["severity"], 0) + 1
+        return counts
+
     # ------------------------------------------------- UI-02.4 findings board
     def _triage_state_path(data_dir: pathlib.Path) -> pathlib.Path:
         return pathlib.Path(data_dir) / "triage_state.json"
@@ -197,8 +250,10 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
         import datetime as dt  # noqa: PLC0415
 
         states = _load_triage_states()
+        red_rows = [red_board_finding(r) for r in load_red_findings(data.dir)]
+        red_ids = {f["id"] for f in red_rows}
         findings = []
-        for f in data.findings:
+        for f in [*data.findings, *red_rows]:
             st = states.get(f["id"]) or _default_board_state(f)
             if st not in BOARD_STATES:
                 st = _default_board_state(f)
@@ -224,7 +279,17 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
                     "age_seconds": round(age) if age is not None else None,
                     "run_id": f.get("run_id"),
                     "state": st,
-                    "lens": finding_lens(f),  # shared taxonomy (counting module)
+                    "lens": (
+                        RED_LENS_BY_SEVERITY[f["severity"]]
+                        if f["id"] in red_ids
+                        else finding_lens(f)  # shared taxonomy (counting module)
+                    ),
+                    # RED-INTEGRATION: source chip ('assurance' vs 'red-mvp')
+                    # and per-rule guidance text — red rules are unknown to
+                    # the static G map, so red rows carry a guidance string
+                    # from red_intake directly (generic fallback included).
+                    "source": RED_SOURCE if f["id"] in red_ids else "assurance",
+                    "guidance": f.get("guidance") if f["id"] in red_ids else None,
                 }
             )
         # KPI values are the counting module's finding-lens counts, so every

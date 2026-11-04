@@ -919,8 +919,35 @@ function viewRed() {
     dogWrap.textContent = 'Every attack this product makes is itself gated: ' + d.receipted + ' of ' + d.attempts + ' red attempts left a signed receipt (' + d.share + '%). Findings emitted: ' + d.findings_total + ' (by severity: ' + Object.entries(d.findings_by_severity).map(([k, v]) => k + ' ' + v).join(', ') + ').';
   });
   const note = el('p'); note.style.margin = '10px 0';
-  note.textContent = 'Coming soon. Wave two of the suite; announcing later.';
+  note.textContent = 'Wave 2 in build. The gate fuzzer already runs against your policies; every attack it attempts is itself gated and receipted.';
   c.body.appendChild(note);
+  // Ingested red findings (RED-INTEGRATION): what the Red product has already
+  // posted into the Assurance intake, read from the add-in this session.
+  const ing = el('div', 'card');
+  ing.style.margin = '12px 0';
+  ing.appendChild(el('div', 'card-title', 'Ingested red findings'));
+  const ingWrap = el('p', 'muted', 'Reading the Assurance intake...');
+  ing.appendChild(ingWrap);
+  c.body.appendChild(ing);
+  fetch(config.assurance_url.replace(/\/$/, '') + '/api/findings/red').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
+    ing.textContent = '';
+    const n = Object.values(d.by_severity).reduce((a, v) => a + v, 0);
+    ing.appendChild(el('p', null, n ? 'Ingested into the findings board (source red-mvp): ' + n + ' findings. ' : 'No red findings ingested yet.'));
+    if (n) {
+      const parts = Object.entries(d.by_severity).filter(([, v]) => v).map(([k, v]) => k + ' ' + v);
+      ing.appendChild(el('p', 'muted', 'By severity: ' + parts.join(', ') + '.'));
+      if (d.findings.length) {
+        const latest = d.findings[d.findings.length - 1];
+        ing.appendChild(el('p', 'muted', 'Latest: ' + latest.rule_id + ' (' + latest.severity + ') - ' + latest.explanation));
+      }
+      const link = el('a', 'board-link', 'Open the Assurance findings board (Red findings tagged red-mvp)');
+      link.href = config.assurance_url.replace(/\/$/, '') + '/index.html';
+      link.target = '_blank';
+      link.rel = 'noreferrer';
+      const pl = el('p'); pl.style.margin = '6px 0 0'; pl.appendChild(link);
+      ing.appendChild(pl);
+    }
+  }).catch(() => { ingWrap.textContent = 'Ingested red findings unavailable (Assurance add-in offline; nothing guessed).'; });
   const ul = el('ul', 'quiet');
   ['Adversarial tool-content scenarios', 'Policy edge-case sweeps', 'Reporting that pairs with Raucle Agent Assurance'].forEach(x => ul.appendChild(el('li', null, x)));
   c.body.appendChild(ul);

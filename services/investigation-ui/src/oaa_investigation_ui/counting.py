@@ -33,6 +33,14 @@ docs/spikes/UI-02.4-findings-board.md):
     open lens partition: needs_investigation / unproven / coverage_gaps
     plus open (= sum of the three) + closed + suppressed, reconciling:
     open + closed + suppressed == total.
+
+  RED-INTEGRATION: ingested red findings (``red_findings.json`` sidecar)
+  are folded into the same partition — total = assurance findings +
+  red ingested, no double-counting. Red rows have no SEC rule semantics,
+  so their risk lens folds by severity (documented in red_intake.py +
+  docs/spikes/RED-INTEGRATION-findings.md): critical/high →
+  needs_investigation, medium/low → unproven, info → unproven. Their
+  share is reported separately under the ``red`` key (never re-counted).
 """
 
 from __future__ import annotations
@@ -56,6 +64,10 @@ CORRELATION_STATES = (
     "pending",
 )
 FINDING_LENS = ("needs_investigation", "unproven", "coverage_gaps")
+
+# Board short lens -> canonical count lens (single translation point;
+# red_intake emits the board vocabulary, counting folds on canonical names).
+_RED_LENS_CANONICAL = {"needs": "needs_investigation", "gaps": "coverage_gaps"}
 
 # Board lifecycle states (single taxonomy, shared with app.py): 'closed'
 # replaces the earlier 'resolved' label everywhere.
@@ -183,19 +195,55 @@ def count_evidence(
     assert sum(buckets.values()) == ver_total  # buckets partition the plane
 
     # ---------------------------------------------------------------- findings
+    # Ingested red findings (RED-INTEGRATION) fold into the same single loop:
+    # they come from the ``red_findings.json`` sidecar, are projected onto the
+    # board shape by red_intake, and take their risk lens from severity
+    # (critical/high → needs, medium/low → unproven, info → unproven):
+    #   Severity mapping — red has no rule semantics in the assurance G map,
+    #   so the fold is by severity only: critical/high are discrepancies
+    #   needing an investigator decision; medium/low and info are assurance
+    #   claims that are present-but-not-yet-judged (unproven). No red finding
+    #   ever lands in coverage_gaps (a red probe is presence, not an absence
+    #   rule). Totals stay one partition: assurance + red == total, and
+    #   open + closed + suppressed == total holds over the merged list.
+    from .red_intake import (  # noqa: PLC0415
+        RED_LENS_BY_SEVERITY,
+        RED_SEVERITIES,
+        RED_SOURCE,
+        load_red_findings,
+        red_board_finding,
+    )
+
+    red_rows = [red_board_finding(r) for r in load_red_findings(data_dir)]
+    red_by_severity: dict[str, int] = dict.fromkeys(RED_SEVERITIES, 0)
+    for r in red_rows:
+        red_by_severity[r["severity"]] += 1
+    red_total = len(red_rows)
+    all_findings = [*data.findings, *red_rows]
     lens_counts: dict[str, int] = dict.fromkeys(FINDING_LENS, 0)
     state_counts: dict[str, int] = dict.fromkeys(BOARD_STATES, 0)
     states = _triage_states(data_dir)
-    for f in data.findings:
+    for f in all_findings:
         st = states.get(f["id"]) or default_board_state(f)
         if st not in BOARD_STATES:
             st = default_board_state(f)
         state_counts[st] += 1
         if st in ("new", "investigating"):
-            lens_counts[_LENS_KEYS[finding_lens(f)]] += 1
+            if f.get("source") == RED_SOURCE:
+                # red_intake emits the board's short lens vocabulary; the
+                # canonical count set uses full names, so translate here.
+                lens_counts[
+                    _RED_LENS_CANONICAL.get(
+                        RED_LENS_BY_SEVERITY[f["severity"]],
+                        RED_LENS_BY_SEVERITY[f["severity"]],
+                    )
+                ] += 1
+            else:
+                lens_counts[_LENS_KEYS[finding_lens(f)]] += 1
     open_total = sum(lens_counts.values())
-    total_findings = len(data.findings)
+    total_findings = len(all_findings)
     assert open_total + state_counts["closed"] + state_counts["suppressed"] == total_findings
+    assert sum(red_by_severity.values()) == red_total
 
     # ------------------------------------------------ receipts (index plane) facts
     verif_rows = list(data._verif.values())
@@ -234,6 +282,13 @@ def count_evidence(
                 "suppressed": state_counts["suppressed"],
             },
         },
+        # RED-INTEGRATION: ingested red findings are counted once, inside the
+        # loop above (folded by severity into the lens); this section reports
+        # their share so the board and console can show the red slice
+        # without re-counting or double-counting them.
+        "red": {"ingested": red_total, "by_severity": red_by_severity},
+        "assurance_findings_total": total_findings - red_total,
+        "red_total": red_total,
         "trust": {
             "receipts_minted": len(receipts_index),
             "verification_rows": len(verif_rows),
