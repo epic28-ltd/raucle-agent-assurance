@@ -117,6 +117,30 @@ TENANTS = [{"id": "default", "label": "default"}]
 # 'Needs attention'. A constant of the alpha contract, not from the env.
 COVERAGE_TARGET_PCT = 95
 
+
+def _red_status() -> str:
+    """Red is wave 2: not purchased until the deployment opts in. Setting
+    RAUCLE_RED_ENABLED=1 records the (alpha) enablement without a licence
+    server - an explicit operator choice, not a default."""
+    return "connected" if os.environ.get("RAUCLE_RED_ENABLED") == "1" else "not_purchased"
+
+
+def _addins_catalogue() -> list:
+    red = {
+        "id": "red",
+        "name": "Raucle Agent Red",
+        "status": _red_status(),
+        "wave": 2,
+        "blurb": (
+            "Adversarial testing for the suite: attacks your own gate and "
+            "ingests its findings into Assurance."
+            if _red_status() == "connected"
+            else "Adversarial testing for the suite. Announcing later."
+        ),
+    }
+    return [a for a in ADDINS if a["id"] != "red"] + [red]
+
+
 # Add-in catalogue: status drives the semantic chip colour.
 ADDINS = [
     {
@@ -258,7 +282,7 @@ def create_app() -> fastapi.FastAPI:
         )
         return {
             "tenants": TENANTS,
-            "addins": ADDINS,
+            "addins": _addins_catalogue(),
             "trust": trust_view,
             "activity": activity,
             "notifications": {
@@ -286,6 +310,7 @@ def create_app() -> fastapi.FastAPI:
             url = f"http://{host}:3411"
         return {
             "assurance_url": url,
+            "addins": _addins_catalogue(),
             "assurance_reachable": False,  # SPA probes the URL itself
             "trust_gate_env": TRUST_GATE_ENV,
             "coverage_target_pct": COVERAGE_TARGET_PCT,

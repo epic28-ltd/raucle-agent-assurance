@@ -903,8 +903,9 @@ function viewAssurance() {
 
 function viewRed() {
   const p = el('div');
-  const c = card('Raucle Agent Red', 'Not purchased');
-  c.body.appendChild(pill('not_purchased'));
+  const status = (config && config.addins && (config.addins.find(a => a.id === 'red') || {}).status) || 'not_purchased';
+  const c = card('Raucle Agent Red', PILL_NAME[status] || 'Not purchased');
+  c.body.appendChild(pill(status));
   // Dogfood strip: the red agent runs UNDER the gate, so its attack attempts
   // leave their own signed receipts. Shown here from the red repo corpora.
   const dog = el('div', 'card');

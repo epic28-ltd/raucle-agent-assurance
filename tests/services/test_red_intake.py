@@ -70,6 +70,12 @@ def _example_finding(
 @pytest.fixture()
 def client(tmp_path: pathlib.Path) -> TestClient:
     shutil.copytree(DATA_DIR, tmp_path / "demo")
+    # red_findings.json is runtime state: a live dev-server ingest leaves rows
+    # in demo_data, and fixture copies must start from a clean slate so counts
+    # assert on the test's own ingest rather than leaked operator state.
+    leaked = tmp_path / "demo" / "red_findings.json"
+    if leaked.exists():
+        leaked.unlink()
     return TestClient(create_app(tmp_path / "demo"))
 
 
