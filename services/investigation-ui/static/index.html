@@ -4,171 +4,866 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OAA investigation — UI-01</title>
-<link rel="stylesheet" href="/static/styles.css">
+<title>Open Agent Assurance — investigation (UI-02)</title>
 <style>
-  nav { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; }
-  h2 { margin: .4rem 0; }
-  .crumbs { font-size: .85rem; color: #567; cursor: pointer; }
-  .tree { list-style: none; padding-left: 1.2rem; border-left: 1px dotted #bbc; }
-  .row { padding: .15rem 0; }
-  /* every dynamic value goes in a .v element rendered with textContent */
+  /* ------------------------------------------------- semantic colour system
+     Defined once; every chip/timeline node/segment uses these tokens.
+     green = proven good; amber = un-proven, look; red = action needed;
+     grey = structurally exempt. */
+  :root{
+    --c-good:#2e7d32;   --c-good-bg:#e6f2e7;
+    --c-look:#b26a00;   --c-look-bg:#fdf1dd;
+    --c-act:#b3261e;    --c-act-bg:#fbe9e8;
+    --c-exempt:#5f6b76; --c-exempt-bg:#e8ebee;
+    --ink:#1c2733; --line:#d4dae0; --soft:#5f6b76; --accent:#0b4a8f;
+    --bg:#f7f8fa; --panel:#ffffff;
+  }
+  *{box-sizing:border-box}
+  body{font:15px/1.45 system-ui,sans-serif;color:var(--ink);margin:0;background:var(--bg)}
+  header.app{background:var(--panel);border-bottom:1px solid var(--line);padding:.7rem 1.2rem}
+  header.app .brand{display:flex;gap:1.2rem;align-items:baseline;flex-wrap:wrap}
+  h1{font-size:1.05rem;margin:0}
+  nav.tabs{display:flex;gap:.4rem;margin:.5rem 0 0}
+  nav.tabs button{font:inherit;padding:.35rem .9rem;border:1px solid var(--line);
+    background:var(--bg);border-radius:6px 6px 0 0;cursor:pointer;color:var(--ink)}
+  nav.tabs button[aria-selected="true"]{background:var(--panel);border-bottom-color:var(--panel);font-weight:600}
+  .legend{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.4rem;font-size:.8rem}
+  /* legend / chip tokens */
+  .chip{display:inline-block;padding:.1rem .5rem;border-radius:4px;border:1px solid;font-size:.78rem;white-space:nowrap}
+  .tok-good{color:var(--c-good);background:var(--c-good-bg);border-color:var(--c-good)}
+  .tok-look{color:var(--c-look);background:var(--c-look-bg);border-color:var(--c-look)}
+  .tok-act{color:var(--c-act);background:var(--c-act-bg);border-color:var(--c-act)}
+  .tok-exempt{color:var(--c-exempt);background:var(--c-exempt-bg);border-color:var(--c-exempt)}
+  button:focus-visible,[tabindex]:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+  main{max-width:1280px;margin:0 auto;padding:1rem 1.2rem 3rem}
+  .empty{border:1px dashed var(--line);background:var(--panel);padding:1.2rem;border-radius:8px;color:var(--soft)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem;margin:.8rem 0}
+  h2{font-size:.95rem;margin:.2rem 0 .5rem;text-transform:uppercase;letter-spacing:.04em;color:var(--soft)}
+  /* counters */
+  .counters{display:flex;gap:1rem;flex-wrap:wrap}
+  .counter{flex:1 1 200px;text-align:left;border:1px solid var(--line);border-radius:8px;
+    background:var(--panel);padding:.9rem 1rem;cursor:pointer;font:inherit}
+  .counter .n{font-size:2rem;font-weight:700;display:block}
+  .counter .lbl{font-size:.85rem;color:var(--soft)}
+  .counter[data-tone="good"]{border-top:6px solid var(--c-good)}
+  .counter[data-tone="look"]{border-top:6px solid var(--c-look)}
+  .counter[data-tone="act"]{border-top:6px solid var(--c-act)}
+  .counter[aria-pressed="true"]{outline:3px solid var(--accent);outline-offset:-2px}
+  /* distribution strips */
+  .strip{display:flex;height:1.4rem;border-radius:4px;overflow:hidden;border:1px solid var(--line);margin:.3rem 0 .6rem}
+  .strip span{display:block;height:100%;min-width:2px}
+  .stripkey{font-size:.78rem;color:var(--soft);display:flex;gap:1rem;flex-wrap:wrap;margin:.2rem 0 .8rem}
+  /* tables */
+  table{border-collapse:collapse;width:100%;background:var(--panel);font-size:.88rem}
+  th,td{border:1px solid var(--line);padding:.3rem .5rem;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600}
+  tr.rowbtn td{cursor:pointer}
+  tr.rowbtn:hover td{background:var(--c-good-bg)}
+  /* run view layout */
+  .cols{display:flex;gap:1rem;align-items:flex-start}
+  .cols>*{min-width:0}
+  .timeline{list-style:none;padding:0;margin:0;flex:1 1 520px}
+  .tl{position:relative;padding:0 0 .2rem 1.4rem;border-left:2px solid var(--line);margin-left:.4rem}
+  .tl:last-child{border-left-color:transparent}
+  .tl::before{content:"";position:absolute;left:-.45rem;top:.3rem;width:.8rem;height:.8rem;border-radius:50%;
+    border:2px solid var(--panel)}
+  .tl.tl-good::before{background:var(--c-good)}
+  .tl.tl-look::before{background:var(--c-look)}
+  .tl.tl-act::before{background:var(--c-act)}
+  .tl.tl-exempt::before{background:var(--c-exempt)}
+  .tl .head{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;font-size:.88rem}
+  .tl button.sel{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:.25rem .5rem;
+    font:inherit;cursor:pointer;color:var(--ink);text-align:left}
+  .tl button.sel[aria-pressed="true"]{outline:3px solid var(--accent);outline-offset:-2px}
+  .side{flex:1 1 460px;position:sticky;top:.8rem}
+  .guide dt{font-weight:600;font-size:.85rem;margin-top:.6rem;color:var(--soft)}
+  .guide dd{margin:.1rem 0 .1rem 1rem;font-size:.88rem}
+  .guide ol{margin:.1rem 0 .1rem 1.6rem;padding:0;font-size:.88rem}
+  .filters{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin:.4rem 0 .8rem}
+  .filters input[type=search]{font:inherit;padding:.3rem .5rem;border:1px solid var(--line);border-radius:6px;min-width:16rem}
+  .filters .chipbtn{font:inherit;font-size:.8rem;padding:.15rem .55rem;border-radius:10px;cursor:pointer;
+    border:1px solid var(--line);background:var(--panel)}
+  .filters .chipbtn[aria-pressed="true"]{border-color:var(--accent);font-weight:600}
+  .hint{font-size:.75rem;color:var(--soft)}
+  pre{background:var(--bg);border:1px solid var(--line);padding:.6rem;overflow:auto;font-size:.8rem}
+  .kvs{font-size:.88rem}
+  .kvs div{padding:.1rem 0}
+  .kv-k{display:inline-block;min-width:9rem;color:var(--soft)}
 </style>
 </head>
 <body>
-<nav>
-  <strong>Open Agent Assurance — investigation (UI-01)</strong>
-  <span id="nav-runs" class="crumbs">runs</span>
-</nav>
+<header class="app">
+  <div class="brand">
+    <h1>Open Agent Assurance — investigation</h1>
+    <span class="hint">runs / traces / receipts · index-plane only · evidence never re-rendered raw</span>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <button id="tab-overview" role="tab" aria-selected="true">Overview</button>
+    <button id="tab-runs" role="tab" aria-selected="false">Runs &amp; traces</button>
+  </nav>
+  <div class="legend" id="legend" aria-label="Semantic colour legend">
+    <span class="chip tok-good">green — proven good (valid + matched)</span>
+    <span class="chip tok-look">amber — un-proven, look at it</span>
+    <span class="chip tok-act">red — action needed</span>
+    <span class="chip tok-exempt">grey — structurally exempt</span>
+  </div>
+</header>
 <main id="app"></main>
 
 <script>
 // SPDX-License-Identifier: Apache-2.0
-// Threat model T5: no unsafe HTML injection anywhere — all model/tool
-// content is set with textContent; no external fetches; no auto-link
-// resolution; JWS is never rendered, only linked as a download.
+// UI-02 single-page app. Threat model T5 discipline unchanged: every piece
+// of model/tool/index content is rendered with textContent (never innerHTML
+// or document.write), no external fetches, no auto-link resolution, and the
+// JWS body is never rendered — only offered as a download link.
 "use strict";
 const app = document.getElementById("app");
+const tabOverview = document.getElementById("tab-overview");
+const tabRuns = document.getElementById("tab-runs");
 
+// ------------------------------------------------------------- colour map
+const VERIF_CLASS = {
+  valid:"good", invalid:"act", unsupported_schema:"act",
+  unknown_key:"look", pending:"look", unavailable:"look",
+  not_applicable:"exempt",
+};
+const CORR_CLASS = {
+  matched:"good", matched_degraded:"look", ambiguous:"look", duplicate:"look",
+  late_arrival:"look", trace_missing:"look", receipt_missing:"act", pending:"look",
+};
+const CLS = {good:"tok-good", look:"tok-look", act:"tok-act", exempt:"tok-exempt"};
+
+// --------------------------------------------------------- guidance system
+// Static copy keyed by verification state, correlation state and rule_id.
+// Tone: security analyst, British English; unknown means unknown, not safe.
+const G = {
+  verif: {
+    valid: {
+      what:"A signed gate receipt exists for this span and passed every offline verification check: signature, trust root and schema.",
+      means:"The receipt is cryptographically proven good. The tool call went through the policy gate and the evidence has not changed since it was signed.",
+      fine:["The span can be trusted as recorded; no receipt-side action is needed.","Other spans in the trace may still carry findings."],
+      actions:["Confirm the gate decision (allow or deny) matches what the tool actually did.","Continue triage with the next item in the list."],
+    },
+    invalid: {
+      what:"A signed gate receipt exists but failed offline verification: the signature, trust root or integrity check did not pass.",
+      means:"The receipt cannot be trusted as-is. It was altered after signing, signed under an unrecognised configuration, or corrupted in transit. This is a verification failure, not by itself proof of wrongdoing.",
+      fine:["A verifier or gate upgrade bug can mark rows invalid in a burst.","A corrected re-signing may already exist downstream for the same invocation."],
+      actions:["Record the receipt_hash and the verifier detail output.","Compare the receipt against the gate's own record for the same trace.","Check recent trust-root rotations and verifier version changes.","Escalate to the evidence-plane owner if the failure reproduces."],
+    },
+    unknown_key: {
+      what:"The receipt is signed, but its signing key is not in the current trust-root registry.",
+      means:"It is not known whether this receipt is genuine. The key may belong to a decommissioned gate or a newly deployed one, or to something that should not be trusted. Unknown means unknown, not safe.",
+      fine:["A new gate instance was deployed before its public key was registered.","An old key was retired while receipts it signed were still in flight."],
+      actions:["Identify the signing key id from the receipt metadata.","Check the trust-root registry history for that key id.","Ask the gate operator whether keys were rotated recently.","Treat the span as un-proven until the key is identified and registered."],
+    },
+    unsupported_schema: {
+      what:"A receipt exists but was written in a schema version the current verifier cannot interpret.",
+      means:"The evidence is present but not interpretable here, so it is neither proven good nor proven bad. The receipt may be entirely fine — you simply cannot tell yet.",
+      fine:["A gate upgrade started emitting a newer schema before verifiers caught up.","The schema is valid but was deliberately excluded from this verifier's supported set."],
+      actions:["Record the schema_version shown in the evidence panel.","Check whether a verifier upgrade supports that schema version.","Treat the span as un-proven until a compatible verifier runs over it."],
+    },
+    pending: {
+      what:"The receipt has been observed but verification has not completed yet.",
+      means:"There is no verdict at the moment: the check is queued or still running. Nothing has failed, and nothing is proven either.",
+      fine:["A short verifier backlog resolves these within the normal window."],
+      actions:["Re-check the span after the verification window passes.","Escalate if it remains pending beyond the agreed grace period."],
+    },
+    unavailable: {
+      what:"No verification record was available at ingest time, or the span carried no receipt at all.",
+      means:"The verification index says nothing usable about this evidence. Either the gate did not produce a receipt or the index row has not arrived. This is a coverage gap, not a pass.",
+      fine:["A gate or ingest outage explains a short burst of unavailability."],
+      actions:["Check whether the gate was producing receipts during this window.","Confirm the span actually invoked the policy gate.","Escalate the coverage gap if the tool is privileged and the gap persists."],
+    },
+    not_applicable: {
+      what:"This span is out of scope for gate receipts, for example a non-privileged tool call or a span type the gate does not cover.",
+      means:"No receipt is expected here, so there is nothing to verify. The exemption is grey by design, not a warning.",
+      fine:["The tool is on the non-privileged registry and the gate does not cover it."],
+      actions:["Confirm the span's tool really is exempt from the gate.","Raise a coverage request with the gate owners if the tool should be covered."],
+    },
+  },
+  corr: {
+    matched: {
+      what:"The trace-side tool invocation and a signed gate receipt reconcile to exactly one pair, within the reconciliation window.",
+      means:"Both vantages agree: one invocation, one receipt, on time. The span is corroborated from the trace side and the evidence side.",
+      fine:["The pair is proven; no reconciliation action is needed."],
+      actions:["Continue triage with the next item in the list."],
+    },
+    matched_degraded: {
+      what:"A trace invocation and a receipt were reconciled, but only through a fallback key such as an approximate time window.",
+      means:"There is exactly one receipt for the invocation, but the link between the two records is weaker than a full match. The outcome is probably fine; the pairing confidence is lower.",
+      fine:["Clock skew between the tool host and the gate can force a degraded reconciliation."],
+      actions:["Read the reconciliation notes for the fallback that was used.","Fix the underlying clock skew or missing metadata if it recurs."],
+    },
+    ambiguous: {
+      what:"More than one receipt could correspond to this invocation, and the index cannot tell which one is correct.",
+      means:"The evidence conflicts rather than agrees: a retried gate call, a duplicate emission, or two invocations sharing one trace. Nothing is proven; the ambiguity is surfaced deliberately and never silently resolved.",
+      fine:["A legitimate agent retry can produce two receipts for one logical action."],
+      actions:["Open each candidate receipt and compare decision and event time.","Identify at tool level which invocation each receipt belongs to.","If retries are legitimate, tune the reconciliation window upstream."],
+    },
+    duplicate: {
+      what:"The same receipt appears more than once in the index for this trace.",
+      means:"One piece of evidence was indexed twice. The underlying gate call is probably sound, but the pipeline emitted a duplicate row.",
+      fine:["An at-least-once ingest pipeline duplicates rows as a matter of course."],
+      actions:["Confirm both index rows carry the same receipt_hash.","Report the duplicate emission to the evidence-plane owner."],
+    },
+    late_arrival: {
+      what:"The receipt arrived after the reconciliation window had closed and was reconciled as a late-arriving record.",
+      means:"The pair did line up in the end, but the receipt was late. The span is corroborated, with degraded timeliness.",
+      fine:["A slow gate or delayed ingest can push records past the window without anything being wrong."],
+      actions:["Check gate and ingest latency metrics for the window.","Raise a latency report if late arrivals are routine."],
+    },
+    receipt_missing: {
+      what:"A privileged tool invocation appears in the trace, but no gate receipt was found for it, and the grace period has passed.",
+      means:"One side of the pair is missing on the privileged path. This is exactly the condition SEC-001 watches. It does not prove a bypass, but every missing privileged receipt must be explained.",
+      fine:["A receipt ingest outage can leave a genuine gap that is nothing worse than that."],
+      actions:["Search the evidence store directly for a receipt for this trace.","Check gate availability and ingest error rates for the window.","Confirm with the gate whether it handled this invocation.","Escalate as a potential bypass if the gate has no record at all."],
+    },
+    trace_missing: {
+      what:"A signed gate receipt exists, but no trace record corresponds to it.",
+      means:"The evidence side produced a receipt the telemetry side never saw. Either tracing dropped the span or an invocation ran without tracing. The receipt alone cannot show what happened during the call.",
+      fine:["A trace exporter outage can lose whole batches of spans."],
+      actions:["Check whether a trace exporter outage covers this window.","Look for sibling traces near the receipt's event time.","Escalate if privileged calls repeatedly lack traces."],
+    },
+    pending: {
+      what:"Reconciliation has not finished for this pair; the receipt may still arrive inside the grace window.",
+      means:"There is no verdict yet: the correlation engine is still waiting. The record is open, not failed.",
+      fine:["Correlation normally completes within the configured grace window."],
+      actions:["Re-check after the grace window passes.","Escalate if the pair is still pending beyond grace."],
+    },
+  },
+  rules: {
+    "SEC-001": {
+      what:"A privileged tool invocation had no gate receipt after the grace period elapsed (correlation state receipt_missing).",
+      means:"The receipt must exist for a privileged call, and it does not. The finding states the gap only; whether it is an outage, a pipeline bug or a real bypass is exactly what the investigation decides.",
+      fine:["An ingest outage or gate crash leaves gaps like this."],
+      actions:["Search the evidence store directly for the invocation's receipt.","Check gate and ingest telemetry for the window.","Confirm with the gate operator whether the call was seen.","Escalate as a suspected bypass only after the gate confirms no record exists."],
+    },
+    "SEC-002": {
+      what:"A receipt failed verification: it is invalid, or its schema is unsupported by the current verifier.",
+      means:"Evidence exists but does not verify. Invalid marks a cryptographic or integrity failure; unsupported_schema marks an interoperability gap. Neither proves the underlying action was wrong.",
+      fine:["A verifier rollout mismatch or key rotation can mark rows invalid in bulk."],
+      actions:["Open the affected receipt and read the verification detail.","Check for concurrent verifier or trust-root changes.","Re-run offline verification to confirm the result is stable.","Escalate to the evidence-plane owner if the failure reproduces."],
+    },
+    "SEC-003": {
+      what:"The denial rate for a tool application exceeded the configured threshold inside one window.",
+      means:"The policy gate refused a large share of that tool's calls. The agent may be misconfigured, the policy too strict, or the agent under attack-style prompting. The rule observes a rate, not a cause.",
+      fine:["A deliberate policy tightening legitimately raises denial rates."],
+      actions:["Sample denied receipts and read their policy_ref values.","Check whether a policy change preceded the spike.","Review the agent's prompts or task configuration for that window.","Tune the threshold if the rate is expected under a known change."],
+    },
+    "SEC-004": {
+      what:"A tool reported success for an invocation after the gate had denied the corresponding call.",
+      means:"The tool-side result does not follow the gate's decision. Either the tool executed without waiting for the gate, the pairing is wrong, or telemetry is inconsistent. This pairing error is treated with critical severity because the gate's deny was not enforced on the tool path.",
+      fine:["A reconciliation mistake can pair the wrong deny with the wrong success."],
+      actions:["Open the paired receipts and confirm the deny belongs to the same invocation.","Check the tool-side audit trail for the exact execution time.","Verify whether the tool path honours gate decisions (fail-open configuration).","Escalate immediately if the pairing is confirmed correct."],
+    },
+    "SEC-005": {
+      what:"The agent repeated a tool-call cycle beyond the configured bound within a window.",
+      means:"The agent is looping: the same sequence of calls repeats more than the bound allows. This usually means the task is not converging, which wastes resources and amplifies whatever the calls do.",
+      fine:["A legitimately long task can cross the bound if the bound is too tight."],
+      actions:["Read the repeated calls and compare their arguments across cycles.","Check whether the agent's task or prompt can terminate the loop.","Raise or lower the bound with evidence if the current value misfires."],
+    },
+    "SEC-006": {
+      what:"A privileged tool appeared that was not in the acknowledged baseline for this agent release.",
+      means:"The release started using a privileged tool nobody ackcnowledged in the baseline registry. New privileged capability without review is a supply-chain and privilege-creep risk.",
+      fine:["A new release may legitimately add a tool pending its baseline update."],
+      actions:["Identify which release introduced the tool.","Confirm with the release owner whether the addition was intended.","Add the tool to the baseline registry if reviewed and approved.","Investigate the release pipeline if nobody claims the change."],
+    },
+    "SEC-007": {
+      what:"Evidence ingest or verification is backlogged beyond the configured threshold.",
+      means:"Receipts and verification results are arriving later than the pipeline can process. Fresh data is delayed, so live state lags reality: recent spans may look unverified only because the queue is full.",
+      fine:["A burst of legitimate traffic can overflow the queue temporarily."],
+      actions:["Check ingest and verifier queue depth and error rates.","Look for a stuck worker or a slow downstream dependency.","Scale the ingest capacity if the backlog is sustained."],
+    },
+    "SEC-008": {
+      what:"Credential material or forbidden content was detected in telemetry indexed from the run.",
+      means:"A secret reached a place where it should never appear: the telemetry index. Even hashed, its presence means some component emitted it. Critical severity reflects exposure, not intent.",
+      fine:["A test fixture or obviously fake token triggers this rule by design."],
+      actions:["Identify the span and tool that emitted the content.","Rotate the exposed credential immediately if it is real.","Check whether any downstream system stored or forwarded the content.","Do not copy the detected content into reports or tickets."],
+    },
+    "SEC-009": {
+      what:"A privileged execution was observed on the tool side with no corroborating gate receipt beyond grace (bypass_suspected).",
+      means:"The tool audit shows the call happened; the evidence plane shows no receipt for it. This is the highest-priority discrepancy the system watches for. The finding states the discrepancy only, never intent: it may be a broken gate path, but it must be ruled out by hand.",
+      fine:["A gate crash mid-call, or an agent failing open on gate errors, produces this without an attacker."],
+      actions:["Confirm the tool-side audit record is genuine (source, host, timestamp).","Search the evidence store across all windows for any receipt of this call.","Check the gate's own log for the invocation.","Escalate to incident response if the gate confirms it never saw the call."],
+    },
+    "SEC-010": {
+      what:"A custody-covered credential was consumed with no matching issued lease.",
+      means:"The credential was used outside the lease custody process (ADR-0004). Unleased use of a custody-covered credential is treated as a high-confidence violation because custody coverage is meant to eliminate exactly this.",
+      fine:["A lease was issued and consumed in the same tick and the event ordering is ambiguous."],
+      actions:["Pull the use event and search for any lease_issued for the same credential.","Check whether the credential was rotated or reissued recently.","Block the credential if no lease can be produced for the use."],
+    },
+    "SEC-011": {
+      what:"The producer identity changed mid-chain for the same agent between consecutive steps.",
+      means:"One agent's chain shows two different producer identities across a gate boundary. This may be identity fragmentation (for example a re-authentication) or two agents interleaving under one run. The rule flags the anomaly deterministically.",
+      fine:["A mid-run re-authentication or token refresh legitimately changes the producer id."],
+      actions:["Compare the chain steps before and after the identity change.","Check the agent's auth logs for a legitimate refresh at that time.","Investigate whether two agents share the run identifier if no refresh is found."],
+    },
+  },
+};
+
+// -------------------------------------------------------------- helpers
 function el(tag, cls, text) {
   const n = document.createElement(tag);
   if (cls) n.className = cls;
   if (text !== undefined) n.textContent = text; // hostile text: escaped by construction
   return n;
 }
-function td(parent, text, cls) {
-  const c = el("td", cls); c.textContent = text === null || text === undefined ? "" : String(text);
-  parent.appendChild(c); return c;
+function chip(parent, text, kind) {
+  const k = CLS[kind] || "tok-exempt";
+  parent.appendChild(el("span", "chip " + k, text));
+  return parent.lastChild;
 }
-const UNCERTAIN_VERIFY = new Set(["invalid", "unknown_key", "unsupported_schema", "pending", "unavailable", "not_applicable", "unavailable-no-receipt"]);
-const UNCERTAIN_CORR = new Set(["receipt_missing", "trace_missing", "ambiguous", "late_arrival", "duplicate", "pending"]);
-
-function badge(parent, clsKey, text, uncertainSet) {
-  const cls = uncertainSet.has(text) ? "badge badge-unknown" : "badge badge-ok";
-  parent.appendChild(el("span", cls, text)); // token = full state enum, never blank
-}
-function crumb(label, fn) {
-  const c = el("span", "crumbs", label); c.onclick = fn; return c;
-}
-function table(head) {
-  const t = el("table"); const tr = el("tr");
-  head.forEach(h => { const c = el("th", null, h); tr.appendChild(c); });
-  t.appendChild(tr); return t;
-}
-
+function vChip(parent, state) { return chip(parent, state, VERIF_CLASS[state]); }
+function cChip(parent, state) { return chip(parent, state, CORR_CLASS[state]); }
 function api(path, opts) { return fetch(path, opts).then(r => r.json()); }
+function emptyState(msg) {
+  const d = el("div", "empty", msg);
+  return d;
+}
 
-function showRuns() {
-  api("/api/runs").then(runs => {
-    app.replaceChildren();
-    const t = table(["run", "agent", "release", "spans", "verification", "correlation (privileged)"]);
-    runs.forEach(r => {
-      const tr = el("tr");
-      const runCell = td(tr, r.run_id); runCell.style.color = "#04478c"; runCell.style.cursor = "pointer";
-      runCell.onclick = () => { location.hash = "run/" + r.run_id; };
-      td(tr, r.agent); td(tr, r.release); td(tr, r.span_count + " (" + r.privileged_span_count + " privileged)");
-      td(tr, Object.entries(r.verification_summary).map(([k, v]) => k + ":" + v).join(", ") || "(none)");
-      td(tr, Object.entries(r.correlation_summary).map(([k, v]) => k + ":" + v).join(", ") || "(none)");
-      t.appendChild(tr);
+// ------------------------------------------------------------ guidance panel
+function guidancePanel(kind, key) {
+  const g = (G[kind] || {})[key];
+  const p = el("aside", "panel guide");
+  p.setAttribute("aria-label", "Guidance");
+  p.appendChild(el("h2", null, "Guidance — " + key));
+  if (!g) {
+    p.appendChild(el("p", null, "No guidance entry for this state."));
+    return p;
+  }
+  const dl = el("dl");
+  const rows = [
+    ["What you are looking at", () => el("dd", null, g.what)],
+    ["What this means", () => el("dd", null, g.means)],
+    ["Could be fine because", () => {
+      const dd = el("dd");
+      (g.fine || []).forEach(t => dd.appendChild(el("div", null, "· " + t)));
+      return dd;
+    }],
+    ["Suggested actions", () => {
+      const dd = el("dd");
+      const ol = el("ol");
+      (g.actions || []).forEach(t => ol.appendChild(el("li", null, t)));
+      dd.appendChild(ol);
+      return dd;
+    }],
+  ];
+  rows.forEach(([label, make]) => {
+    dl.appendChild(el("dt", null, label));
+    dl.appendChild(make());
+  });
+  p.appendChild(dl);
+  return p;
+}
+
+// ------------------------------------------------------------------ state
+let runsIndex = [];   // /api/runs summaries
+let suppressionsShown = false;
+let textFilter = "";
+let stateFilter = new Set();   // selected state chips (verification or correlation)
+let selectedBucket = null;     // 'healthy' | 'at_risk' | 'needs' | null
+
+function spanTone(v, c) {
+  if (v === "invalid" || v === "unsupported_schema" || c === "receipt_missing") return "act";
+  if ((v === "valid" && c === "matched") || v === "not_applicable") return "good";
+  return "look";
+}
+
+// ---------------------------------------------------------------- overview
+function showOverview() {
+  selectTab(true);
+  app.replaceChildren();
+  app.appendChild(el("h2", null, "Health at a glance"));
+  const counters = el("div", "counters");
+  app.appendChild(counters);
+
+  Promise.all([api("/api/dashboard"), api("/api/findings"), api("/api/runs")])
+    .then(([dash, findings, runs]) => {
+      runsIndex = runs;
+      const defs = [
+        ["good", "Healthy", dash.healthy, "All privileged spans matched + valid, or structurally exempt."],
+        ["look", "At risk", dash.at_risk, "Unknown, pending, degraded, unavailable, late or duplicate — un-proven."],
+        ["act", "Needs investigation", dash.needs_investigation, "Invalid, bypass suspected, receipt missing past grace, or an active finding."],
+      ];
+      defs.forEach(([tone, lbl, n, sub]) => {
+        const b = el("button", "counter");
+        b.dataset.tone = tone;
+        b.setAttribute("aria-pressed", String(selectedBucket === tone));
+        b.appendChild(el("span", "n", String(n)));
+        b.appendChild(el("span", "lbl", lbl));
+        b.appendChild(el("div", "hint", sub));
+        b.onclick = () => {
+          selectedBucket = selectedBucket === tone ? null : tone;
+          showOverview();
+        };
+        counters.appendChild(b);
+      });
+
+      app.appendChild(el("h2", null, "Verification state distribution"));
+      distStrip(app, dash.verification_distribution, VERIF_CLASS);
+      app.appendChild(el("h2", null, "Correlation state distribution"));
+      distStrip(app, dash.correlation_distribution, CORR_CLASS);
+
+      const findingsList = el("div");
+      renderFindings(findingsList, findings, suppressionsShown);
+      app.appendChild(findingsList);
+
+      const itemsWrap = el("div");
+      renderOverviewItems(itemsWrap, runs);
+      app.appendChild(itemsWrap);
     });
-    app.appendChild(el("h2", null, "Runs"));
-    app.appendChild(t);
+}
+
+function distStrip(parent, dist, classMap) {
+  const total = Object.values(dist).reduce((a, b) => a + b, 0);
+  const strip = el("div", "strip");
+  const key = el("div", "stripkey");
+  if (!total) {
+    parent.appendChild(emptyState("Nothing here — no privileged spans recorded yet."));
+    return;
+  }
+  Object.entries(dist).forEach(([state, n]) => {
+    const seg = el("span");
+    seg.style.width = Math.max(1, Math.round(n / total * 100)) + "%";
+    seg.style.background = getComputedStyle(document.documentElement).getPropertyValue(
+      "--c-" + classMap[state]).trim() || "#ccc";
+    seg.title = state + ": " + n;
+    strip.appendChild(seg);
+    const k = el("span");
+    k.appendChild(chip(k, state + " (" + n + ")", classMap[state]));
+    key.appendChild(k);
+  });
+  parent.appendChild(strip);
+  parent.appendChild(key);
+}
+
+function renderFindings(parent, findings, showSuppressed) {
+  parent.replaceChildren();
+  parent.appendChild(el("h2", null, "Findings triage"));
+  const sevOrder = {critical:0, high:1, medium:2, low:3};
+  const ordered = (findings || []).slice().sort((a, b) =>
+    (sevOrder[a.severity] ?? 9) - (sevOrder[b.severity] ?? 9)
+    || (a.suppressed === b.suppressed ? 0 : a.suppressed ? 1 : -1));
+  const visible = ordered.filter(f => showSuppressed || !f.suppressed);
+  const toggleRow = el("div", "filters");
+  const lbl = el("label");
+  const cb = el("input");
+  cb.type = "checkbox";
+  cb.checked = showSuppressed;
+  cb.onchange = () => { suppressionsShown = cb.checked; showOverview(); };
+  lbl.appendChild(cb);
+  lbl.appendChild(document.createTextNode(" Show suppressed findings (hidden by default)"));
+  toggleRow.appendChild(lbl);
+  parent.appendChild(toggleRow);
+  if (!visible.length) {
+    parent.appendChild(emptyState(ordered.length
+      ? "Nothing here — every finding is suppressed; toggle suppressed findings to see them."
+      : "Nothing here — no findings for this dataset."));
+    return;
+  }
+  const t = el("table");
+  const hr = el("tr");
+  ["rule", "severity", "confidence", "subject", "state", "explanation", "suppression_reason"]
+    .forEach(h => hr.appendChild(el("th", null, h)));
+  t.appendChild(hr);
+  visible.forEach(f => {
+    const tr = el("tr");
+    tr.dataset.rule = f.rule_id;
+    td(tr, f.rule_id);
+    td(tr, f.severity);
+    td(tr, f.confidence);
+    td(tr, f.subject || "");
+    const st = el("td");
+    chip(st, f.suppressed ? "suppressed" : "active", f.suppressed ? "exempt" : "act");
+    tr.appendChild(st);
+    td(tr, f.explanation || "");
+    td(tr, f.suppression_reason || "");
+    const guideCell = el("td");
+    const gb = el("button", "chipbtn", "guidance");
+    gb.onclick = () => {
+      const next = gb.nextElementSibling;
+      if (next && next.classList.contains("guide")) { next.remove(); return; }
+      (() => { const w = document.createElement('tr'); const c = document.createElement('td'); c.colSpan = 7; c.appendChild(guidancePanel('rules', f.rule_id)); w.appendChild(c); tr.after(w); })();
+    };
+    guideCell.appendChild(gb);
+    tr.appendChild(guideCell);
+    t.appendChild(tr);
+  });
+  parent.appendChild(t);
+}
+function td(parent, text, cls) {
+  const c = el("td", cls);
+  c.textContent = text === null || text === undefined ? "" : String(text);
+  parent.appendChild(c);
+  return c;
+}
+
+// Overview filtered item list, honouring selectedBucket + text + state chips
+function renderOverviewItems(parent, runs) {
+  parent.replaceChildren();
+  parent.appendChild(el("h2", null, "Privileged spans" + (selectedBucket ? " — filtered" : "")));
+  const needTone = selectedBucket; // good | look | act
+  let any = false;
+  const t = el("table");
+  const hr = el("tr");
+  ["run", "trace", "tool", "receipt", "verification", "correlation"].forEach(h => hr.appendChild(el("th", null, h)));
+  t.appendChild(hr);
+  // summaries lack per-span rows, so fetch each run (small demo dataset)
+  parent.appendChild(el("p", null, "Loading…"));
+  Promise.all(runs.map(r => api("/api/runs/" + encodeURIComponent(r.run_id)).catch(() => null)))
+    .then(details => {
+      t.replaceChildren(hr);
+      details.filter(Boolean).forEach(run => {
+        run.traces.forEach(trace => {
+          trace.spans.filter(s => s.privileged).forEach(s => {
+            const tone = spanTone(s.verification.status, s.correlation.state);
+            if (needTone && tone !== needTone) return;
+            if (stateFilter.size && !(stateFilter.has(s.verification.status) || stateFilter.has(s.correlation.state))) return;
+            if (textFilter && !(
+              run.run_id + " " + trace.trace_id + " " + (s.receipt_hash || "") + " " + s.span_id
+            ).toLowerCase().includes(textFilter)) return;
+            any = true;
+            const tr = el("tr");
+            tr.className = "rowbtn";
+            td(tr, run.run_id); td(tr, trace.trace_id); td(tr, s.tool || s.name);
+            td(tr, s.receipt_hash || "no receipt");
+            const v1 = el("td"); vChip(v1, s.verification.status); tr.appendChild(v1);
+            const v2 = el("td"); cChip(v2, s.correlation.state); tr.appendChild(v2);
+            tr.tabIndex = 0;
+            const open = () => { location.hash = "run/" + run.run_id; };
+            tr.onclick = open;
+            tr.onkeydown = ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); open(); } };
+            t.appendChild(tr);
+          });
+        });
+      });
+      parent.replaceChildren();
+      parent.appendChild(el("h2", null, "Privileged spans" + (selectedBucket ? " — filtered" : "")));
+      filtersBar(parent);
+      if (!any) {
+        parent.appendChild(emptyState("Nothing here — no privileged spans match the current filters or counter selection."));
+      } else {
+        parent.appendChild(t);
+      }
+    });
+}
+
+function filtersBar(parent) {
+  const bar = el("div", "filters");
+  const search = el("input");
+  search.type = "search";
+  search.placeholder = "Search run / trace / receipt ids…";
+  search.value = textFilter;
+  search.setAttribute("aria-label", "Search identifiers");
+  search.oninput = () => { textFilter = search.value.trim().toLowerCase(); };
+  search.onkeydown = ev => { if (ev.key === "Enter") showOverview(); };
+  bar.appendChild(search);
+  const allStates = new Set([...Object.keys(VERIF_CLASS), ...Object.keys(CORR_CLASS)]);
+  allStates.forEach(st => {
+    const b = el("button", "chipbtn", st);
+    b.setAttribute("aria-pressed", String(stateFilter.has(st)));
+    b.onclick = () => {
+      if (stateFilter.has(st)) stateFilter.delete(st); else stateFilter.add(st);
+      showOverview();
+    };
+    bar.appendChild(b);
+  });
+  bar.appendChild(el("span", "hint", "state chips: click to filter"));
+  if (stateFilter.size || textFilter) {
+    const clear = el("button", "chipbtn", "clear filters");
+    clear.onclick = () => { stateFilter.clear(); textFilter = ""; showOverview(); };
+    bar.appendChild(clear);
+  }
+  parent.appendChild(bar);
+}
+
+// --------------------------------------------------------------- runs view
+let runCache = null; // last loaded run detail (guidance side docking)
+function showRuns() {
+  selectTab(false);
+  app.replaceChildren();
+  app.appendChild(el("h2", null, "Runs"));
+  const wrap = el("div");
+  const bar = el("div", "filters");
+  const search = el("input");
+  search.type = "search";
+  search.placeholder = "Search run / trace / receipt ids…";
+  search.setAttribute("aria-label", "Search identifiers");
+  bar.appendChild(search);
+  wrap.appendChild(bar);
+  app.appendChild(wrap);
+  api("/api/runs").then(runs => {
+    runsIndex = runs;
+    const draw = () => {
+      const t = el("table");
+      const hr = el("tr");
+      ["run", "agent", "release", "spans", "verification", "correlation"].forEach(h => hr.appendChild(el("th", null, h)));
+      t.appendChild(hr);
+      const q = search.value.trim().toLowerCase();
+      let any = false;
+      runs.forEach(r => {
+        if (q && !(r.run_id + " " + r.agent + " " + r.release).toLowerCase().includes(q)) return;
+        any = true;
+        const tr = el("tr");
+        tr.className = "rowbtn";
+        td(tr, r.run_id); td(tr, r.agent); td(tr, r.release);
+        td(tr, r.span_count + " (" + r.privileged_span_count + " privileged)");
+        td(tr, Object.entries(r.verification_summary).map(([k, v]) => k + ":" + v).join(", ") || "(none)");
+        td(tr, Object.entries(r.correlation_summary).map(([k, v]) => k + ":" + v).join(", ") || "(none)");
+        const open = () => { location.hash = "run/" + r.run_id; };
+        tr.onclick = open;
+        tr.tabIndex = 0;
+        tr.onkeydown = ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); open(); } };
+        t.appendChild(tr);
+      });
+      t.id = "runs-table";
+      const existing = document.getElementById("runs-table");
+      if (existing) existing.replaceWith(t);
+      else wrap.appendChild(t);
+      if (!any) {
+        const oldEmpty = document.getElementById("runs-empty");
+        if (oldEmpty) oldEmpty.remove();
+        const e = emptyState("Nothing here — no runs match the search.");
+        e.id = "runs-empty";
+        wrap.appendChild(e);
+      } else {
+        const oldEmpty = document.getElementById("runs-empty");
+        if (oldEmpty) oldEmpty.remove();
+      }
+    };
+    search.oninput = draw;
+    draw();
   });
 }
 
 function showRun(runId) {
+  selectTab(false);
+  app.replaceChildren();
+  const crumbs = el("div");
+  const back = el("button", "chipbtn", "← all runs");
+  back.onclick = () => { location.hash = "runs"; };
+  crumbs.appendChild(back);
+  app.appendChild(crumbs);
+  const head = el("div");
+  app.appendChild(head);
+  const grid = el("div", "cols");
+  const timelineCol = el("div");
+  const side = el("div", "side");
+  grid.appendChild(timelineCol);
+  grid.appendChild(side);
+  app.appendChild(grid);
+
   api("/api/runs/" + encodeURIComponent(runId)).then(run => {
-    app.replaceChildren();
-    app.appendChild(crumb("runs", showRuns));
-    app.append(el("h2", null, run.run_id + " — " + run.agent + " @ " + run.release));
-    const ft = table(["rule", "severity", "confidence", "subject", "suppressed", "suppression_reason"]);
-    (run.findings || []).forEach(f => {
-      const tr = el("tr");
-      td(tr, f.rule_id); td(tr, f.severity); td(tr, f.confidence); td(tr, f.subject || "");
-      const se = td(tr, f.suppressed ? "yes" : "no"); se.className = f.suppressed ? "badge badge-unknown" : "";
-      td(tr, f.suppression_reason || "");
-      ft.appendChild(tr);
-    });
-    app.appendChild(el("h3", null, "Findings (suppressed retained)"));
-    if ((run.findings || []).length) app.appendChild(ft);
-    else app.appendChild(el("p", null, "no findings for this run"));
-    run.traces.forEach(trace => {
-      app.appendChild(el("h3", null, "trace " + trace.trace_id));
-      const head = el("div", "row");
-      head.appendChild(el("span", null, "label: " + trace.label + "  correlation: "));
-      badge(head, null, trace.correlation ? trace.correlation.state : "pending", UNCERTAIN_CORR);
-      app.appendChild(head);
-      const t = table(["span", "tool", "privileged", "receipt_hash (evidence)", "verification", "correlation", "attrs"]);
-      trace.spans.forEach(span => {
-        const tr = el("tr"); t.appendChild(tr);
-        td(tr, span.name); td(tr, span.tool || ""); td(tr, span.privileged ? "yes" : "no");
-        if (span.receipt_hash) {
-          const h = td(tr, span.receipt_hash);
-          h.style.color = "#04478c"; h.style.cursor = "pointer";
-          h.onclick = () => { location.hash = "receipt/" + span.receipt_hash; };
+    if (run && run.error) {
+      timelineCol.appendChild(emptyState("Nothing here — unknown run id."));
+      return;
+    }
+    head.replaceChildren();
+    head.appendChild(el("h2", null, run.run_id + " — " + run.agent + " @ " + run.release));
+    // findings triage list, honouring the suppressed toggle
+    const fl = el("div");
+    renderRunFindings(fl, run.findings || [], suppressionsShown);
+    head.appendChild(fl);
+    timelineCol.appendChild(el("h2", null, "Trace timeline"));
+
+    const tracePicker = el("div", "filters");
+    let current = 0;
+    const traces = run.traces;
+    const drawTimeline = () => {
+      timelineCol.querySelectorAll(".timeline, .panel.tl-panel").forEach(n => n.remove());
+      const trace = traces[current];
+      const tp = el("div", "panel tl-panel");
+      tp.appendChild(el("h2", null, "trace " + trace.trace_id + " — " + trace.label));
+      const w = el("p", null, "window: " + trace.window_start + " → " + trace.window_end);
+      tp.appendChild(w);
+      const cs = el("p");
+      cs.appendChild(el("span", null, "trace correlation: "));
+      cChip(cs, trace.correlation ? trace.correlation.state : "pending");
+      cs.appendChild(el("span", "hint", "  (click a span for evidence + guidance)"));
+      tp.appendChild(cs);
+      const tl = el("ul", "timeline");
+      // order spans by start time where present
+      const spans = trace.spans.slice().sort((a, b) => String(a.started).localeCompare(String(b.started)));
+      let selected = null;
+      spans.forEach(span => {
+        const tone = span.privileged
+          ? spanTone(span.verification.status, span.correlation.state)
+          : "exempt";
+        const li = el("li", "tl tl-" + tone);
+        const btn = el("button", "sel");
+        btn.appendChild(el("strong", null, span.name));
+        if (span.tool) btn.appendChild(el("span", null, "  ·  tool: " + span.tool));
+        btn.appendChild(document.createTextNode("  " + (span.privileged ? "privileged" : "regular")));
+        const chips = el("span");
+        if (span.privileged) {
+          vChip(chips, span.verification.status);
+          cChip(chips, span.correlation.state);
+          chips.appendChild(el("span", "hint", " " + (span.receipt_hash || "no receipt")));
         } else {
-          td(tr, "no receipt observed (explicit gap)", "badge badge-unknown");
+          chips.appendChild(el("span", "hint", " outside gate scope"));
         }
-        const vc = el("td");
-        badge(vc, null, span.verification.status, UNCERTAIN_VERIFY);
-        vc.title = span.verification.detail || "";
-        tr.appendChild(vc);
-        const cc = el("td");
-        badge(cc, null, span.correlation.state, UNCERTAIN_CORR);
-        cc.title = span.correlation.notes || "";
-        tr.appendChild(cc);
-        const at = el("td");
-        Object.entries(span.attrs || {}).forEach(([k, v]) => {
-          at.append(el("div", null, k + " = " + v)); // textContent — escaped, unlinked
-        });
-        tr.appendChild(at);
+        btn.appendChild(chips);
+        btn.setAttribute("aria-pressed", "false");
+        const showDetail = () => {
+          tl.querySelectorAll("button.sel").forEach(b => b.setAttribute("aria-pressed", "false"));
+          btn.setAttribute("aria-pressed", "true");
+          const combo = el("div");
+          combo.appendChild(el("p", "hint", "— verification —"));
+          combo.appendChild(guidancePanel("verif", span.verification.status));
+          combo.appendChild(el("p", "hint", "— correlation —"));
+          combo.appendChild(guidancePanel("corr", span.correlation.state));
+          side.replaceChildren();          // clear, then evidence + guidance
+          renderEvidence(side, span);
+          side.appendChild(combo);
+        };
+        btn.onclick = showDetail;
+        li.appendChild(btn);
+        tl.appendChild(li);
       });
-      app.appendChild(t);
+      tp.appendChild(tl);
+      timelineCol.appendChild(tp);
+      // auto-select the first red, else first amber, else first privileged span
+      const cand = spans.find(s => s.privileged && spanTone(s.verification.status, s.correlation.state) === "act")
+        || spans.find(s => s.privileged && spanTone(s.verification.status, s.correlation.state) === "look")
+        || spans.find(s => s.privileged);
+      if (cand) {
+        const btns = tl.querySelectorAll("button.sel");
+        const idx = spans.indexOf(cand);
+        if (btns[idx]) btns[idx].click();
+      }
+    };
+    traces.forEach((t, i) => {
+      const tb = el("button", "chipbtn", t.trace_id + " — " + t.label);
+      tb.onclick = () => { current = i; drawTimeline(); };
+      tracePicker.appendChild(tb);
     });
+    timelineCol.appendChild(tracePicker);
+    drawTimeline();
+  }).catch(() => {
+    timelineCol.appendChild(emptyState("Nothing here — could not load the run."));
   });
 }
 
-function showReceipt(hash) {
-  api("/api/receipts/" + encodeURIComponent(hash)).then(meta => {
-    app.replaceChildren();
-    app.appendChild(crumb("runs", showRuns));
-    app.append(el("h2", null, "Evidence"));
-    const t = table(["field", "value"]);
-    [["receipt_hash", meta.receipt_hash], ["schema_version", meta.schema_version],
-     ["gate decision", meta.decision], ["policy_ref", meta.policy_ref],
-     ["tool", meta.tool], ["trace_id", meta.trace_id], ["event_time", meta.event_time]]
-      .forEach(([k, v]) => { const tr = el("tr"); td(tr, k); td(tr, v); t.appendChild(tr); });
-    app.appendChild(t);
-    const vrow = table(["verification at ingest", "detail"]);
-    const vr = el("tr");
-    const st = el("td"); badge(st, null, meta.verification.status, UNCERTAIN_VERIFY); vr.appendChild(st);
-    td(vr, meta.verification.detail || ""); vrow.appendChild(vr);
-    app.appendChild(vrow);
-    const btn = el("button", null, "Verify offline");
-    const out = el("pre");
-    btn.onclick = () => {
-      out.textContent = "running offline classify (raucle ProvenanceVerifier over canonical bytes)...";
-      api("/api/receipts/" + encodeURIComponent(hash) + "/verify", { method: "POST" }).then(r => {
-        out.textContent = JSON.stringify(r, null, 2); // textContent — escaped by construction
-      });
-    };
-    app.appendChild(btn); app.appendChild(out);
-    if (meta.jws_available) {
-      const a = el("a", null, "JWS available for download (value never rendered)");
-      a.href = "/api/receipts/" + encodeURIComponent(hash) + "/jws";
-      a.setAttribute("download", hash + ".jws");
-      app.appendChild(a);
+function renderRunFindings(parent, findings, showSuppressed, side) {
+  parent.replaceChildren();
+  parent.appendChild(el("h2", null, "Findings triage"));
+  const sevOrder = {critical:0, high:1, medium:2, low:3};
+  const ordered = (findings || []).slice().sort((a, b) =>
+    (sevOrder[a.severity] ?? 9) - (sevOrder[b.severity] ?? 9)
+    || (a.suppressed === b.suppressed ? 0 : a.suppressed ? 1 : -1));
+  const visible = ordered.filter(f => showSuppressed || !f.suppressed);
+  const lbl = el("label");
+  const cb = el("input");
+  cb.type = "checkbox";
+  cb.checked = showSuppressed;
+  cb.onchange = () => { suppressionsShown = cb.checked; };
+  cb.addEventListener("change", () => { route(); });
+  lbl.appendChild(cb);
+  lbl.appendChild(document.createTextNode(" Show suppressed findings (hidden by default)"));
+  parent.appendChild(lbl);
+  if (!visible.length) {
+    parent.appendChild(emptyState(ordered.length
+      ? "Nothing here — every finding is suppressed; toggle suppressed findings to see them."
+      : "Nothing here — no findings for this run."));
+    return;
+  }
+  const t = el("table");
+  const hr = el("tr");
+  ["rule", "severity", "confidence", "subject", "state", "explanation"].forEach(h => hr.appendChild(el("th", null, h)));
+  t.appendChild(hr);
+  visible.forEach(f => {
+    const tr = el("tr");
+    td(tr, f.rule_id); td(tr, f.severity); td(tr, f.confidence); td(tr, f.subject || "");
+    const st = el("td");
+    chip(st, f.suppressed ? "suppressed" : "active", f.suppressed ? "exempt" : "act");
+    tr.appendChild(st);
+    td(tr, f.explanation || "");
+    t.appendChild(tr);
+  });
+  parent.appendChild(t);
+}
+
+function renderEvidence(side, span) {
+  const p = el("section", "panel");
+  p.setAttribute("aria-label", "Evidence");
+  p.appendChild(el("h2", null, "Evidence — " + (span.receipt_hash || "no receipt")));
+  const fetchMeta = span.receipt_hash
+    ? api("/api/receipts/" + encodeURIComponent(span.receipt_hash)).catch(() => null)
+    : Promise.resolve(null);
+  fetchMeta.then(meta => {
+    const kvs = el("div", "kvs");
+    const rows = meta
+      ? [["receipt_hash", meta.receipt_hash], ["schema_version", meta.schema_version],
+         ["gate decision", meta.decision], ["policy_ref", meta.policy_ref],
+         ["tool", meta.tool], ["trace_id", meta.trace_id], ["event_time", meta.event_time]]
+      : [["receipt_hash", span.receipt_hash || "— none observed —"]];
+    rows.forEach(([k, v]) => {
+      const line = el("div");
+      line.appendChild(el("span", "kv-k", k + ":"));
+      line.appendChild(el("span", null, v === null || v === undefined || v === "" ? "(none)" : String(v)));
+      kvs.appendChild(line);
+    });
+    p.appendChild(kvs);
+    p.appendChild(el("p", null, meta && meta.verification ? meta.verification.detail : span.verification.detail || ""));
+    // span attributes (hostile content: textContent only, never linked)
+    const attrKvs = el("div", "kvs");
+    let attrCount = 0;
+    Object.entries(span.attrs || {}).forEach(([k, v]) => {
+      attrCount += 1;
+      const line = el("div");
+      line.appendChild(el("span", "kv-k", k + ":"));
+      line.appendChild(el("span", null, String(v))); // escaped by construction
+      attrKvs.appendChild(line);
+    });
+    if (attrCount) {
+      p.appendChild(el("h2", null, "Span attributes"));
+      p.appendChild(attrKvs);
     }
+
+    const btn = el("button", "chipbtn", "Verify offline");
+    const out = el("pre");
+    out.textContent = "(offline verification over canonical bytes — press the button)";
+    btn.onclick = () => {
+      out.textContent = "running offline classify (raucle ProvenanceVerifier)…";
+      api("/api/receipts/" + encodeURIComponent(span.receipt_hash) + "/verify", {method: "POST"})
+        .then(r => { out.textContent = JSON.stringify(r, null, 2); })
+        .catch(e => { out.textContent = "offline verify failed: " + e; });
+    };
+    p.appendChild(btn);
+    p.appendChild(out);
+    if (meta && meta.jws_available) {
+      const a = el("a", null, "JWS available for download (value never rendered)");
+      a.href = "/api/receipts/" + encodeURIComponent(span.receipt_hash) + "/jws";
+      a.setAttribute("download", span.receipt_hash + ".jws");
+      p.appendChild(a);
+    } else {
+      p.appendChild(el("p", "hint", "No canonical envelope in the evidence store: verification is not applicable and the JWS does not exist (index row only)."));
+    }
+    side.appendChild(p);
   });
 }
+
+// ---------------------------------------------------------------- routing
+function selectTab(overview) {
+  tabOverview.setAttribute("aria-selected", String(overview));
+  tabRuns.setAttribute("aria-selected", String(!overview));
+}
+tabOverview.onclick = () => { location.hash = "overview"; };
+tabRuns.onclick = () => { location.hash = "runs"; };
 
 function route() {
   const h = decodeURIComponent(location.hash.replace(/^#/, ""));
-  if (h.startsWith("receipt/")) showReceipt(h.slice(8));
-  else if (h.startsWith("run/")) showRun(h.slice(4));
-  else showRuns();
+  if (h.startsWith("run/")) showRun(h.slice(4));
+  else if (h.startsWith("runs")) showRuns();
+  else showOverview();
 }
 window.addEventListener("hashchange", route);
+// keyboard: 1 = overview, 2 = runs
+document.addEventListener("keydown", ev => {
+  if (ev.target.tagName === "INPUT" || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  if (ev.key === "1") location.hash = "overview";
+  if (ev.key === "2") location.hash = "runs";
+});
 route();
 </script>
 </body>

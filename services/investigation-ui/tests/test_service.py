@@ -220,3 +220,76 @@ def test_evidence_store_unmutated(client: TestClient):
     client.post(f"/api/receipts/{ALLOW_HASH}/verify")
     assert (DATA_DIR / "evidence_store.jsonl").read_bytes() == before
     assert (DATA_DIR / "synthetic_receipt_index.jsonl").is_file()
+
+
+# -------------------------------------------------------------- UI-02 (SPA v2)
+INDEX_HTML = UI / "static" / "index.html"
+VERIFICATION_STATES_UI = {
+    "valid", "invalid", "unknown_key", "unsupported_schema",
+    "pending", "unavailable", "not_applicable",
+}
+CORRELATION_STATES_UI = {
+    "matched", "matched_degraded", "ambiguous", "duplicate",
+    "late_arrival", "receipt_missing", "trace_missing", "pending",
+}
+RULE_IDS_UI = {f"SEC-{i:03d}" for i in range(1, 12)}
+
+
+def test_index_served_at_root_and_legacy_reachable(client: TestClient):
+    html = client.get("/").text
+    assert "UI-02" in html or "investigation" in html
+    legacy = client.get("/legacy.html")
+    assert legacy.status_code == 200
+    assert "UI-01" in legacy.text
+
+
+def test_index_no_innerHTML_no_external_fetch(client: TestClient):
+    html = INDEX_HTML.read_text()
+    # no unsafe sink anywhere in code (mention in a T5 comment is stripped)
+    code_only = "\n".join(line.split("//")[0] for line in html.splitlines())
+    assert not __import__("re").search(r"\.innerHTML|\bdocument\.write\b", code_only)
+    for scheme in ("http://", "https://", "src=", "import(", "eval("):
+        assert scheme not in html.replace('xmlns=', "").replace('href="/', "")
+
+
+def test_index_legend_present(client: TestClient):
+    html = INDEX_HTML.read_text()
+    legend = client.get("/").text if False else html
+    for token in ("legend", "tok-good", "tok-look", "tok-act", "tok-exempt",
+                  "proven good", "un-proven", "action needed", "structurally exempt"):
+        assert token in legend, token
+
+
+def test_index_guidance_map_covers_all_states_and_rules():
+    html = INDEX_HTML.read_text()
+    import re as _re  # noqa: PLC0415
+    for state in VERIFICATION_STATES_UI | CORRELATION_STATES_UI:
+        # key may appear bare (JS object shorthand) or quoted — both are the
+        # GUIDANCE map key when followed by "what:" guidance content
+        pattern = _re.compile(r'["\']?' + _re.escape(state) + r'["\']?\s*:')
+        assert pattern.search(html), state
+    for rule in RULE_IDS_UI:
+        assert '"' + rule + '":' in html or '"' + rule + '"' in html, rule
+    # every guidance entry carries the four required headings
+    for heading in ("What you are looking at", "What this means",
+                    "Could be fine because", "Suggested actions"):
+        assert heading in html
+
+
+def test_dashboard_endpoint(client: TestClient):
+    d = client.get("/api/dashboard").json()
+    for key in ("healthy", "at_risk", "needs_investigation",
+                "verification_distribution", "correlation_distribution",
+                "findings", "runs"):
+        assert key in d, key
+    # counters cover privileged spans; needs_investigation also folds in
+    # active findings (one active fixture finding)
+    assert sum(d["verification_distribution"].values()) == sum(
+        d["correlation_distribution"].values())
+    assert d["needs_investigation"] - d["findings"]["active"] + d["healthy"] + d["at_risk"] == sum(
+        d["verification_distribution"].values())
+    # traffic-light logic: receipt_missing / invalid land under needs
+    corr = d["correlation_distribution"]
+    verif = d["verification_distribution"]
+    assert d["needs_investigation"] >= corr.get("receipt_missing", 0) + verif.get("invalid", 0)
+    assert d["findings"]["suppressed"] >= 1  # SEC-001 suppressed fixture retained

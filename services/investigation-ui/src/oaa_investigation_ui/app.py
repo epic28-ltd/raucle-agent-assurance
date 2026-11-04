@@ -138,6 +138,50 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
             "findings": _run_findings(run),
         }
 
+    @app.get("/api/dashboard")
+    def api_dashboard() -> dict:
+        """UI-02 health-at-a-glance aggregate: three traffic-light counters
+        plus verification / correlation state distributions. Simple counts
+        over the privileged-span index plane; no re-verification happens."""
+        verif_dist: dict[str, int] = {}
+        corr_dist: dict[str, int] = {}
+        healthy = at_risk = needs = 0
+        for run in data.runs:
+            for trace in run["traces"]:
+                for span in trace["spans"]:
+                    if not span.get("privileged"):
+                        continue
+                    v = data.verification_for(span.get("receipt_hash"))
+                    c = data.correlation_for_span(span, trace["trace_id"])
+                    status, state = v["status"], c["state"]
+                    verif_dist[status] = verif_dist.get(status, 0) + 1
+                    corr_dist[state] = corr_dist.get(state, 0) + 1
+                    if (
+                        status in ("invalid", "unsupported_schema")
+                        or state == "receipt_missing"
+                    ):
+                        needs += 1
+                    elif (status == "valid" and state == "matched") or status == (
+                        "not_applicable"
+                    ):
+                        healthy += 1
+                    else:
+                        # unknown_key / pending / unavailable / ambiguous /
+                        # duplicate / late_arrival / matched_degraded /
+                        # trace_missing / pending correlation — all un-proven.
+                        at_risk += 1
+        active = [f for f in data.findings if not f["suppressed"]]
+        suppressed = len(data.findings) - len(active)
+        return {
+            "healthy": healthy,
+            "at_risk": at_risk,
+            "needs_investigation": needs + len(active),
+            "verification_distribution": dict(sorted(verif_dist.items())),
+            "correlation_distribution": dict(sorted(corr_dist.items())),
+            "findings": {"active": len(active), "suppressed": suppressed},
+            "runs": len(data.runs),
+        }
+
     @app.get("/api/findings")
     def api_findings():
         return data.findings
@@ -376,7 +420,11 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
 
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:
-        return FileResponse(_static_dir / "index.html")
+        return FileResponse(_static_dir / "index.html")  # UI-02 SPA
+
+    @app.get("/legacy.html", include_in_schema=False)
+    def legacy() -> FileResponse:
+        return FileResponse(_static_dir / "legacy.html")  # UI-01 SPA, kept reachable
 
     return app
 
