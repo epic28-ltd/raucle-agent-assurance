@@ -1,6 +1,6 @@
 # ADR 0001: Trust model and evidence plane
 
-Status: Draft (pending review)
+Status: Draft (review pending; decision recorded 4 Nov 2026: fail-visible audit-persistence failure — index records an unavailable state and raises SEC-007; nothing silently degrades)
 Date: 2026-11-04
 Deciders: EPIC28 / Open Agent Assurance companion team
 
@@ -36,6 +36,8 @@ Without a decision on trust-root versioning, every key rotation degrades archive
 5. **Correlation authenticity.** The trace-side `trace_id` is treated as an authenticated correlation hint, not authentication: producers authenticate to the ingest API and the organisation identity is derived server-side. The signed `x_gate.trace_id` is authoritative where present; a trace claiming a receipt it does not resolve to yields `ambiguous` or `trace_missing`, never auto-verified.
 
 ## Consequences
+
+- DECIDED 4 Nov 2026: evidence-sink / audit-persistence failure is FAIL VISIBLE by default: the index marks affected ranges `unavailable` and the SEC-007 assurance-degradation rule fires. Ingest continues to accept producer traffic (bounded local buffer) but no verification result is ever emitted without the corresponding evidence check. Fail-closed halt is a per-deployment override, not the default.
 
 - Rotation is a non-event for historic evidence: archived keys keep `valid` receipts verifiable indefinitely, and the workstream C+D gap is closed by design rather than by upstream change.
 - Verifier builds are pinned; upgrading the verifier triggers a re-verification sweep recorded with the new `verifier_version`.
