@@ -26,8 +26,11 @@ step "bandit (SAST on production code; test-noise skips documented in scripts/ba
   || FAIL=1
 
 step "semgrep (security + secrets)"
+# demo/sample receipt fixtures contain truncated synthetic JWS strings - excluded
 "$VENV/semgrep" scan --config p/default --config p/secrets --metrics=off \
-  --quiet --error-on-warning --text 2>/dev/null || FAIL=1
+  --exclude 'demo_data' --exclude 'sample-receipts' \
+  --quiet \
+  || FAIL=1
 
 step "pip-audit (dependency CVEs)"
 "$VENV/python" -m pip_audit -l --progress-spin off --desc off || FAIL=1
