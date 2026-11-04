@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: Apache-2.0
+# QUAL-01 rubric v1 — the reference rubric for the advisory quality evaluator.
+#
+# Scope: multi_step and benign scenario classes only (EVAL-01 classes). Other
+# classes (prompt_injection, sensitive_data, out_of_scope, infra_failure) need
+# rubric work before anything may score them — the allow-list makes that
+# explicit, not incidental.
+#
+# Criteria are weighted, sum(weights) == 1.0, enforced at load time.
+rubric_id: qual
+rubric_version: "1"
+
+criteria:
+  - id: completeness
+    weight: 0.40
+    description: >-
+      Every workflow unit in the evaluated case carries a non-empty
+      description and at least one observed step.
+  - id: evidence_support
+    weight: 0.35
+    description: >-
+      Observed steps declare corroborating evidence (tool audit receipt or
+      equivalent) so a reviewer can re-check the score.
+  - id: scope_compliance
+    weight: 0.25
+    description: >-
+      Observed steps stay inside the tool scope declared with the evaluated
+      case; steps outside the declared scope lower the score.
+
+applicable_to:
+  scenario_classes:
+    - multi_step
+    - benign
+
+uncertainty:
+  min_sample_size: 2   # below 2 scored workflows a medium band is never claimed
+  abstain_rule: abstain_score_if_sample_below_min

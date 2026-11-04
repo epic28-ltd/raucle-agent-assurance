@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: Apache-2.0
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oaa-quality"
+version = "0.0.1.dev0"
+description = "Open Agent Assurance — QUAL-01 optional quality scoring (advisory-only, deterministic reference evaluator)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE.txt"]
+authors = [{ name = "Open Agent Assurance contributors" }]
+dependencies = []  # rubric files are YAML, but only loaded by tests/demo via PyYAML; the package itself is stdlib-only
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/oaa_quality"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "SIM", "RUF", "PLC"]

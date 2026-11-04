@@ -1,0 +1,66 @@
+{
+  "abstained": {
+    "abstained": true,
+    "advisory": true,
+    "applicability": "abstained:scenario_class 'sensitive_data' not in rubric qual applicability ['benign', 'multi_step']",
+    "criteria": [],
+    "evaluated_at": "2026-11-04T13:30:00+00:00",
+    "evaluated_ref": "eval-case:SENSITIVE-096",
+    "reviewer_status": "unreviewed",
+    "rubric_id": "qual",
+    "rubric_version": "1",
+    "score": null,
+    "uncertainty": "high"
+  },
+  "rubric": {
+    "rubric_id": "qual",
+    "rubric_version": "1"
+  },
+  "scored": {
+    "abstained": false,
+    "advisory": true,
+    "applicability": "applied",
+    "criteria": [
+      {
+        "id": "completeness",
+        "reason": "2/2 workflows are fully described (description + >=1 step)",
+        "score": 100
+      },
+      {
+        "id": "evidence_support",
+        "reason": "21/21 steps declare evidence (audit/receipt)",
+        "score": 100
+      },
+      {
+        "id": "scope_compliance",
+        "reason": "21/21 steps inside declared scope ['shell']",
+        "score": 100
+      }
+    ],
+    "evaluated_at": "2026-11-04T13:30:00+00:00",
+    "evaluated_ref": "eval-case:MULTI-086",
+    "reviewer_status": "unreviewed",
+    "rubric_id": "qual",
+    "rubric_version": "1",
+    "score": 100,
+    "uncertainty": "medium"
+  },
+  "span_attributes": {
+    "oaa.quality.abstained": false,
+    "oaa.quality.advisory": true,
+    "oaa.quality.applicability": "applied",
+    "oaa.quality.criterion.completeness": 100,
+    "oaa.quality.criterion.completeness.reason": "2/2 workflows are fully described (description + >=1 step)",
+    "oaa.quality.criterion.evidence_support": 100,
+    "oaa.quality.criterion.evidence_support.reason": "21/21 steps declare evidence (audit/receipt)",
+    "oaa.quality.criterion.scope_compliance": 100,
+    "oaa.quality.criterion.scope_compliance.reason": "21/21 steps inside declared scope ['shell']",
+    "oaa.quality.evaluated_at": "2026-11-04T13:30:00+00:00",
+    "oaa.quality.evaluated_ref": "eval-case:MULTI-086",
+    "oaa.quality.reviewer_status": "unreviewed",
+    "oaa.quality.rubric_id": "qual",
+    "oaa.quality.rubric_version": "1",
+    "oaa.quality.score": 100,
+    "oaa.quality.uncertainty": "medium"
+  }
+}
