@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raucle/agent-assurance/schemas/rules-config-v1.json",
+  "title": "OAA RULE-01 security rules config (v1)",
+  "description": "Versioned thresholds, privileged-tool registry, release baselines, SEC-008 patterns and documented suppressions for the deterministic rules engine (services/rules).",
+  "type": "object",
+  "required": ["version", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "privileged_tools": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "registry": { "type": "array", "items": { "type": "string" } },
+            "grace_seconds": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "verification_failure_states": {
+          "type": "array",
+          "items": {
+            "enum": ["invalid", "unsupported_schema", "unknown_key", "expired", "revoked"]
+          },
+          "description": "ADR-0001 verification states treated as definitive failure. unknown_key is a coverage gap, not a failure; include it only with an explicit owner decision."
+        },
+        "deny_rate": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+            "window_seconds": { "type": "number", "exclusiveMinimum": 0 },
+            "min_samples": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "tool_cycle": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_calls": { "type": "integer", "minimum": 1 },
+            "window_seconds": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "tool_baseline": {
+          "type": "object",
+          "description": "release_id -> privileged tools acknowledged for that release (SEC-006).",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "backlog": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "unavailable_ratio_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+            "min_events": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "patterns": {
+          "type": "object",
+          "description": "name -> regex over telemetry index content (SEC-008). Matched content itself is never reported.",
+          "additionalProperties": { "type": "string" }
+        },
+        "custody_covered_tools": {
+          "type": "array",
+          "description": "ADR-0004 custody coverage map: tools whose credentials live under lease custody (SEC-010 scope).",
+          "items": { "type": "string" }
+        },
+        "suppressions": {
+          "type": "array",
+          "description": "Documented suppressions; findings are RETAINED with suppression_reason, never dropped.",
+          "items": {
+            "type": "object",
+            "required": ["rule_id", "reason"],
+            "additionalProperties": false,
+            "properties": {
+              "rule_id": { "pattern": "^SEC-(00[1-9]|01[01])$" },
+              "reason": { "type": "string", "minLength": 8 },
+              "agent_id": { "type": "string" },
+              "tool": { "type": "string" },
+              "trace_id": { "type": "string" },
+              "subject": { "type": "string" },
+              "credential_id": { "type": "string" },
+              "release_id": { "type": "string" },
+              "application": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

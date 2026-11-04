@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: Apache-2.0
+# Raucle Agent Assurance — RULE-01 security rules config, schema v1.
+# See schemas/rules-config.schema.json. All thresholds, the privileged-tool
+# registry, release baselines and suppressions are versioned here: changing
+# any of them is a versioned config change, never a code change.
+version: 1
+
+rules:
+  # Default privileged-tool registry (SEC-001, SEC-006, SEC-009).
+  privileged_tools:
+    registry:
+      - shell
+      - file_write
+      - http_fetch
+    # grace before a missing receipt is treated as missing (aligned with
+    # ADR-0002 DEFAULT_GRACE_SECONDS; must be >= deployment correlation grace)
+    grace_seconds: 30.0
+
+  # SEC-002: which ADR-0001 verification states count as definitive failure.
+  verification_failure_states:
+    - invalid
+    - unsupported_schema
+    # unknown_key stays a coverage gap (ADR-0001), not a failure state.
+
+  # SEC-003: per-application / per-workflow denial rate, windowed.
+  deny_rate:
+    threshold: 0.5        # fraction of gated tool calls denied in a window
+    window_seconds: 3600.0
+    min_samples: 5        # windows with fewer calls are never evaluated
+
+  # SEC-005: repeated tool-call cycle bound, per (agent, tool).
+  tool_cycle:
+    max_calls: 20
+    window_seconds: 3600.0
+
+  # SEC-006: acknowledged privileged-tool baseline per agent release.
+  # Adding a tool here IS the SEC-006 baseline-change acknowledgement.
+  tool_baseline:
+    release-2026.11:
+      - shell
+      - file_write
+
+  # SEC-007: ingest/verifier backlog (fail-visible, ADR-0001). The ratio is
+  # over ingest+verification index records present in the evaluation window.
+  backlog:
+    unavailable_ratio_threshold: 0.25
+    min_events: 5
+
+  # SEC-008: named patterns; findings report NAMES + record refs only —
+  # the matched content itself is never carried in any finding field.
+  patterns:
+    aws_access_key: 'AKIA[0-9A-Z]{16}'
+    bearer_token: '(?i)bearer\s+[A-Za-z0-9._\-]{24,}'
+    private_key_block: '-----BEGIN [A-Z ]*PRIVATE KEY-----'
+    password_assignment: '(?i)(password|passwd|secret)\s*[:=]\s*\S'
+
+  # SEC-010: ADR-0004 custody coverage map — tools whose credentials live
+  # under raucle lease custody. SEC-010 evaluates ONLY these tools.
+  custody_covered_tools:
+    - shell
+
+  # Suppression examples. A suppression RETAINS the finding (documented and
+  # visible) and stamps suppression_reason; it does not drop it. Each entry
+  # must carry a reason; match narrowly — every named field must equal.
+  suppressions:
+    # Example: known maintenance agent whose receipts arrive in batches, so
+    # correlation reports receipt_missing during the ingestion delay window.
+    - rule_id: SEC-001
+      agent_id: agent-maintenance-batch
+      tool: http_fetch
+      reason: "documented ingestion-batch delay for agent-maintenance-batch (CR-2026-11-1); retention required by suppression policy"
+    # Example: synthetic noise generator used in the staging environment.
+    - rule_id: SEC-005
+      subject: agent-loadgen/shell
+      reason: "load-generator soak test, ticket OPS-2026-11-4; suppressed but retained for audit"
