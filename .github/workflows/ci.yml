@@ -30,6 +30,21 @@ jobs:
         env:
           PYTHONPATH: packages/raucle-adapter/src
 
+      # EVAL-01: synthetic regression corpus — reproducible offline replay
+      # (100 cases, versioned, seeded generator; results written and diffed
+      # against nothing external: fully deterministic).
+      - name: synthetic regression corpus (EVAL-01)
+        run: |
+          python tests/eval/run_corpus.py --write-results tests/eval/results.json
+          git diff --exit-code -- tests/eval/corpus/corpus.json || {
+            echo "::error::corpus.json not byte-identical to the generator output"
+            python tests/eval/generate_corpus.py
+            git diff | cat
+            exit 1
+          }
+        env:
+          PYTHONPATH: packages/raucle-adapter/src
+
 # NOTE: this workflow file exists locally only during the LOCAL-ONLY phase —
 # the repository deliberately has no remote and nothing is pushed/enabled.
 # See docs/spikes/ and REPO-INIT findings for the pending hosting decision.

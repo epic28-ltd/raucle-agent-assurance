@@ -1,0 +1,1168 @@
+{
+  "config_version": "1",
+  "corpus_version": "eval-01-v1",
+  "failed": 0,
+  "harness": "eval-01-offline-v1",
+  "passed": 100,
+  "per_class": {
+    "benign": 40,
+    "infra_failure": 10,
+    "multi_step": 10,
+    "out_of_scope": 20,
+    "prompt_injection": 15,
+    "sensitive_data": 5
+  },
+  "per_rule": {
+    "SEC-001": 4,
+    "SEC-002": 2,
+    "SEC-003": 3,
+    "SEC-004": 3,
+    "SEC-005": 4,
+    "SEC-006": 2,
+    "SEC-007": 2,
+    "SEC-008": 5,
+    "SEC-009": 2,
+    "SEC-010": 1,
+    "SEC-011": 2
+  },
+  "results": [
+    {
+      "case_id": "BENIGN-001",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-002",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-003",
+      "correlation_states": [
+        "matched",
+        "matched",
+        "matched"
+      ],
+      "event_count": 6,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-004",
+      "correlation_states": [
+        "receipt_missing"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-005",
+      "correlation_states": [
+        "duplicate"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-006",
+      "correlation_states": [
+        "late_arrival"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-007",
+      "correlation_states": [
+        "trace_missing"
+      ],
+      "event_count": 1,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-008",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 4,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-009",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-010",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-011",
+      "correlation_states": [
+        "matched",
+        "matched",
+        "matched"
+      ],
+      "event_count": 6,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-012",
+      "correlation_states": [
+        "receipt_missing"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-013",
+      "correlation_states": [
+        "duplicate"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-014",
+      "correlation_states": [
+        "late_arrival"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-015",
+      "correlation_states": [
+        "trace_missing"
+      ],
+      "event_count": 1,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-016",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 4,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-017",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-018",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-019",
+      "correlation_states": [
+        "matched",
+        "matched",
+        "matched"
+      ],
+      "event_count": 6,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-020",
+      "correlation_states": [
+        "receipt_missing"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-021",
+      "correlation_states": [
+        "duplicate"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-022",
+      "correlation_states": [
+        "late_arrival"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-023",
+      "correlation_states": [
+        "trace_missing"
+      ],
+      "event_count": 1,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-024",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 4,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-025",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-026",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-027",
+      "correlation_states": [
+        "matched",
+        "matched",
+        "matched"
+      ],
+      "event_count": 6,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-028",
+      "correlation_states": [
+        "receipt_missing"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-029",
+      "correlation_states": [
+        "duplicate"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-030",
+      "correlation_states": [
+        "late_arrival"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-031",
+      "correlation_states": [
+        "trace_missing"
+      ],
+      "event_count": 1,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-032",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 4,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-033",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-034",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-035",
+      "correlation_states": [
+        "matched",
+        "matched",
+        "matched"
+      ],
+      "event_count": 6,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-036",
+      "correlation_states": [
+        "receipt_missing"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-037",
+      "correlation_states": [
+        "duplicate"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-038",
+      "correlation_states": [
+        "late_arrival"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-039",
+      "correlation_states": [
+        "trace_missing"
+      ],
+      "event_count": 1,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "BENIGN-040",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 4,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "benign"
+    },
+    {
+      "case_id": "OUT-SCOPE-041",
+      "correlation_states": [
+        "receipt_missing"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-042",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-043",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 3,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-044",
+      "correlation_states": [],
+      "event_count": 1,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-045",
+      "correlation_states": [],
+      "event_count": 5,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-046",
+      "correlation_states": [
+        "receipt_missing"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-047",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-048",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 3,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-049",
+      "correlation_states": [],
+      "event_count": 1,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-050",
+      "correlation_states": [],
+      "event_count": 5,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-051",
+      "correlation_states": [
+        "receipt_missing"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-052",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-053",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 3,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-054",
+      "correlation_states": [],
+      "event_count": 1,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-055",
+      "correlation_states": [],
+      "event_count": 5,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-056",
+      "correlation_states": [
+        "receipt_missing"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-057",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-058",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 3,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-059",
+      "correlation_states": [],
+      "event_count": 1,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "OUT-SCOPE-060",
+      "correlation_states": [],
+      "event_count": 5,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "out_of_scope"
+    },
+    {
+      "case_id": "INJECTION-061",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 3,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "prompt_injection"
+    },
+    {
+      "case_id": "INJECTION-062",
+      "correlation_states": [
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched"
+      ],
+      "event_count": 13,
+      "findings": [
+        "SEC-003"
+      ],
+      "ok": true,
+      "scenario_class": "prompt_injection"
+    },
+    {
+      "case_id": "INJECTION-063",
+      "correlation_states": [
+        "ambiguous"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "prompt_injection"
+    },
+    {
+      "case_id": "INJECTION-064",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [
+        "SEC-004"
+      ],
+      "ok": true,
+      "scenario_class": "prompt_injection"
+    },
+    {
+      "case_id": "INJECTION-065",
+      "correlation_states": [
+        "receipt_missing"
+      ],
+      "event_count": 3,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "prompt_injection"
+    },
+    {
+      "case_id": "INJECTION-066",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 3,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "prompt_injection"
+    },
+    {
+      "case_id": "INJECTION-067",
+      "correlation_states": [
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched"
+      ],
+      "event_count": 13,
+      "findings": [
+        "SEC-003"
+      ],
+      "ok": true,
+      "scenario_class": "prompt_injection"
+    },
+    {
+      "case_id": "INJECTION-068",
+      "correlation_states": [
+        "ambiguous"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "prompt_injection"
+    },
+    {
+      "case_id": "INJECTION-069",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [
+        "SEC-004"
+      ],
+      "ok": true,
+      "scenario_class": "prompt_injection"
+    },
+    {
+      "case_id": "INJECTION-070",
+      "correlation_states": [
+        "receipt_missing"
+      ],
+      "event_count": 3,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "prompt_injection"
+    },
+    {
+      "case_id": "INJECTION-071",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 3,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "prompt_injection"
+    },
+    {
+      "case_id": "INJECTION-072",
+      "correlation_states": [
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched"
+      ],
+      "event_count": 13,
+      "findings": [
+        "SEC-003"
+      ],
+      "ok": true,
+      "scenario_class": "prompt_injection"
+    },
+    {
+      "case_id": "INJECTION-073",
+      "correlation_states": [
+        "ambiguous"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "prompt_injection"
+    },
+    {
+      "case_id": "INJECTION-074",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [
+        "SEC-004"
+      ],
+      "ok": true,
+      "scenario_class": "prompt_injection"
+    },
+    {
+      "case_id": "INJECTION-075",
+      "correlation_states": [
+        "receipt_missing"
+      ],
+      "event_count": 3,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "prompt_injection"
+    },
+    {
+      "case_id": "INFRA-076",
+      "correlation_states": [
+        "receipt_missing"
+      ],
+      "event_count": 1,
+      "findings": [
+        "SEC-001"
+      ],
+      "ok": true,
+      "scenario_class": "infra_failure"
+    },
+    {
+      "case_id": "INFRA-077",
+      "correlation_states": [
+        "receipt_missing"
+      ],
+      "event_count": 2,
+      "findings": [
+        "SEC-001",
+        "SEC-009"
+      ],
+      "ok": true,
+      "scenario_class": "infra_failure"
+    },
+    {
+      "case_id": "INFRA-078",
+      "correlation_states": [],
+      "event_count": 1,
+      "findings": [
+        "SEC-002"
+      ],
+      "ok": true,
+      "scenario_class": "infra_failure"
+    },
+    {
+      "case_id": "INFRA-079",
+      "correlation_states": [],
+      "event_count": 6,
+      "findings": [
+        "SEC-007"
+      ],
+      "ok": true,
+      "scenario_class": "infra_failure"
+    },
+    {
+      "case_id": "INFRA-080",
+      "correlation_states": [
+        "trace_missing"
+      ],
+      "event_count": 1,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "infra_failure"
+    },
+    {
+      "case_id": "INFRA-081",
+      "correlation_states": [
+        "receipt_missing"
+      ],
+      "event_count": 1,
+      "findings": [
+        "SEC-001"
+      ],
+      "ok": true,
+      "scenario_class": "infra_failure"
+    },
+    {
+      "case_id": "INFRA-082",
+      "correlation_states": [
+        "receipt_missing"
+      ],
+      "event_count": 2,
+      "findings": [
+        "SEC-001",
+        "SEC-009"
+      ],
+      "ok": true,
+      "scenario_class": "infra_failure"
+    },
+    {
+      "case_id": "INFRA-083",
+      "correlation_states": [],
+      "event_count": 1,
+      "findings": [
+        "SEC-002"
+      ],
+      "ok": true,
+      "scenario_class": "infra_failure"
+    },
+    {
+      "case_id": "INFRA-084",
+      "correlation_states": [],
+      "event_count": 6,
+      "findings": [
+        "SEC-007"
+      ],
+      "ok": true,
+      "scenario_class": "infra_failure"
+    },
+    {
+      "case_id": "INFRA-085",
+      "correlation_states": [
+        "trace_missing"
+      ],
+      "event_count": 1,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "infra_failure"
+    },
+    {
+      "case_id": "MULTI-086",
+      "correlation_states": [
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched"
+      ],
+      "event_count": 42,
+      "findings": [
+        "SEC-005"
+      ],
+      "ok": true,
+      "scenario_class": "multi_step"
+    },
+    {
+      "case_id": "MULTI-087",
+      "correlation_states": [
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched"
+      ],
+      "event_count": 42,
+      "findings": [
+        "SEC-005"
+      ],
+      "ok": true,
+      "scenario_class": "multi_step"
+    },
+    {
+      "case_id": "MULTI-088",
+      "correlation_states": [
+        "duplicate"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "multi_step"
+    },
+    {
+      "case_id": "MULTI-089",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 4,
+      "findings": [
+        "SEC-011"
+      ],
+      "ok": true,
+      "scenario_class": "multi_step"
+    },
+    {
+      "case_id": "MULTI-090",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [
+        "SEC-006"
+      ],
+      "ok": true,
+      "scenario_class": "multi_step"
+    },
+    {
+      "case_id": "MULTI-091",
+      "correlation_states": [
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched"
+      ],
+      "event_count": 42,
+      "findings": [
+        "SEC-005"
+      ],
+      "ok": true,
+      "scenario_class": "multi_step"
+    },
+    {
+      "case_id": "MULTI-092",
+      "correlation_states": [
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched",
+        "matched"
+      ],
+      "event_count": 42,
+      "findings": [
+        "SEC-005"
+      ],
+      "ok": true,
+      "scenario_class": "multi_step"
+    },
+    {
+      "case_id": "MULTI-093",
+      "correlation_states": [
+        "duplicate"
+      ],
+      "event_count": 2,
+      "findings": [],
+      "ok": true,
+      "scenario_class": "multi_step"
+    },
+    {
+      "case_id": "MULTI-094",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 4,
+      "findings": [
+        "SEC-011"
+      ],
+      "ok": true,
+      "scenario_class": "multi_step"
+    },
+    {
+      "case_id": "MULTI-095",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 2,
+      "findings": [
+        "SEC-006"
+      ],
+      "ok": true,
+      "scenario_class": "multi_step"
+    },
+    {
+      "case_id": "SENSITIVE-096",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 3,
+      "findings": [
+        "SEC-008"
+      ],
+      "ok": true,
+      "scenario_class": "sensitive_data"
+    },
+    {
+      "case_id": "SENSITIVE-097",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 3,
+      "findings": [
+        "SEC-008"
+      ],
+      "ok": true,
+      "scenario_class": "sensitive_data"
+    },
+    {
+      "case_id": "SENSITIVE-098",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 3,
+      "findings": [
+        "SEC-008"
+      ],
+      "ok": true,
+      "scenario_class": "sensitive_data"
+    },
+    {
+      "case_id": "SENSITIVE-099",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 3,
+      "findings": [
+        "SEC-008"
+      ],
+      "ok": true,
+      "scenario_class": "sensitive_data"
+    },
+    {
+      "case_id": "SENSITIVE-100",
+      "correlation_states": [
+        "matched"
+      ],
+      "event_count": 4,
+      "findings": [
+        "SEC-008",
+        "SEC-010"
+      ],
+      "ok": true,
+      "scenario_class": "sensitive_data"
+    }
+  ]
+}
