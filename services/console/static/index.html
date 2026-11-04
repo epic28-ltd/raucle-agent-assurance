@@ -167,7 +167,7 @@ let counts = null;    /* add-in /api/counts proxy payload; null when offline */
 let findings = null;  /* add-in findings proxy payload; null when offline  */
 let trends = null;    /* per-run trend series from the console /api/trends */
 let portalPolicies = null; /* portal policy summary proxy; {pending:true} when offline/unauthorised */
-let config = { assurance_url: 'http://127.0.0.1:3411', trust_portal_url: 'http://127.0.0.1:8090', trust_gate_env: 'RAUCLE_TRUST_GATE_CONFIG', coverage_target_pct: 95 };
+let config = { assurance_url: 'http://127.0.0.1:3411', trust_portal_url: 'http://127.0.0.1:8090', trust_gateway_url: 'https://demo.raucle.com/', trust_gate_env: 'RAUCLE_TRUST_GATE_CONFIG', coverage_target_pct: 95 };
 const COVERAGE_DEFAULT = 95;
 
 const PILL_NAME = { connected: 'Connected', degraded: 'Degraded', not_purchased: 'Not purchased' };
@@ -893,6 +893,16 @@ function viewTrust() {
      is the Trust add-in's management UI - one editor, one version
      history, one audit trail. This card narrates and links; it never
      renders a second editor. */
+  const gc2 = card('Open the gateway console', 'live traffic, receipts and learn mode');
+  const gwhere = el('p');
+  gwhere.textContent = 'The deployed gate\u2019s own console lives at ' + (config.trust_gateway_url || 'https://demo.raucle.com/').replace(/\/+$/, '') + ': live topology, the receipt stream as it is minted, policy files as deployed, learn mode drafting, and user administration. Open it in its own tab; the console narrates and here are the jumps to companion products below.';
+  gc2.body.appendChild(gwhere);
+  const gopen = el('a', 'pill tok-info', 'Open the gateway console');
+  gopen.href = ((config.trust_gateway_url || 'https://demo.raucle.com/').replace(/\/+$/, '')) + '/';
+  gopen.target = '_blank';
+  gopen.rel = 'noopener';
+  gc2.body.appendChild(gopen);
+  cc.root.parentElement.insertBefore(gc2.root, cc.root.nextSibling);
   const pc = card('Manage policies', 'the portal owns deep management');
   const where = el('p');
   where.textContent = 'Policy authoring lives in the operator portal (' + (config.trust_portal_url || 'http://127.0.0.1:8090') + '): the structured policy editor, the immutable version history with diffs, the Trust Ladder, manual activate/disable with signed deployment receipts, and filtered receipt search.';

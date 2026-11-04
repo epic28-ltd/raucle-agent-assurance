@@ -266,6 +266,13 @@ def create_app() -> fastapi.FastAPI:
     def _trust_portal_url() -> str:
         return os.environ.get("RAUCLE_TRUST_PORTAL_URL", TRUST_PORTAL_URL_DEFAULT)
 
+    def _trust_gateway_url() -> str:
+        """The hosted/live Trust gateway console (traffic topology, receipt
+        stream, policy files, learn mode). demo.raucle.com is the public
+        demo deployment; a self-hosted deployment points this at its own
+        gateway UI via RAUCLE_TRUST_GATEWAY_URL."""
+        return os.environ.get("RAUCLE_TRUST_GATEWAY_URL", "https://demo.raucle.com/")
+
     # ------------------------------------------------------------ API (JSON)
     @app.get("/api/overview")
     def api_overview() -> dict:
@@ -333,6 +340,7 @@ def create_app() -> fastapi.FastAPI:
         return {
             "assurance_url": url,
             "trust_portal_url": _trust_portal_url(),
+            "trust_gateway_url": _trust_gateway_url(),
             "addins": _addins_catalogue(),
             "assurance_reachable": False,  # SPA probes the URL itself
             "trust_gate_env": TRUST_GATE_ENV,
