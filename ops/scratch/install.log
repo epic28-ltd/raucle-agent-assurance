@@ -1,0 +1,96 @@
+[install] preconditions ok (docker up, openssl ok, ports free, 182G disk free)
+[install] ports: web=3401 evidence=3402 ch_http=18124 ch_native=19001
+[install] generating .env with random secrets in /home/craigamcw/oaa-reference-stack/.env
+[install] docker compose up -d --wait (project: oaa-ref, from /home/craigamcw/oaa-reference-stack)
+ Network oaa-ref_default Creating 
+ Volume oaa-ref_langfuse_minio_data Creating 
+ Volume oaa-ref_langfuse_redis_data Creating 
+ Volume oaa-ref_langfuse_redis_data Creating 
+ Volume oaa-ref_langfuse_clickhouse_logs Creating 
+ Volume oaa-ref_langfuse_clickhouse_logs Creating 
+ Volume oaa-ref_langfuse_minio_data Creating 
+ Network oaa-ref_default Creating 
+ Volume oaa-ref_langfuse_clickhouse_data Creating 
+ Volume oaa-ref_langfuse_clickhouse_data Creating 
+ Volume oaa-ref_langfuse_postgres_data Creating 
+ Volume oaa-ref_langfuse_postgres_data Creating 
+ Volume oaa-ref_langfuse_redis_data Created 
+ Volume oaa-ref_langfuse_redis_data Created 
+ Volume oaa-ref_langfuse_clickhouse_data Created 
+ Volume oaa-ref_langfuse_clickhouse_data Created 
+ Volume oaa-ref_langfuse_postgres_data Created 
+ Volume oaa-ref_langfuse_postgres_data Created 
+ Volume oaa-ref_langfuse_minio_data Created 
+ Volume oaa-ref_langfuse_minio_data Created 
+ Volume oaa-ref_langfuse_clickhouse_logs Created 
+ Volume oaa-ref_langfuse_clickhouse_logs Created 
+ Network oaa-ref_default Created 
+ Network oaa-ref_default Created 
+ Container oaa-ref-redis-1 Creating 
+ Container oaa-ref-evidence-index-1 Creating 
+ Container oaa-ref-clickhouse-1 Creating 
+ Container oaa-ref-minio-1 Creating 
+ Container oaa-ref-postgres-1 Creating 
+ Container oaa-ref-minio-1 Created 
+ Container oaa-ref-clickhouse-1 Created 
+ Container oaa-ref-redis-1 Created 
+ Container oaa-ref-evidence-index-1 Created 
+ Container oaa-ref-postgres-1 Created 
+ Container oaa-ref-langfuse-worker-1 Creating 
+ Container oaa-ref-langfuse-web-1 Creating 
+ Container oaa-ref-langfuse-worker-1 Created 
+ Container oaa-ref-langfuse-web-1 Created 
+ Container oaa-ref-evidence-index-1 Starting 
+ Container oaa-ref-redis-1 Starting 
+ Container oaa-ref-clickhouse-1 Starting 
+ Container oaa-ref-postgres-1 Starting 
+ Container oaa-ref-minio-1 Starting 
+ Container oaa-ref-evidence-index-1 Started 
+ Container oaa-ref-redis-1 Started 
+ Container oaa-ref-clickhouse-1 Started 
+ Container oaa-ref-postgres-1 Started 
+ Container oaa-ref-minio-1 Started 
+ Container oaa-ref-postgres-1 Waiting 
+ Container oaa-ref-minio-1 Waiting 
+ Container oaa-ref-minio-1 Waiting 
+ Container oaa-ref-redis-1 Waiting 
+ Container oaa-ref-redis-1 Waiting 
+ Container oaa-ref-clickhouse-1 Waiting 
+ Container oaa-ref-clickhouse-1 Waiting 
+ Container oaa-ref-postgres-1 Waiting 
+ Container oaa-ref-minio-1 Healthy 
+ Container oaa-ref-minio-1 Healthy 
+ Container oaa-ref-redis-1 Healthy 
+ Container oaa-ref-redis-1 Healthy 
+ Container oaa-ref-postgres-1 Healthy 
+ Container oaa-ref-clickhouse-1 Healthy 
+ Container oaa-ref-langfuse-web-1 Starting 
+ Container oaa-ref-clickhouse-1 Healthy 
+ Container oaa-ref-postgres-1 Healthy 
+ Container oaa-ref-langfuse-worker-1 Starting 
+ Container oaa-ref-langfuse-web-1 Started 
+ Container oaa-ref-langfuse-worker-1 Started 
+ Container oaa-ref-minio-1 Waiting 
+ Container oaa-ref-redis-1 Waiting 
+ Container oaa-ref-postgres-1 Waiting 
+ Container oaa-ref-evidence-index-1 Waiting 
+ Container oaa-ref-langfuse-worker-1 Waiting 
+ Container oaa-ref-langfuse-web-1 Waiting 
+ Container oaa-ref-clickhouse-1 Waiting 
+ Container oaa-ref-evidence-index-1 Healthy 
+ Container oaa-ref-minio-1 Healthy 
+ Container oaa-ref-clickhouse-1 Healthy 
+ Container oaa-ref-postgres-1 Healthy 
+ Container oaa-ref-redis-1 Healthy 
+ Container oaa-ref-langfuse-worker-1 Healthy 
+ Container oaa-ref-langfuse-web-1 Healthy 
+[install] INSTALL OK — healthchecks green
+
+  Langfuse UI     : http://127.0.0.1:3401   (login: values in .env LANGFUSE_INIT_USER_*)
+  OTLP endpoint   : http://127.0.0.1:3401/api/public/otel/v1/traces
+  evidence-index  : http://127.0.0.1:3402  (GET /healthz, POST /receipts, GET /receipts/<id>)
+  ClickHouse      : http://127.0.0.1:18124 (http), 127.0.0.1:19001 (native)
+  API keys + URLs : /home/craigamcw/oaa-reference-stack/.env (LANGFUSE_INIT_PROJECT_PUBLIC_KEY / _SECRET_KEY; chmod 600)
+  volumes         : oaa-ref_langfuse_{postgres,clickhouse_data,clickhouse_logs,minio,redis}_data
+                    + ./store (evidence-index receipts)
+  runbook         : ops/runbook.md (backup/restore/restart/upgrade/teardown)

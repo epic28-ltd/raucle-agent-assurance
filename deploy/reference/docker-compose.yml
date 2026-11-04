@@ -1,0 +1,188 @@
+# OPS-01 packaged reference deployment — Langfuse v4.74.0 OSS self-hosted companion stack.
+# Adapted from deploy/compose/docker-compose.yml (OBS-01 spike, itself adapted from
+# upstream v4.74.0 docker-compose.yml). Pinned tags on every image; no floating tags.
+#
+# ⚠ DEPLOYMENT GATE: LANGFUSE_MIGRATION_V4_WRITE_MODE is hard-pinned to `dual` below.
+#   v4.74.0 self-host defaults to `events_only`, which 404s the legacy read API that
+#   Raucle Agent Assurance depends on (ADR-0003). DO NOT change this without re-running
+#   the read-API check in ops/runbook.md §6.5 (upgrade checklist).
+#
+# OTLP path: agents export DIRECTLY to the Langfuse OTLP endpoint
+#   (http://127.0.0.1:${OAA_WEB_PORT}/api/public/otel/v1/traces) — the same direct-OTLP
+#   option validated in OBS-01 (ADR-0003 backend-adapter). No otel-collector is shipped
+#   in this stack: direct OTLP keeps the reference deployment minimal and every span
+#   still lands in dual mode. A collector (with the redaction processor from
+#   packages/instrumentation) is an OPTIONAL add-on: run it separately and point
+#   OAA_OTLP_ENDPOINT at <collector>:4318; see deploy/reference/README.md.
+#
+# 6 Langfuse services (langfuse-web, langfuse-worker, clickhouse, minio, redis, postgres)
+# + 1 evidence-index stub (volume-backed receipt store). All host bindings 127.0.0.1.
+
+services:
+  langfuse-worker:
+    image: docker.langfuse.com/langfuse/langfuse-worker:4.74.0
+    restart: always
+    depends_on:
+      postgres: { condition: service_healthy }
+      minio: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      clickhouse: { condition: service_healthy }
+    environment: &langfuse-env
+      # ---- DEPLOYMENT GATE: dual write mode, explicitly named (see warning above) ----
+      LANGFUSE_MIGRATION_V4_WRITE_MODE: dual
+      # ---------------------------------------------------------------
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
+      SALT: ${SALT}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      TELEMETRY_ENABLED: "false"
+      LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "false"
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+      LANGFUSE_USE_AZURE_BLOB: "false"
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: minio
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+      LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: minio
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_MEDIA_UPLOAD_INTERNAL_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_AUTH: ${REDIS_AUTH}
+      LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID}
+      LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_INIT_ORG_NAME}
+      LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID}
+      LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME}
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL}
+      LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME}
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD}
+
+  langfuse-web:
+    image: docker.langfuse.com/langfuse/langfuse:4.74.0
+    restart: always
+    depends_on:
+      postgres: { condition: service_healthy }
+      minio: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      clickhouse: { condition: service_healthy }
+    ports:
+      - "127.0.0.1:${OAA_WEB_PORT:-3301}:3000"
+    environment:
+      <<: *langfuse-env
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+
+  clickhouse:
+    image: docker.io/clickhouse/clickhouse-server:26.3.62.3
+    restart: always
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    volumes:
+      - langfuse_clickhouse_data:/var/lib/clickhouse
+      - langfuse_clickhouse_logs:/var/log/clickhouse-server
+    ports:
+      - "127.0.0.1:${OAA_CH_HTTP_PORT:-18123}:8123"
+      - "127.0.0.1:${OAA_CH_NATIVE_PORT:-19000}:9000"
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 1s
+
+  minio:
+    image: cgr.dev/chainguard/minio
+    restart: always
+    entrypoint: sh
+    command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - langfuse_minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 1s
+      timeout: 5s
+      retries: 5
+      start_period: 1s
+
+  redis:
+    image: docker.io/redis:7
+    restart: always
+    command: --requirepass ${REDIS_AUTH} --maxmemory-policy noeviction
+    environment:
+      REDISCLI_AUTH: ${REDIS_AUTH}
+    volumes:
+      - langfuse_redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping || exit 1"]
+      interval: 3s
+      timeout: 10s
+      retries: 10
+
+  postgres:
+    image: docker.io/postgres:17
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - langfuse_postgres_data:/var/lib/postgresql/data
+
+  # ---- evidence-index stub (volume-backed receipt store) ----
+  # Simple append-only JSONL receipt store on ./store (bind mount, survives
+  # container rebuild and restore round-trips with the compose-volume backups).
+  # API: GET /healthz; POST /receipts {"id": "...", ...} -> 201;
+  #      GET /receipts/<id> -> receipt; GET /receipts -> all.
+  # This is deliberately a stub: the planned evidence-index service replaces it
+  # (see services/evidence-index/README.md). The store directory format
+  # (receipts.jsonl, one JSON object per line) is what will be migrated.
+  evidence-index:
+    image: docker.io/library/python:3.12-alpine
+    restart: always
+    command: python /srv/stub.py
+    user: "0:0"
+    ports:
+      - "127.0.0.1:${OAA_EVIDENCE_PORT:-3302}:8080"
+    volumes:
+      - ./evidence_index:/srv:ro
+      - ./store:/store
+    environment:
+      OAA_STORE_DIR: /store
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/healthz')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  langfuse_postgres_data: { driver: local }
+  langfuse_clickhouse_data: { driver: local }
+  langfuse_clickhouse_logs: { driver: local }
+  langfuse_minio_data: { driver: local }
+  langfuse_redis_data: { driver: local }

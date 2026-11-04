@@ -1,0 +1,34 @@
+{
+  "profile": {
+    "rate_runs_per_sec": 10.0,
+    "spans_per_run": 20,
+    "duration_sec": 120.0,
+    "baseline_duration_sec": 30.0,
+    "target_stack": "http://127.0.0.1:3401"
+  },
+  "runs": {
+    "measured": 1201,
+    "baseline": 300
+  },
+  "spans": {
+    "measured_estimated": 24020,
+    "baseline_estimated": 6000
+  },
+  "wall_clock_ms_per_run": {
+    "measured_p50": 1.553,
+    "measured_p95": 3.582,
+    "measured_max": 17.504,
+    "baseline_p50": 2.948,
+    "baseline_p95": 5.57,
+    "baseline_max": 17.966
+  },
+  "overhead": {
+    "p95_overhead_ms_vs_no_export_baseline": -1.987,
+    "p95_overhead_ratio": 0.643
+  },
+  "note": "smoke, not a benchmark; single host, batch export max_export_batch_size=512",
+  "ingestion": {
+    "total_traces_ingested_via_read_api": 1202,
+    "expected": 1201
+  }
+}

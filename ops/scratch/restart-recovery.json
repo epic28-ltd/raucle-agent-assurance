@@ -1,0 +1,11 @@
+{
+  "restart_recovery": {
+    "method": "docker kill (SIGKILL) langfuse-web + langfuse-worker",
+    "restart_always_policy_auto_recovery": false,
+    "policy_note": "restart:always did NOT bring SIGKILLed langfuse containers back (observed Exited(137), no auto-restart); documented procedure is docker compose up -d --wait",
+    "recovery_command": "docker compose -p oaa-ref --env-file .env up -d --wait",
+    "time_to_healthy_after_compose_up_s": 19,
+    "trace_readback_ok_after_restart": true,
+    "receipt_read_ok_after_restart": true
+  }
+}

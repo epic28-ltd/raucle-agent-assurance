@@ -1,0 +1,8 @@
+# OPS-01 scratch — never commit secrets, envs, certs, keys, volumes or backups here.
+*
+!.gitignore
+!load-report.json
+!install.log
+!install-proof.json
+!restart-recovery.json
+!restore-verify.json

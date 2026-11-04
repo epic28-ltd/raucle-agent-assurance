@@ -1,0 +1,13 @@
+{
+  "restore_verification": {
+    "health": {
+      "status": "OK",
+      "version": "4.74.0"
+    },
+    "trace_readback_ok": true,
+    "receipts_file_sha256": "ea8997e73ab5f5e712091b5b863358e874351c5544556920931f55f6bf3051ef",
+    "receipts_hash_match_pre_backup": true,
+    "receipt_via_api_ok": true,
+    "traces_visible_after_restore": 1202
+  }
+}

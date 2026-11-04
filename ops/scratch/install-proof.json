@@ -1,0 +1,14 @@
+{
+  "run_id": "oaa-install-proof-b315432dec58",
+  "otel_trace_id": "757adc9eb798df2a6e2d59eb4e31bf3d",
+  "trace_readback_ok": true,
+  "receipt_post": 201,
+  "receipt_roundtrip_ok": true,
+  "langfuse": {
+    "url": "http://127.0.0.1:3401",
+    "health": {
+      "status": "OK",
+      "version": "4.74.0"
+    }
+  }
+}
