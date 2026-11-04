@@ -157,8 +157,14 @@ def select_envelopes(
 
 
 def build_claim_sheet(
-    *, window: str, receipts: int, keys: int, timestamp_tokens: int,
-    policies: str, chain_graph: str, clock: dt.datetime | None = None,
+    *,
+    window: str,
+    receipts: int,
+    keys: int,
+    timestamp_tokens: int,
+    policies: str,
+    chain_graph: str,
+    clock: dt.datetime | None = None,
 ) -> str:
     """Plain-English claim sheet, GOV-01 honest-report pattern.
 
@@ -302,7 +308,9 @@ def build_pack(
             "\n".join(pol_lines) + "\n", encoding="utf-8"
         )
     if copied_policies and policy_receipt_hashes:
-        policies_note = f"{len(copied_policies)} policy file(s) and deployment-chain receipts under `policies/`"
+        policies_note = (
+            f"{len(copied_policies)} policy file(s) and deployment-chain receipts under `policies/`"
+        )
     elif copied_policies:
         policies_note = (
             f"{len(copied_policies)} policy file(s) under `policies/`; deployment-chain"
@@ -328,13 +336,43 @@ def build_pack(
             encoding="utf-8",
         )
 
-    # chain_graph.json — reserved, additive slot (P1.1a dependency).
+    # chain_graph.json — the P1.1a wire-up: resolve each in-window receipt's
+    # authority graph with raucle's resolver when it is importable; keep the
+    # documented pending slot when it is not (the pack never fakes resolution).
+    graphs: dict = {}
+    graph_status = CHAIN_GRAPH_PENDING
+    # The assurance venv pins raucle 0.23.5 (pinned worktree); the resolver
+    # ships in the OSS tree. Honour RAUCLE_OSS_HOME as an explicit, opt-in
+    # source for the wire-up; without it the pack degrades to the pending
+    # slot - never a fake graph.
+    _oss = os.environ.get("RAUCLE_OSS_HOME")
+    if _oss and pathlib.Path(_oss).is_dir():
+        sys.path.insert(0, str(pathlib.Path(_oss)))
+    try:
+        import raucle.chain_graph as _cg  # noqa: PLC0415 - optional dependency, P1.1a wire-up
+
+        for line in envelopes:
+            rh = json.loads(line)["receipt_hash"]
+            try:
+                graphs[rh] = _cg.resolve_chain_graph(
+                    rh, [json.loads(env_line) for env_line in envelopes]
+                )
+            except Exception as exc:  # per-receipt: a graph state, not a crash
+                graphs[rh] = {"status": "unresolved", "reason": type(exc).__name__}
+        graph_status = "resolved-by-pinned-verifier"
+    except ImportError:
+        graphs = {}
     (pack / "chain_graph.json").write_text(
         json.dumps(
             {
                 "schema_version": PACK_SCHEMA_VERSION,
-                "status": CHAIN_GRAPH_PENDING,
-                "note": "chain resolution is being built in P1.1a; this slot is reserved and additive — a future pack fills it in place without changing the manifest contract",
+                "status": graph_status,
+                "note": (
+                    "authority graphs resolved by raucle resolve_chain_graph from the receipts in this pack; per-node signature states are part of the graph"
+                    if graph_status == "resolved-by-pinned-verifier"
+                    else "chain resolution is being built in P1.1a; this slot is reserved and additive"
+                ),
+                "graphs": graphs,
                 "edges": [],
             },
             indent=2,
@@ -364,9 +402,7 @@ def build_pack(
 
     # verify-notes.md — reviewer instructions.
     (pack / "verify-notes.md").write_text(
-        _verify_notes(receipts=len(envelopes),
-                      timestamps=token_count,
-                      policies=policies_note),
+        _verify_notes(receipts=len(envelopes), timestamps=token_count, policies=policies_note),
         encoding="utf-8",
     )
 
@@ -459,10 +495,12 @@ def _parse_utc(s: str) -> dt.datetime:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(
-        description="AUD-01: build an offline auditor export pack (P1.7a)"
+    ap = argparse.ArgumentParser(description="AUD-01: build an offline auditor export pack (P1.7a)")
+    ap.add_argument(
+        "--evidence-store",
+        required=True,
+        help="evidence store JSONL (JSONL of {receipt_hash, jws})",
     )
-    ap.add_argument("--evidence-store", required=True, help="evidence store JSONL (JSONL of {receipt_hash, jws})")
     ap.add_argument("--trust-roots", required=True, help="trust-root snapshot JSONL")
     ap.add_argument("--from", dest="from_s", help="window start, ISO-8601 (UTC assumed)")
     ap.add_argument("--to", dest="to_s", help="window end, ISO-8601 (UTC assumed)")
@@ -472,7 +510,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", required=True, help="output directory (pack + zip land inside)")
     ap.add_argument("--clock", help="pinned clock, ISO-8601 (deterministic builds)")
     args = ap.parse_args(argv)
-    store_lines = pathlib.Path(args.policy_receipts).read_text().splitlines() if args.policy_receipts else None
+    store_lines = (
+        pathlib.Path(args.policy_receipts).read_text().splitlines()
+        if args.policy_receipts
+        else None
+    )
     summary = build_pack(
         pathlib.Path(args.evidence_store),
         pathlib.Path(args.trust_roots),
