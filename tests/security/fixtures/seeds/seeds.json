@@ -1,0 +1,68 @@
+{
+  "purpose": "PRIV-01 seeded synthetic secrets",
+  "seeds": [
+    {
+      "id": "seed-aws-access-key",
+      "class": "aws_access_key",
+      "value": "AKIA-SEED-FIXTURE-NOTREAL-00",
+      "shape": "OTel span attribute `aws.access_key`",
+      "sha256": "99f184b475e1917b58e80f5adf1e4d2dd53d638ed5d733141a5fd98d7bcf5b25"
+    },
+    {
+      "id": "seed-aws-secret",
+      "class": "aws_access_key",
+      "value": "9uOm4gZWzu33tHsVDi8pLE72HO4n9lV9dHF4N3G1",
+      "shape": "OTel span attribute `aws.secret` (40-char key)",
+      "sha256": "c9094c5fa2987003669b6e5cc67aeb1921a3dfc212e951858a8b75906e31e682"
+    },
+    {
+      "id": "seed-bearer-token",
+      "class": "bearer_token",
+      "value": "Bearer 61caea39d6efff8662bcc62e3bdb43fd",
+      "shape": "authorization header echo in `http.request.header.authorization`",
+      "sha256": "8d0444b807ef63462a1575557a0c418746f8d7b18aeb17579c0ce30b236460cf"
+    },
+    {
+      "id": "seed-jwt",
+      "class": "jwt",
+      "value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.MTdvTWVKZ1A2R25kc0tBWVlWUUNGOE0yQkNMZFJGZWlZZ0J4a043Mw.DXpOSNnKViUbg4Sop8LQC5l9YWdvm77R1yXstGy4Sf",
+      "shape": "span attribute `oidc.token`",
+      "sha256": "52a1096fef0d07e14ac470954bdea58ee700676390d66a4afd165e64a57a7c6b"
+    },
+    {
+      "id": "seed-private-key-pem",
+      "class": "private_key_pem",
+      "value": "-----BEGIN RSA PRIVATE KEY-----\nnkOh3DRkk5JkNaWD8buftqaE272iq+EseB2I5KWtVdKBBUX1HhKj8baNq9WXmuKO\nAh1abOPyj6wuWycEvcM1wl3/6YkmIHiVCw/41j78hkMpke3HkZP+qBKHF8gMLQvh\nlk/xtaTGXMJgGJNFZreD7VjfOSzwyL4zUK226NVDFOoyKA1mBrSVjCXDvJKQ6grR\nG0E+yt+Y36vPYZ+pto2meX7FqR6iZoVCFW0mO4H7gTXS8cBwq4lJFrKwJLbmkEb7\nzW5dQsLgFM0ZAW08Zxu5fPq1gz7AXWhz9K9OPl05OrIR5ChG26sMe5hpy3o320vi\nxFihwA3dYfzyXIeu8nRtZw==\n-----END RSA PRIVATE KEY-----",
+      "shape": "span attribute `tls.client_key_pem`",
+      "sha256": "4e6be16d0867813e71193ae8f0346107d982628a223827ad6d89808bdbe6a31b"
+    },
+    {
+      "id": "seed-email",
+      "class": "email",
+      "value": "oaa-priv01-6gmyzphx@example.invalid",
+      "shape": "span attribute `user.email`",
+      "sha256": "3c6529ef1375b840d254595778b7449f2b2e7f7d742c869e01213a313a9f4382"
+    },
+    {
+      "id": "seed-api-key-kv",
+      "class": "credential_kv",
+      "value": "api_key=lnV6CiQneilJS7yaO52OCxxM",
+      "shape": "LLM input message echo in `llm.input_messages`",
+      "sha256": "79dafc11c174db3dffd2f59fdd1e728382c5f1f2be53b2a489af7c2918802156"
+    },
+    {
+      "id": "seed-high-entropy",
+      "class": "high_entropy",
+      "value": "a0vjwLWD8R1jhVHmVCTkj76lvwosSehpnlyVWyUsNaX98Fsudec7bd79+/=",
+      "shape": "span attribute `client.hmac_key` (no key-name hint: entropy heuristic)",
+      "sha256": "bd0ac58639ac8149ae704f8a909692f375a6d7b2fe7d05417c2ed3f91324c300"
+    },
+    {
+      "id": "seed-allowlisted-metadata",
+      "class": "allowlisted",
+      "value": "run-note: oaa.metadata passthrough probe 5kbgPHdjnnJD",
+      "shape": "span attribute `oaa.metadata.run_note` (MUST pass through unredacted)",
+      "sha256": "79424a69bf79efbdb9a4a8d32606d2033cbe81958103c88e43a8974e092d03c7"
+    }
+  ]
+}

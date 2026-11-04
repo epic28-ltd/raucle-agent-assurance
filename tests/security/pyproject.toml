@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+# Ruff configuration scoped to tests/security. The live-leak harness and the
+# OTel wrapper tests import opentelemetry INSIDE functions so that the rest
+# of the suite stays runnable in bare CI without the otel deps (PLC0415).
+# The leak harness is a fixture script, prose-light on purpose (E501).
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["fixtures/seeds"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "SIM", "RUF", "PLC"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"fixtures/*" = ["PLC0415"]
+"test_redaction.py" = ["PLC0415"]
+"test_priv01_live.py" = ["E402", "F821"]  # E402: import after importorskip; F821 not used

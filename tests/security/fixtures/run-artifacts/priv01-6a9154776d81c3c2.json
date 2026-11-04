@@ -1,0 +1,26 @@
+{
+  "redacted_tokens_in_readback": 24,
+  "run_id": "priv01-prot-8d17d06f15",
+  "seeds_scanned": [
+    "seed-aws-access-key",
+    "seed-aws-secret",
+    "seed-bearer-token",
+    "seed-jwt",
+    "seed-private-key-pem",
+    "seed-email",
+    "seed-api-key-kv",
+    "seed-high-entropy"
+  ],
+  "summary": {
+    "mode": "protected",
+    "quarantined_span_count": 0,
+    "scan": {
+      "clean": true,
+      "counts_by_class": {},
+      "quarantined_span_count": 0,
+      "span_count": 1,
+      "violation_count": 0
+    }
+  },
+  "trace_id": "6a9154776d81c3c280bebbbf5b65dbd8"
+}

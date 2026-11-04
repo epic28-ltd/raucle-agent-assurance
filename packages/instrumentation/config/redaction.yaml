@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: Apache-2.0
+# PRIV-01 redaction pattern config (versioned: bump config_version on any
+# semantic change; pin the version in coverage/assurance reporting).
+#
+# Span-attribute VALUES matching any pattern are replaced with
+# `[REDACTED:<class>|len=<n>]` — the matched secret never survives, and the
+# only retained datum is the original value length. Keys matching the
+# allowlist globs are passed through untouched (oaa.metadata.* is the
+# metadata-only namespace per ADR: metadata-only by default).
+config_version: 1
+
+# Attribute keys that are exempt from redaction (fnmatch globs).
+# Rationale: the oaa.metadata.* namespace is the *only* place free-form
+# metadata is allowed to travel raw; keys are structure, not content.
+allowlist:
+  - "oaa.metadata.*"
+
+# Pattern-based redaction, evaluated before the entropy heuristic.
+# A value is redacted if ANY pattern matches anywhere in the string.
+# `class` is the privacy class surfaced in the replacement token.
+patterns:
+  - id: aws_access_key_id
+    class: aws_access_key
+    match: '\b(?:AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}\b'
+  - id: bearer_token
+    class: bearer_token
+    match: '(?i)\bbearer[ \t]+[A-Za-z0-9\-._~+/]{16,}'
+  - id: jwt
+    class: jwt
+    match: '\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_.-]{4,}\b'
+  - id: private_key_pem
+    class: private_key_pem
+    # whole PEM block: from BEGIN to END, redacted as one unit
+    match: '-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----'
+  - id: credential_kv
+    class: credential_kv
+    # key/value pairing: api_key, secret, token, password followed by a value
+    match: '(?i)\b(?:api[_-]?key|secret|token|password|passwd)\b["\''\s:=]+[A-Za-z0-9_.\-/+=]{12,}'
+  - id: email
+    class: email
+    match: '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'
+
+# High-entropy assignment heuristic (defence for secrets with no stable
+# pattern: random API keys, HMACs). Deterministic: Shannon entropy with a
+# fixed threshold; nothing here depends on wall-clock or RNG.
+entropy_heuristic:
+  enabled: true
+  min_length: 20
+  threshold_bits_per_char: 4.0
+  # values containing any character outside the base64 alphabet (incl. '='
+  # and '_') are exempt: prose and dash/underscore-structured identifiers
+  # never look like opaque blobs — see PRIV-01 findings, entropy limits
+  base64_charset_only: true
+  # values that already matched a pattern are not re-classified
+  class: high_entropy

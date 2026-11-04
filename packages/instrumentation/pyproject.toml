@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oaa-instrumentation"
+version = "0.0.1.dev0"
+description = "Open Agent Assurance — PRIV-01 instrumentation: deterministic SDK-side span-attribute redaction and collector-side quarantine."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE.txt"]
+authors = [{ name = "Open Agent Assurance contributors" }]
+dependencies = []
+# heavy deps (opentelemetry-sdk, pyyaml) are OPTIONAL: the redaction core
+# (config-free use via dict input) must stay importable in bare CI.
+
+[project.optional-dependencies]
+otel = []  # opentelemetry-sdk>=1.38, opentelemetry-exporter-otlp-proto-http>=1.38, pyyaml — pinned in the repo venv
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/oaa_instrumentation"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "SIM", "RUF", "PLC"]
+ignore = [
+  "E501",  # long prose/doc lines kept for review clarity
+]
