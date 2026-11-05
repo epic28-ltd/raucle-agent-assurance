@@ -263,6 +263,9 @@ def test_injected_clock_is_respected(rubric_v1: Any) -> None:
     late = dt.datetime(2030, 1, 1, tzinfo=dt.UTC)
     s = evaluate(rubric_v1, make_case(), at=late)
     assert s.evaluated_at == late
+
+
+def test_injected_clock_rejects_wrong_type(rubric_v1: Any) -> None:
     with pytest.raises(TypeError):
         evaluate(rubric_v1, make_case(), at="tomorrow")  # type: ignore[arg-type]
 

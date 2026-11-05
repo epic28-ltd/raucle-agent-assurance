@@ -48,7 +48,7 @@ def _health(url: str, timeout: float = 5.0) -> bool:
     try:
         with urllib.request.urlopen(f"{url}/api/public/health", timeout=timeout) as resp:
             return resp.status == 200
-    except (urllib.error.URLError, OSError):
+    except OSError:
         return False
 
 

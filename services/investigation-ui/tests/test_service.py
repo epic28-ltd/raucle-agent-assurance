@@ -256,7 +256,7 @@ def test_index_served_at_root_and_legacy_reachable(client: TestClient):
     assert "UI-01" in legacy.text
 
 
-def test_index_no_innerHTML_no_external_fetch(client: TestClient):
+def test_index_no_inner_html_no_external_fetch(client: TestClient):
     html = INDEX_HTML.read_text()
     # no unsafe sink anywhere in code (mention in a T5 comment is stripped)
     code_only = "\n".join(line.split("//")[0] for line in html.splitlines())
