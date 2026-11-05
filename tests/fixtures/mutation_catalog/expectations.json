@@ -1,0 +1,57 @@
+{
+  "schema_version": "agent_process_expectations/v1",
+  "case_set": {
+    "name": "ov10-mutation-campaign",
+    "description": "Synthetic campaign inputs for the OV-10 mutation catalog.",
+    "owner": "open-agent-assurance",
+    "allowed_providers": [
+      "claude"
+    ],
+    "allowed_tools": [
+      "shell",
+      "http_fetch"
+    ]
+  },
+  "cases": [
+    {
+      "case_id": "witnessed-privileged",
+      "expected_outcome": {
+        "gate_decisions": [
+          "allow"
+        ],
+        "on_unknown": "fail"
+      },
+      "evidence_links": [
+        {
+          "kind": "receipt-hash",
+          "ref": "sha256:aaaa0000000000000000000000000000000000000000000000000000000001"
+        }
+      ],
+      "human_review": [
+        {
+          "route_id": "privileged-review",
+          "triggers": [
+            "privileged-tool"
+          ],
+          "reviewer": "on-call engineer"
+        }
+      ],
+      "boundaries": {
+        "providers": [
+          "claude"
+        ],
+        "tools": [
+          "shell"
+        ],
+        "privacy": {
+          "content_class": "metadata-only"
+        }
+      },
+      "budgets": {
+        "max_tool_calls": 5,
+        "max_provider_requests": 5,
+        "max_privileged_tool_calls": 2
+      }
+    }
+  ]
+}

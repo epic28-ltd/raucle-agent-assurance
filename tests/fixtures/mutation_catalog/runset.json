@@ -1,0 +1,81 @@
+{
+  "schema_version": "agent_run_record/v1",
+  "note": "OV-10 campaign: receipts synthetic; never canonical evidence.",
+  "records": [
+    {
+      "schema_version": "agent_run_record/v1",
+      "record_id": "witnessed-privileged",
+      "agent": "oaa-spike",
+      "release": "rel-0.9.2",
+      "started": "2026-11-05T10:00:00+00:00",
+      "trace_ids": [
+        "trace-witnessed-privileged"
+      ],
+      "receipts": [
+        {
+          "receipt_hash": "sha256:aaaa0000000000000000000000000000000000000000000000000000000001",
+          "decision": "allow",
+          "tool": "shell",
+          "event_time": "2026-11-05T10:00:00+00:00",
+          "synthetic": true,
+          "tool_privileged": true
+        }
+      ],
+      "governance_events": [],
+      "usage_metrics": {
+        "receipts_total": 1,
+        "receipts_allow": 1,
+        "receipts_deny": 0,
+        "receipts_unknown": 0,
+        "privileged_tool_spans": 1,
+        "traces_total": 1
+      },
+      "privacy": {
+        "content_class": "metadata-only"
+      },
+      "capability_refs": [
+        {
+          "tool": "shell",
+          "privileged": true,
+          "via_receipt_hash": "sha256:aaaa0000000000000000000000000000000000000000000000000000000001"
+        }
+      ]
+    },
+    {
+      "schema_version": "agent_run_record/v1",
+      "record_id": "unrelated-scribe",
+      "agent": "oaa-spike",
+      "release": "rel-0.9.2",
+      "started": "2026-11-05T10:00:00+00:00",
+      "trace_ids": [
+        "trace-unrelated-scribe"
+      ],
+      "receipts": [
+        {
+          "receipt_hash": "sha256:ffff0000000000000000000000000000000000000000000000000000000009",
+          "decision": "allow",
+          "tool": "http_fetch",
+          "event_time": "2026-11-05T10:00:00+00:00",
+          "synthetic": true
+        }
+      ],
+      "governance_events": [],
+      "usage_metrics": {
+        "receipts_total": 1,
+        "receipts_allow": 1,
+        "receipts_deny": 0,
+        "receipts_unknown": 0,
+        "privileged_tool_spans": 1,
+        "traces_total": 1
+      },
+      "privacy": {
+        "content_class": "metadata-only"
+      }
+    }
+  ],
+  "case_bindings": {
+    "witnessed-privileged": [
+      "witnessed-privileged"
+    ]
+  }
+}
