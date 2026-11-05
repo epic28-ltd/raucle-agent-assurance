@@ -165,59 +165,70 @@ class DemoData:
                 f"synthetic index {str(path_r)!s} is outside the demo data dir "
                 f"{str(base_r)!s}; refusing to read it"
             )
-        # Real receipts: index fields decoded from the signed payload.
-        for meta in self._receipt_meta.values():
-            rows.append(
-                ReceiptRecord(
-                    receipt_hash=meta["receipt_hash"],
-                    trace_id=meta["trace_id"],
-                    decision=meta["decision"],
-                    event_time=dt.datetime.fromisoformat(meta["event_time"]),
-                    provenance="evidence_store.jsonl",
-                    gate_id=meta.get("gate_id") or "gateway",
-                )
-            )
+        rows.extend(self._real_receipt_rows())
         # Synthetic index rows (explicit markers). Read via the resolved,
         # confined path rather than the raw caller-supplied one.
         for line in path_r.read_text().splitlines():
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
-            row = json.loads(line)
-            if not row.get("synthetic"):
-                raise ValueError("synthetic index rows must set synthetic: true")
-            if row["receipt_hash"] in self._store_index:
-                raise ValueError("synthetic row must never collide with canonical store")
-            rows.append(
-                ReceiptRecord(
-                    receipt_hash=row["receipt_hash"],
-                    trace_id=row.get("trace_id"),
-                    decision=row.get("decision"),
-                    event_time=dt.datetime.fromisoformat(row["event_time"]),
-                    provenance=row.get("provenance"),
-                    synthetic=True,
-                )
-            )
-            self._receipt_meta[row["receipt_hash"]] = {
-                "receipt_hash": row["receipt_hash"],
-                "schema_version": row.get("schema_version", ""),
-                "decision": row.get("decision"),
-                "policy_ref": row.get("policy_ref"),
-                "tool": row.get("tool"),
-                "trace_id": row.get("trace_id"),
-                "event_time": row["event_time"],
-                "jws_available": False,
-                "canonical": False,
-            }
-            if row.get("expected_correlation"):
-                # UI-02.4: the ONLY supported expected_correlation value is
-                # matched_degraded — a hand-built fallback-pairing demo over a
-                # row that would otherwise reconcile to exactly `matched`.
-                expected = row["expected_correlation"]
-                if expected != "matched_degraded":
-                    raise ValueError("expected_correlation override only supports matched_degraded")
-                self._expected_correlation_overrides[row.get("trace_id")] = expected
+            rows.append(self._synthetic_row(json.loads(line)))
         return rows
+
+    def _real_receipt_rows(self) -> list[ReceiptRecord]:
+        """Evidence-store receipts: index fields decoded from the signed payload."""
+        return [
+            ReceiptRecord(
+                receipt_hash=meta["receipt_hash"],
+                trace_id=meta["trace_id"],
+                decision=meta["decision"],
+                event_time=dt.datetime.fromisoformat(meta["event_time"]),
+                provenance="evidence_store.jsonl",
+                gate_id=meta.get("gate_id") or "gateway",
+            )
+            for meta in self._receipt_meta.values()
+        ]
+
+    def _synthetic_row_correlation_override(self, row: dict) -> None:
+        """UI-02.4: the ONLY supported expected_correlation value is
+        matched_degraded — a hand-built fallback-pairing demo over a row
+        that would otherwise reconcile to exactly `matched`."""
+        expected = row.get("expected_correlation")
+        if not expected:
+            return
+        if expected != "matched_degraded":
+            raise ValueError("expected_correlation override only supports matched_degraded")
+        self._expected_correlation_overrides[row.get("trace_id")] = expected
+
+    def _synthetic_meta(self, row: dict) -> dict:
+        return {
+            "receipt_hash": row["receipt_hash"],
+            "schema_version": row.get("schema_version", ""),
+            "decision": row.get("decision"),
+            "policy_ref": row.get("policy_ref"),
+            "tool": row.get("tool"),
+            "trace_id": row.get("trace_id"),
+            "event_time": row["event_time"],
+            "jws_available": False,
+            "canonical": False,
+        }
+
+    def _synthetic_row(self, row: dict) -> ReceiptRecord:
+        """Validate + build one synthetic-index receipt record."""
+        if not row.get("synthetic"):
+            raise ValueError("synthetic index rows must set synthetic: true")
+        if row["receipt_hash"] in self._store_index:
+            raise ValueError("synthetic row must never collide with canonical store")
+        self._receipt_meta[row["receipt_hash"]] = self._synthetic_meta(row)
+        self._synthetic_row_correlation_override(row)
+        return ReceiptRecord(
+            receipt_hash=row["receipt_hash"],
+            trace_id=row.get("trace_id"),
+            decision=row.get("decision"),
+            event_time=dt.datetime.fromisoformat(row["event_time"]),
+            provenance=row.get("provenance"),
+            synthetic=True,
+        )
 
     def _load_audit_events(self) -> None:
         """UI-02.4: audit-plane synthetic rows (kind tool_audit / custody /
@@ -421,6 +432,17 @@ class DemoData:
         demo run the finding belongs to (None for corpus-level findings)."""
         refs = set(base["evidence_refs"])
         trace_ids = {t["trace_id"] for r in self.runs for t in r["traces"] for t in [t]}
+        run_id = self._finding_run_id(base, refs)
+        detected = self._finding_detection_time(base)
+        return {
+            "id": self._finding_id(base),
+            "detected_at": detected,
+            "run_id": run_id,
+            "trace_ids_only": None if not refs & trace_ids else sorted(refs & trace_ids),
+        }
+
+    def _finding_run_id(self, base: dict, refs: set[str]) -> str | None:
+        """The demo run the finding belongs to (None for corpus-level)."""
         run_hashes = {
             s["receipt_hash"]: r["run_id"]
             for r in self.runs
@@ -428,7 +450,6 @@ class DemoData:
             for s in tr["spans"]
             if s["receipt_hash"]
         }
-        run_id = None
         audit_by_ref = {e["ref"]: e for e in self._audit_events}
         expanded = set(refs)
         for ref in refs:
@@ -439,32 +460,30 @@ class DemoData:
             if expanded & local or any(
                 h in run_hashes and run_hashes[h] == r["run_id"] for h in refs
             ):
-                run_id = r["run_id"]
-                break
+                return r["run_id"]
+        return None
+
+    def _finding_detection_time(self, base: dict):
+        """Detection instant: the audit-event time when the primary evidence
+        ref is an audit record, else the earliest correlated receipt/check
+        time."""
         audit_by_ref = {e["ref"]: e for e in self._audit_events}
-        detected = None
         for ref in base["evidence_refs"]:
             if ref in audit_by_ref:
-                detected = audit_by_ref[ref]["at"]
-                break
-        if detected is None:
-            for ref in base["evidence_refs"]:
-                payload = self.correlation_by_trace.get(ref) or self.correlation_by_hash.get(ref)
-                if payload:
-                    times = payload.get("receipt_event_times") or []
-                    obs = payload.get("trace_observed_at")
-                    if times or obs:
-                        detected = min(x for x in [*(times or []), obs] if x)
-                        break
-        # stable, deterministic finding id for board triage state keys
+                return audit_by_ref[ref]["at"]
+        for ref in base["evidence_refs"]:
+            payload = self.correlation_by_trace.get(ref) or self.correlation_by_hash.get(ref)
+            if payload:
+                times = payload.get("receipt_event_times") or []
+                obs = payload.get("trace_observed_at")
+                if times or obs:
+                    return min(x for x in [*(times or []), obs] if x)
+        return None
+
+    def _finding_id(self, base: dict) -> str:
+        """Stable, deterministic finding id for board triage state keys."""
         seed = base["rule_id"] + "|" + "|".join(base["evidence_refs"]) + "|" + base["explanation"]
-        fid = "f-" + hashlib.sha256(seed.encode()).hexdigest()[:12]
-        return {
-            "id": fid,
-            "detected_at": detected,
-            "run_id": run_id,
-            "trace_ids_only": None if not refs & trace_ids else sorted(refs & trace_ids),
-        }
+        return "f-" + hashlib.sha256(seed.encode()).hexdigest()[:12]
 
     # ---------------------------------------------------------------- access
     def get_run(self, run_id: str) -> dict | None:
