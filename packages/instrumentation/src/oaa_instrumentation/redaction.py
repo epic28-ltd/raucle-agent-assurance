@@ -90,16 +90,14 @@ def shannon_entropy_per_char(value: str) -> float:
 def _entropy_matches(value: str, spec: dict[str, Any]) -> bool:
     if len(value) < int(spec.get("min_length", 20)):
         return False
-    if not spec.get("base64_charset_only", True):
-        pass
-    elif any(
+    # charset gate: prose and kebab/dot-structured identifiers (oaa.run_id,
+    # session ids, content-class tags) never look like opaque blobs; a
+    # secret carrying an explicit dash would evade the entropy layer (the
+    # pattern layer is the primary control) — declared limitation.
+    if spec.get("base64_charset_only", True) and any(
         ch not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=_"
         for ch in value
     ):
-        # charset gate: prose and kebab/dot-structured identifiers (oaa.run_id,
-        # session ids, content-class tags) never look like opaque blobs; a
-        # secret carrying an explicit dash would evade the entropy layer (the
-        # pattern layer is the primary control) — declared limitation.
         return False
     return bool(shannon_entropy_per_char(value) >= float(spec.get("threshold_bits_per_char", 3.8)))
 

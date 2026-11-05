@@ -1,0 +1,461 @@
+
+1.0PythonFrontend*py2.B†
+
+imports1
+
+extends2
+
+returns3
+
+	has param4
+
+
+calls5
+
+module6
+
+
+class7
+
+method8
+
+function9
+6
+0packages/ep-aec/tests/test_raucle_integration.py11
+
+test_raucle_integration13
+
+
+__future__14
+
+datetime16
+
+importlib.util18
+
+
+json20
+
+pytest22
+
+helpers24
+
+oaa_epaec.EpaecConfig26
+
+oaa_epaec.build_envelope28
+
+	oaa_epaec30
+
+oaa_epaec.objects32
+$
+oaa_raucle_adapter.fixture_gen34
+'
+!oaa_raucle_adapter.evidence_plane36
+(
+"test_raucle_integration.real_store38
+
+pytest.fixture40
+
+	ARG_scope41
+#
+test_raucle_integration._line42
+	
+str44
+K
+Etest_raucle_integration.test_real_classify_drives_verified_components46
+T
+Ntest_raucle_integration.test_unknown_key_registry_yields_accepted_not_verified48
+S
+Mtest_raucle_integration.test_supplied_classification_matches_integrated_shape50
+
+datetime.datetime52
+
+importlib.util.find_spec54
+
+pytest.mark.skipif56
+-
+'oaa_raucle_adapter.fixture_gen.generate58
+
+pytest.skip60
+
+
+open62
+
+
+json.loads64
+
+list.append66
+1
++oaa_raucle_adapter.evidence_plane.TrustRoot68
+9
+3oaa_raucle_adapter.evidence_plane.TrustRootRegistry70
+=
+7oaa_raucle_adapter.evidence_plane.TrustRootRegistry.add72
+
+AssertionError74
+0
+*oaa_raucle_adapter.evidence_plane.classify76
+	
+all78
+-
+'oaa_epaec.objects.trust_snapshot_digest80
+	
+set82
+
+helpers.make_store84
+
+helpers.gate_payload86
+
+ARG_088
+
+
+202689
+
+ARG_190
+
+1191
+
+ARG_292
+
+493
+
+ARG_394
+
+1295
+
+ARG_496
+
+097
+
+ARG_598
+
+raucle99
+
+
+ARG_reason100
+8
+1raucle not installed (optional pinned dependency)101
+0
+)fixture corpus produced no valid receipts102
+	
+wb103
+
+ARG_valid_from104
+ 
+2020-01-01T00:00:00+00:00105
+
+
+ARG_key_id106
+
+someone-else107
+
+ARG_public_key_pem108
+A
+:-----BEGIN PUBLIC KEY-----\nnone\n-----END PUBLIC KEY-----109
+
+ARG_component_type110
+
+policy-permit111J
+
+10
+
+1011 jÇ
+!
+12
+12136 *
+10 (
+
+15
+15146
+
+17
+17166
+
+19
+19186
+
+21
+21206
+
+23
+23226
+
+25
+25246
+
+27
+27269
+
+29
+29289
+
+31
+31306
+
+33
+33326
+
+35
+35346
+
+37
+37366
+,
+39&
+39389 212R
+
+40
+	
+41
+6
+
+43
+43429 212
+
+45
+45447
+
+47
+47469 212
+
+49
+49489 212
+
+51
+51509 212
+
+53
+53527
+
+55
+55549
+
+57
+57569
+
+59
+59589
+
+61
+61609
+
+63
+63629
+
+65
+65649
+
+67
+67668
+
+69
+69687
+
+71
+71707
+
+73
+73728
+
+75
+75747
+
+77
+77769
+
+79
+79789
+
+81
+81809
+
+83
+83827
+
+85
+85849
+
+87
+87869r∆
+
+
+12151*
+10	 	(#
+
+12171*
+10 (
+
+12191*
+10 (
+
+12211*
+10 (
+
+12231*
+10 (
+
+12251*
+10 (-
+
+12271*
+10 ("
+
+12291*
+10$ (2
+
+12311*
+10 (2
+
+12331*
+10 (?
+
+12351*
+10!$ !(/
+
+12371*
+10" "(O
+
+12371*
+10D D(;
+
+12371*
+10g g(O
+
+43453*
+10< <(
+
+c
+12535*
+10
+ (;2H
+
+
+88
+89
+
+
+90
+91
+
+
+92
+93
+
+
+94
+95
+
+
+96
+97
+
+
+98
+97
+'
+12555*
+10 (12
+
+
+88
+99
+)
+12575*
+10 (2
+
+100
+101
+
+39595*
+10% %('
+(
+39615*
+10(	 ((A2
+
+88
+102
+(
+39635*
+10,
+ ,(/2
+
+90
+103
+
+39655*
+10. .(,
+
+39675*
+10/ /(/
+)
+39695*
+101 6(2
+
+104
+105
+
+39715*
+107 7(#
+
+39735*
+108 8(
+
+43655*
+10> >(
+
+43755*
+10@ @('
+
+47775*
+10G G(6
+
+47435*
+10G G(+
+
+47795*
+10H H(A
+
+47295*
+10J J(K
+
+47815*
+10RG [(
+
+47835*
+10^ ^(%
+
+49715*
+10j j(#
+
+49735*
+10k r(
+E
+49695*
+10l	 q(
+2*
+
+106
+107
+
+108
+109
+
+104
+105
+
+49295*
+10s y(
+)
+49275*
+10w w(;2
+
+110
+111
+
+51855*
+10Ç Ç(:
+
+51875*
+10Ç* Ç(8
+
+51295*
+10É ê(

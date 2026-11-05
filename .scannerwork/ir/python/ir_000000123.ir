@@ -1,0 +1,3 @@
+
+ZQ"{DENY_MESSAGE_PREFIX}: {self.reason} (tool={self.tool}, call_id={self.call_id})"strself2 2("
+3 3(a*t/home/craigamcw/Projects/open-agent-assurance/integrations/langgraph-adapter/src/oaa_langgraph_adapter/middleware.py

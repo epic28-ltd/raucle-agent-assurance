@@ -1,0 +1,74 @@
+
+falsebool
+
+2int
+53int
+A8"integer not exactly representable as a double: {value}"strvalue
+‡ ‡("int"O+
+)
+
+ˆ ˆ("#is-instance#:Bbool "
+
+ˆ ˆ( *
+ˆ ˆ("˜)
+'
+
+Š Š("
+#binop **#*2**:%
+#
+
+Š Š("#unaryop -#2-:,
+*
+
+Š Š("
+#binop <=#2<=:Bbool"
+
+Š Š(% "K5
+3
+
+ (" 
+oaa_epaec.objects_es6_number:
+
+ ("a)
+'
+
+Š  Š(%	"
+#binop **#*2**:,
+*
+
+Š Š(%
+"
+#binop <=#2<=:	Bbool"**
+"
+
+Š Š(% "¦0
+.
+
+Š. Š(:"
+builtinsfloat*:Bfloat0
+.
+
+Š* Š(;"#dependent-value#*:Bint,
+*
+
+Š* Š(D"
+#binop ==#2==:Bbool
+
+Š Š(D"6* "
+
+Š Š(D *
+Š Š(
+"K5
+3
+
+‹ ‹(%" 
+oaa_epaec.objects_es6_number:
+
+‹ ‹(%"F0
+.
+
+Œ Œ(S"
+ValueError*:B
+ValueError2
+
+Œ Œ(S*V/home/craigamcw/Projects/open-agent-assurance/packages/ep-aec/src/oaa_epaec/objects.py

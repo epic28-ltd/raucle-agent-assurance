@@ -355,7 +355,8 @@ def load_config(path: str | Path, *, env_url: str | None = None) -> WebhookConfi
     overrides the file's ``url`` — the endpoint is env/config only.
     Credentials are NEVER part of this config; they belong to the transport.
     """
-    import yaml  # noqa: PLC0415 — optional, config-loading convenience only
+    import yaml  # noqa: PLC0415
+    # yaml is an optional dependency: config-loading convenience only.
 
     with open(path, encoding="utf-8") as fh:
         raw = yaml.safe_load(fh)

@@ -1,0 +1,20 @@
+
+
+4int
+"="strsegf
+ f("*
+(
+g2 g(:"
+builtinslen*:Bint(
+&
+g1 g(:"#unaryop -#2-:Bint%
+#
+g1 g(>"	#binop %#*2%:%
+#
+g* g(?"	#binop *#*2*:"
+ 
+g$ g(?"	#binop +#2+:5
+3
+g g(@	"
+base64urlsafe_b64decode:Bbytes
+g g(@	*K/home/craigamcw/Projects/open-agent-assurance/tools/verifier/verify_pack.py

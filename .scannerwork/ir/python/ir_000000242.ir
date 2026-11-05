@@ -1,0 +1,123 @@
+
+"requirement"str
+	"verdict"str
+!&"max_requirement_tokens"str
+-"components"str
+ #"max_requirement_bytes"str
+!"evaluator_limits"str
+)"max_paren_depth"str
+#"evaluator_profile_digest"str
+"reason_codes"str
+"aec_digest"str
+ﬁ‘"Assemble the EP-AEC-REPLAY-v1 record from the envelope + facts.
+
+    Normalised facts per component: type, evidence_digest, native verifier
+    profile digest, trust snapshot digest, VERIFIED/ACCEPTED result, CAID
+    mapping verdict, freshness/status results. The evaluator profile digest is
+    fixed at ``EP-AEC-EVALUATOR-08-v1``.
+    "str
+"evaluated_at"str
+
+
+"@version"strenvelope
+Ü Ü(verdict
+á á(reason_codes
+à à(component_facts
+â â((now
+ã ã("rejected
+å å("Ë?
+=
+
+ï ï(evaluated_at"
+oaa_epaec.objectsnow_iso:.
+,
+
+ñ §(	record"#new-object#Bdict#
+!
+
+ó ó(""#unknown-value#"
+ 
+
+ó ó(""	#map-set#:	
+-
++
+
+ò ò()"#get-field# aec_digest:"
+ 
+
+ò ò()"	#map-set#:	+
+)
+
+ô ô('"
+__bool__*:BboolH,"*
+
+ô ô(' *
+ô ô(2
+ô( ô(,"9#
+!
+
+ô ô("#unknown-value#
+
+ô ô(4"
+
+ô ô(4"˜*"
+ 
+
+ô ô(4"	#map-set#:	.
+,
+
+ö ö(*"
+builtinslist*:Blist"
+ 
+
+ö ö(*"	#map-set#:	&
+$
+
+õ õ(#"#get-field# aec:$
+"
+
+õ õ(2"#array-read#:"
+ 
+
+õ õ(2"	#map-set#:	"
+ 
+
+ú ú($"	#map-set#:	#
+!
+
+ù$ ù(<"#unknown-value#"
+ 
+
+ù ù(< "	#map-set#:	&
+$
+
+û ¢(	""#new-object#Bdict#
+!
+
+ü% ü(:$"#unknown-value#"
+ 
+
+ü ü(:%"	#map-set#:"#$#
+!
+
+†& †(<'"#unknown-value#"
+ 
+
+† †(<("	#map-set#:"&'#
+!
+
+° °(.*"#unknown-value#"
+ 
+
+° °(.+"	#map-set#:")*"
+ 
+
+û ¢(	,"	#map-set#:	!"-
++
+
+£ £(<."?python-unknown?:Blist"
+ 
+
+£ £(</"	#map-set#:	-.
+
+• •(	*V/home/craigamcw/Projects/open-agent-assurance/packages/ep-aec/src/oaa_epaec/objects.py

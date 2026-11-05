@@ -1,0 +1,5 @@
+
+KB"Snapshot of a span's attributes as a plain dict (no OTEL types)."strspan ()"=+
+)
+ (Y"?python-unknown?:Bdict
+ (Y*p/home/craigamcw/Projects/open-agent-assurance/packages/instrumentation/src/oaa_instrumentation/otel_processor.py

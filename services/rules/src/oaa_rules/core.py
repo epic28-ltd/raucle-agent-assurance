@@ -203,7 +203,7 @@ class Rule(Protocol):
     version: str
     description: str
 
-    def evaluate(self, events: Sequence[Event], config: RulesConfig) -> list[Finding]: ...
+    def evaluate(self, events: Sequence[Event], config: RulesConfig, /) -> list[Finding]: ...
 
 
 def _sort(events: Sequence[Event]) -> list[Event]:
@@ -369,7 +369,7 @@ class _ToolSideSuccessAfterDeny:
     version = "1.0.0"
     description = "Tool-side success observed after a correlated deny"
 
-    def evaluate(self, events: Sequence[Event], config: RulesConfig) -> list[Finding]:
+    def evaluate(self, events: Sequence[Event], _config: RulesConfig) -> list[Finding]:
         findings: list[Finding] = []
         denies = {
             e.trace_id
@@ -669,7 +669,7 @@ class _ProducerIdentityAnomaly:
     version = "1.0.0"
     description = "Producer identity changed mid-chain for the same agent"
 
-    def evaluate(self, events: Sequence[Event], config: RulesConfig) -> list[Finding]:
+    def evaluate(self, events: Sequence[Event], _config: RulesConfig) -> list[Finding]:
         findings: list[Finding] = []
         chains: dict[str, list[Event]] = {}
         for e in events:

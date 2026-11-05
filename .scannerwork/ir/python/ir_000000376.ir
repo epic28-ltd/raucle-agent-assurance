@@ -1,0 +1,12 @@
+
+100int
+NE"Deterministic truncation to an integer percent (never rounding up)."strfraction
+‚	 ‚("m'
+%
+
+„ „("	#binop *#*2*:0
+.
+
+„ „("#dependent-value#*:Bint
+
+„ „(*[/home/craigamcw/Projects/open-agent-assurance/services/quality/src/oaa_quality/evaluator.py

@@ -322,7 +322,7 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
     @app.get("/api/findings/board")
     def api_findings_board():
         findings, kpis = _board_findings()
-        by_state = {s: 0 for s in BOARD_STATES}
+        by_state = dict.fromkeys(BOARD_STATES, 0)
         for f in findings:
             by_state[f["state"]] += 1
         return {
@@ -490,11 +490,15 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
                 if corr_state in ("receipt_missing", "trace_missing", "ambiguous", "pending")
                 else "badge badge-ok"
             )
-            parts.append(f"<h3>trace {esc(trace['trace_id'])} <span class='{cls}'>")
-            parts.append(esc(corr_state) + "</span> — " + esc(trace["label"]) + "</h3>")
-            parts.append(
-                "<table><tr><th>span</th><th>tool</th><th>priv</th>"
-                "<th>receipt_hash</th><th>verification</th><th>correlation</th></tr>"
+            parts.extend(
+                (
+                    f"<h3>trace {esc(trace['trace_id'])} <span class='{cls}'>",
+                    esc(corr_state) + "</span> — " + esc(trace["label"]) + "</h3>",
+                    (
+                        "<table><tr><th>span</th><th>tool</th><th>priv</th>"
+                        "<th>receipt_hash</th><th>verification</th><th>correlation</th></tr>"
+                    ),
+                )
             )
             for span in trace["spans"]:
                 v = data.verification_for(span["receipt_hash"])

@@ -1,0 +1,85 @@
+
+ßÕ"P1.1V: instrument the verifier path so that ANY attempted external
+    call fails the run loudly (OSError) instead of passing silently, and
+    every attempt is recorded on EXTERNAL_CALL_AUDIT.
+
+    Honest gap, stated plainly: this is same-kernel monkeypatch isolation
+    inside one Python process, not a physically unplugged machine and not a
+    separate network namespace. The physical plug-pull beat is the W8 live
+    demo, which is out of scope here. subprocess/namespace isolation is
+    exercised separately by the demo and tests where `unshare -n` is
+    available on the machine.
+    "str
+!"urllib.request.urlopen"str
+	"socket.getaddrinfo"str
+#"socket.create_connection"str
+-$"http.client.HTTPConnection.connect"str"™#
+!
+
+± ±(#"#unknown-value##
+!
+
+± ±(
+"#unknown-value#*
+(
+
+± ±("#set-field# socket:A
+?
+
+² ²(B",
+!verify_pack.install_offline_audit_refuse:#
+!
+
+² ²(
+"#unknown-value#5
+3
+
+² ²("#set-field# create_connection:A
+?
+
+³ ³(6
+",
+!verify_pack.install_offline_audit_refuse:	#
+!
+
+³ ³(
+"#unknown-value#/
+-
+
+³ ³("#set-field# getaddrinfo:
+A
+?
+
+´) ´(V",
+!verify_pack.install_offline_audit_refuse:#
+!
+
+´ ´("#unknown-value#)
+'
+
+´ ´("#get-field# client:1
+/
+
+´ ´("#get-field# HTTPConnection:+
+)
+
+´ ´(&"#set-field# connect:A
+?
+
+µ µ(>",
+!verify_pack.install_offline_audit_refuse:#
+!
+
+µ µ(
+"#unknown-value#*
+(
+
+µ µ("#get-field# request:+
+)
+
+µ µ("#set-field# urlopen:#
+!
+
+¶ ¶("#unknown-value#
+
+¶ ¶(*K/home/craigamcw/Projects/open-agent-assurance/tools/verifier/verify_pack.py

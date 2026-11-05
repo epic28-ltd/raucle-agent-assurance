@@ -1,0 +1,39 @@
+
+	"medium"str
+
+2int
+ØÎ"Three-band uncertainty, derived only from sample size vs rubric policy.
+
+    The rubric's ``min_sample_size`` is the floor for a medium band; low is
+    reserved for at least twice that policy floor.
+    "str
+"low"str
+
+"high"strn
+É É(
+min_sample
+É É(("y'
+%
+
+Ï Ï("	#binop *#*2*:,
+*
+
+Ï Ï("
+#binop >=#2>=:Bbool "
+
+Ï Ï( *
+Ï Ï("
+
+Ð Ð("R,
+*
+
+Ñ Ñ("
+#binop >=#2>=:Bbool "
+
+Ñ Ñ( *
+Ñ Ñ("
+
+Ò Ò(	"
+
+Ó Ó(
+*[/home/craigamcw/Projects/open-agent-assurance/services/quality/src/oaa_quality/evaluator.py

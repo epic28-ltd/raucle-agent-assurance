@@ -1,0 +1,78 @@
+
+$32int
+!"receipt_hash"str
+"user:alice"str
+#"ab"str
+"typ"str
+"allow"str
+
+"trace_id"str
+""str
+"guardrail_scan"str
+ "provenance-receipt/v1"str
+(	"payload"str
+"agent:evd"str
+"tool"str
+"acting_for"str
+"operation"str
+
+"decision"str
+"approval_id"str
+"tr-1"str
+"read_file"str
+"	"sha256:"str
+
+"agent_id"str
+	"x_gate"str
+gate_extra! !("dict"ò-
++
+" .(payload"#new-object#Bdict 
+
+# #(&"	#map-set#: 
+
+$ $(%"	#map-set#:$
+"
+% -(	
+"#new-object#Bdict 
+
+& &(#"	#map-set#:
+ 
+
+' '(&"	#map-set#:
+ 
+
+( (("	#map-set#:
+ 
+
+) )("	#map-set#:
+ 
+
+* *("	#map-set#:
+ 
+
++ +("	#map-set#:
+%
+#
+, ,("#unaryop **#2**:#
+!
+, ,("#map-set-all#:
+ 
+
+% -(	"	#map-set#:	
+$
+"
+/ /(S "#new-object#Bdict%
+#
+/5 /(>%"	#binop *#*2*:#$"
+ 
+/) /(>&"	#binop +#2+:"% 
+
+/ /(>'"	#map-set#: !& 
+
+/@ /(R)"	#map-set#: (!
+
+/ /(T*"#unknown-value#5
+3
+/ /(T+"!
+oaa_epaec.objectsbuild_action: *
+/ /(T+*S/home/craigamcw/Projects/open-agent-assurance/packages/ep-aec/tests/test_objects.py

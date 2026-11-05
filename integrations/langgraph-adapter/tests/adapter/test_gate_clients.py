@@ -93,4 +93,4 @@ def test_pin_constant_is_distribution_not_version():
 
 def test_default_timeout_is_latency_budget():
     client = HttpGateClient("http://127.0.0.1:1/x")
-    assert client._timeout_s == 0.080
+    assert client._timeout_s == pytest.approx(0.080)

@@ -1,0 +1,71 @@
+
+1.0PythonFrontend*py2.B�
+
+imports1
+
+extends2
+
+returns3
+
+	has param4
+
+
+calls5
+
+module6
+
+
+class7
+
+method8
+
+function9
+5
+/services/console/src/raucle_console/__init__.py11
+
+raucle_console13
+
+raucle_console.app14
+ 
+raucle_console.__getattr__16
+
+getattr18
+
+AttributeError20
+
+ARG_022
+%
+module ￿ has no attribute ￿23J
+
+10
+
+1011 ju
+!
+12
+12136 *
+10 (
+
+15
+15146
+
+17
+17169 212
+
+19
+19189
+
+21
+21207r_
+
+12151*
+10$ (/
+
+17195*
+10 (#
+'
+17215*
+10 (K2
+
+
+22
+23

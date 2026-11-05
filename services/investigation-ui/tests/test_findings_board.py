@@ -156,7 +156,7 @@ def test_kpi_strip_counts_reconcile_with_columns(client: TestClient):
 def test_column_counts_match_findings_by_state(client: TestClient):
     board = client.get("/api/findings/board").json()
     by_api = board["columns"]
-    by_hand: dict[str, int] = {s: 0 for s in board["states"]}
+    by_hand: dict[str, int] = dict.fromkeys(board["states"], 0)
     for f in board["findings"]:
         by_hand[f["state"]] += 1
     assert by_api == by_hand

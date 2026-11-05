@@ -210,26 +210,30 @@ def _unknowns_section(data: DemoData) -> list[str]:
     out = ["## Unknowns and unverifiable ranges", ""]
     total_v = sum(verif.values())
     unk_v = sum(verif.get(s, 0) for s in UNKNOWN_STATES)
-    out.append(
-        f"- Verification: {unk_v} of {total_v} indexed receipts are in an explicit unknown "
-        "state (`" + "`, `".join(s for s in VERIFICATION_STATES if s in UNKNOWN_STATES) + "`) — "
-        "no integrity or authority claim is made for them."
-    )
-    out.append(
-        f"- Correlation: `receipt_missing` records lack a corroborating receipt entirely "
-        f"({corr.get('receipt_missing', 0)} traces); {pending_corr} correlation record(s) are "
-        "open inside the grace window and are not results."
-    )
-    out.append(
-        "- Unverifiable ranges: any trace with no span carrying a gate receipt, and any "
-        "verification state of `unavailable` (verifier could not run at ingest time), are "
-        "ranges this report cannot verify."
-    )
-    out.append(
-        "- Receipts outside the ingested evidence store (unsampled sinks, prior retention "
-        "windows already deleted per the records lifecycle) are unverifiable by construction."
-    )
-    out.append("")
+    out += [
+        (
+            f"- Verification: {unk_v} of {total_v} indexed receipts are in an explicit unknown "
+            "state (`"
+            + "`, `".join(s for s in VERIFICATION_STATES if s in UNKNOWN_STATES)
+            + "`) — "
+            "no integrity or authority claim is made for them."
+        ),
+        (
+            f"- Correlation: `receipt_missing` records lack a corroborating receipt entirely "
+            f"({corr.get('receipt_missing', 0)} traces); {pending_corr} correlation record(s) are "
+            "open inside the grace window and are not results."
+        ),
+        (
+            "- Unverifiable ranges: any trace with no span carrying a gate receipt, and any "
+            "verification state of `unavailable` (verifier could not run at ingest time), are "
+            "ranges this report cannot verify."
+        ),
+        (
+            "- Receipts outside the ingested evidence store (unsampled sinks, prior retention "
+            "windows already deleted per the records lifecycle) are unverifiable by construction."
+        ),
+        "",
+    ]
     return out
 
 
@@ -239,44 +243,48 @@ def _limits_section(data: DemoData, coverage: dict[str, str]) -> list[str]:
         if meta.get("tool"):
             tools.add(meta["tool"])
     out = ["## Mandatory limits (fixed section — do not edit)", ""]
-    out.append("### Scope")
-    out.append("")
-    out.append(
-        "- This report covers the gated paths only: tool invocations that pass the "
-        "receipt-based gate and appear in the ingested evidence store for the queried "
-        "range. Ungated paths (non-tool model turns, producer-side traffic before the "
-        "gate, external systems) are out of scope and out of evidence."
-    )
-    out.append("")
+    out += [
+        "### Scope",
+        "",
+        (
+            "- This report covers the gated paths only: tool invocations that pass the "
+            "receipt-based gate and appear in the ingested evidence store for the queried "
+            "range. Ungated paths (non-tool model turns, producer-side traffic before the "
+            "gate, external systems) are out of scope and out of evidence."
+        ),
+        "",
+    ]
     out.append("### Coverage per tool (custody coverage map, default `unverified`)")
     out.append("")
     out += ["| tool | coverage |", "| --- | --- |"]
     for tool in sorted(tools):
         out.append(f"| `{tool}` | {coverage.get(tool, 'unverified')} |")
     out.append("")
-    out.append("### Verification trust model")
-    out.append("")
-    out.append(
-        f"In one line: verification asserts **integrity and authority within trust policy "
-        f"version `{TRUST_POLICY_VERSION}`** — and never safety, appropriateness, or "
-        f"compliance (ADR-0001: a `valid` result says the bytes match the signing key "
-        f"trusted at event time, nothing further)."
-    )
-    out.append("")
-    out.append("### No legal or regulatory statement")
-    out.append("")
-    out.append(
-        "A receipt or this report does not establish legal or regulatory "
-        "compliance of any kind. It records what was cryptographically observed "
-        "inside a deliberately narrow scope and no more."
-    )
-    out.append("")
-    out.append("### Unknowns and unverifiable ranges")
-    out.append("")
-    out.append(
-        "See the *Unknowns and unverifiable ranges* section above — repeated here by reference; the limits section is void without it."
-    )
-    out.append("")
+    out += [
+        "### Verification trust model",
+        "",
+        (
+            f"In one line: verification asserts **integrity and authority within trust policy "
+            f"version `{TRUST_POLICY_VERSION}`** — and never safety, appropriateness, or "
+            f"compliance (ADR-0001: a `valid` result says the bytes match the signing key "
+            f"trusted at event time, nothing further)."
+        ),
+        "",
+        "### No legal or regulatory statement",
+        "",
+        (
+            "A receipt or this report does not establish legal or regulatory "
+            "compliance of any kind. It records what was cryptographically observed "
+            "inside a deliberately narrow scope and no more."
+        ),
+        "",
+        "### Unknowns and unverifiable ranges",
+        "",
+        (
+            "See the *Unknowns and unverifiable ranges* section above — repeated here by reference; the limits section is void without it."
+        ),
+        "",
+    ]
     return out
 
 

@@ -1,0 +1,17 @@
+
+‡ı"Board triage overrides, persisted as a UI-sidecar index (never the
+        canonical evidence store). Default state derives from the finding:
+        fixture-suppressed findings sit in the Suppressed column, everything
+        else is untriaged (New)."str"©#
+!
+
+" (&"#unknown-value#&
+$
+
+" (*"#get-field# dir:H
+F
+
+ (+"3
+oaa_investigation_ui.countingload_triage_states:
+
+ (+*g/home/craigamcw/Projects/open-agent-assurance/services/investigation-ui/src/oaa_investigation_ui/app.py

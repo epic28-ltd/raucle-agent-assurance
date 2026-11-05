@@ -236,7 +236,7 @@ class DemoData:
             row = json.loads(line)
             if not row.get("synthetic"):
                 raise ValueError(f"audit event row {i} must set synthetic: true")
-            row = {k: v for k, v in row.items()}
+            row = dict(row.items())
             self._audit_events.append(row)
 
     def _audit_engine_events(self) -> list:

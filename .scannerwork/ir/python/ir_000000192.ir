@@ -1,0 +1,29 @@
+
+falsebool
+MD"Canonical JSON: sorted keys, tight separators (determinism basis)."str
+
+
+0int
+":"str
+","str
+trueboolobjM M(	tuple"Þ(
+&
+O6 O(@"#unknown-value#Btuple&
+$
+O6 O(@"
+#is-exact#:Bbool
+
+O6 O(@	"
+#assume#:8
+6
+O6 O(@"#set-field# __collection_size:
+Bint&
+$
+O6 O(@"#array-add-last#:&
+$
+O6 O(@"#array-add-last#:!
+
+O O("#unknown-value#.
+,
+O O(U"?python-unknown?:Bstr
+O O(U*J/home/craigamcw/Projects/open-agent-assurance/integrations/siem/webhook.py

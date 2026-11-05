@@ -1,0 +1,79 @@
+
+&truebool
+SJ"Map one synthetic corpus case into evaluator input (two workflow units)."str
+ "shell"str
+
+1int
+
+2int
+"scenario_class"str
+&"eval-case:{case['case_id']}"str
+!	"{case['case_id']}-wf-A"str
+
+0int
+
+"description"str
+!"{case['case_id']}-wf-B"strcase$ $(	tuple"Ü3
+1
+& 0(steps"?python-unknown?:Blist*
+(
+1 1("
+builtinslen*:Bint'
+%
+1 1("	#binop +#2+:Bint-
++
+1 1( half"
+#binop //#*2//:"
+ 
+5 5(+"#array-read#:
+'
+%
+6 6($"#unknown-value#Blist.
+,
+6 6(%"
+builtinstuple*:Btuple&
+$
+3 7(	"#unknown-value#:	"
+ 
+: :(+"#array-read#:
+'
+%
+; ;($"#unknown-value#Blist.
+,
+; ;(%"
+builtinstuple*:Btuple&
+$
+8 <(	"#unknown-value#:(
+&
+2 2("#unknown-value#Btuple&
+$
+2 2("
+#is-exact#:Bbool
+
+2 2("
+#assume#:8
+6
+2 2("#set-field# __collection_size:Bint&
+$
+2 2("#array-add-last#:&
+$
+2 2("#array-add-last#:+
+)
+2 =(	workflows"#id#:Btuple"
+ 
+@ @(-"#array-read#:(
+&
+B B(!!"#unknown-value#Btuple&
+$
+B B(!""
+#is-exact#:!Bbool
+
+B B(!#"
+#assume#:"8
+6
+B B(!$"#set-field# __collection_size:!Bint&
+$
+B B(!%"#array-add-last#:! (
+&
+> D('"#unknown-value#:!&
+> D('*R/home/craigamcw/Projects/open-agent-assurance/services/quality/demo/demo_qual01.py

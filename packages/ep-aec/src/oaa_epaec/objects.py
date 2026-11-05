@@ -27,6 +27,7 @@ from __future__ import annotations
 import base64
 import datetime as dt
 import hashlib
+import math
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -97,9 +98,9 @@ def _jcs_string(s: str) -> str:
 def _es6_number(value: float | int) -> str:
     """ECMAScript Number::toString(10) formatting, as RFC 8785 requires."""
     v = float(value)
-    if v != v or v in (float("inf"), float("-inf")):
+    if not math.isfinite(v):
         raise ValueError("JCS numbers must be finite")
-    if v == 0.0:
+    if not v:
         return "0"  # collapses -0.0, per RFC 8785 sample data
     neg = v < 0
     from decimal import Decimal

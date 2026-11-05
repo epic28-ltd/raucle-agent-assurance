@@ -1,0 +1,26 @@
+
+"iat"str
+KB"Event time of an envelope: its signed ``iat`` (event-time rule)."strenvelope_line
+‘ ‘(""¬9
+7
+
+“) “(I"$
+audit-pack.pack_envelope_payload:$
+"
+
+“) “(P"#array-read#:0
+.
+
+“% “(Q"#dependent-value#*:Bint#
+!
+
+“V “(X"#unknown-value#&
+$
+
+“V “(\"#get-field# UTC:8
+6
+
+“ “(]	""
+datetime.datetimefromtimestamp:
+
+“ “(]	*D/home/craigamcw/Projects/open-agent-assurance/ops/audit-pack/pack.py
