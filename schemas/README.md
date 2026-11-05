@@ -14,6 +14,15 @@ status.
   stays distinct: `decision: "unknown"` is a first-class value, never
   inferred into allow or deny.
 
+- `agent_assurance_packet.schema.json` — Agent Assurance Packet (OV-1):
+  deterministic, tamper-checked packet compiled from a receipt-chain
+  evidence store; ids, digests and counts only, never receipt denial
+  reasons. Optional `packet_pq_signature` (OV-22) is an ML-DSA-65
+  signature over the packet digest, added after the digest stamp. The
+  packet's ML-DSA field carries its own public key, so revalidation
+  proves post-quantum tamper-evidence of content, NOT authentication to
+  a known signer.
+
 ## Fixture generation
 
 `tools/run_records/generate_fixtures.py` builds AgentRunRecord fixtures

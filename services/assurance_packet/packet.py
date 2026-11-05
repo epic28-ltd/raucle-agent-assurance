@@ -11,8 +11,10 @@ Determinism contract: the same inputs produce byte-identical packet JSON
 (stable field order, no wall-clock data of any kind) and a stable
 ``packet_sha256`` over the canonical form of the packet body. An optional
 ML-DSA-65 signature of the packet digest (``packet_pq_signature``, OV-22)
-is added after the digest, sits outside the digest body, and is equally
-deterministic for the same key.
+field is added after the digest, sits outside the digest body, and is equally
+deterministic for the same key. The ML-DSA field carries its own public
+key, so revalidation proves post-quantum tamper-evidence of content, NOT
+authentication to a known signer.
 
 Fail-visible contract: a tampered, malformed or missing input is an error
 that names its cause; nothing is silently dropped or repaired. Receipt
@@ -288,10 +290,12 @@ def build_packet(
 ) -> dict:
     """Compile the versioned packet. Deterministic; fail-visible on bad input.
 
-    ``pq_private``, when given (an ML-DSA-65 private key from
-    ``raucle.pq.pq_generate``), adds the optional ``packet_pq_signature``
-    field: an ML-DSA-65 signature of ``packet_content_sha256`` made with
-    raucle's quantum-ready primitive.
+        ``pq_private``, when given (an ML-DSA-65 private key from
+        ``raucle.pq.pq_generate``), adds the optional ``packet_pq_signature``
+        field: an ML-DSA-65 signature of ``packet_content_sha256`` made with
+    raucle's quantum-ready primitive. The ML-DSA field carries its own
+    public key, so revalidation proves post-quantum tamper-evidence of
+    content, NOT authentication to a known signer.
     """
     if not evidence_store.is_file():
         raise ValueError(f"evidence store not found: {evidence_store}")
@@ -402,6 +406,16 @@ def html_summary(packet: dict) -> str:
         "<h2>Integrity</h2>",
         "<p>Packet content sha256: " + _esc(packet["packet_content_sha256"]) + "</p>",
         "<p>Inputs: " + _esc(canonical_json(packet["inputs"])) + "</p>",
+        *(
+            (
+                "<p><strong>Trust-model note:</strong> this packet's ML-DSA"
+                " field carries its own public key, so revalidation proves"
+                " post-quantum tamper-evidence of content, NOT"
+                " authentication to a known signer.</p>",
+            )
+            if "packet_pq_signature" in packet
+            else ()
+        ),
         "</body>",
         "</html>",
     ]
@@ -457,7 +471,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--risk-annotations", help="JSON list file of risk annotation strings")
     ap.add_argument(
         "--pq-private-key",
-        help="PEM file with an ML-DSA-65 private key; adds packet_pq_signature",
+        help=(
+            "PEM file with an ML-DSA-65 private key; adds packet_pq_signature"
+            " (its own public key: revalidation proves post-quantum"
+            " tamper-evidence of content, not authentication to a known"
+            " signer)"
+        ),
     )
     ap.add_argument("--out-dir", required=True)
     args = ap.parse_args(argv)

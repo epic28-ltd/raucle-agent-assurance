@@ -58,6 +58,10 @@ editing any of them (or any artefact they name) run:
 It fails with a `FAIL` line per reference that no longer resolves. If you
 rename or move an artefact, fix the role documents in the same commit.
 
+The checker is ordinary maintained code, not a one-off script:
+`scripts/check_docs_alignment.py` (with the fence-aware line/block parser,
+OV-15) and its tests in `tests/tools/test_check_docs_alignment.py`.
+
 ## Working agreements
 
 - Commit messages state the behaviour, not the intention.
