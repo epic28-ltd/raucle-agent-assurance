@@ -108,10 +108,8 @@ class InProcessRaucleGate:
         source: str = "langgraph",
     ) -> None:
         if gateway is None:
-            _, RaucleGateway, GatewayConfig = _ensure_raucle_importable()
-            gateway = RaucleGateway(
-                gateway_config if gateway_config is not None else GatewayConfig()
-            )
+            _, gateway_cls, gateway_cfg = _ensure_raucle_importable()
+            gateway = gateway_cls(gateway_config if gateway_config is not None else gateway_cfg)
         self._gateway = gateway
         self._agent_id = agent_id
         self._source = source

@@ -325,8 +325,8 @@ def classify(
 
 def _demo_identity_v2():
     """Mint a fresh v2 issue identity purely via raucle's own primitives."""
-    AgentIdentity = _raucle().provenance.AgentIdentity
-    return AgentIdentity.generate(
+    identity_cls = _raucle().provenance.AgentIdentity
+    return identity_cls.generate(
         agent_id="agent:evd-gateway-v2",
         allowed_models=["claude-sonnet-4-6"],
         allowed_tools=[],

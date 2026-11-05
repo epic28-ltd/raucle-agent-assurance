@@ -54,11 +54,11 @@ class FixtureCorpus:
 
 
 def new_gateway(workspace: pathlib.Path, name: str):
-    RaucleGateway = _raucle().gateway.RaucleGateway
-    GatewayConfig = _raucle().gateway.GatewayConfig
+    gateway_cls = _raucle().gateway.RaucleGateway
+    gateway_cfg_cls = _raucle().gateway.GatewayConfig
     policy_path = workspace / "policies.yaml"
     policy_path.write_text(DEFAULT_POLICIES)
-    cfg = GatewayConfig(
+    cfg = gateway_cfg_cls(
         host="127.0.0.1",
         admin_api_key="k",
         signer_backend="local",
@@ -68,7 +68,7 @@ def new_gateway(workspace: pathlib.Path, name: str):
         registry_path=str(workspace / f"{name}-registry.jsonl"),
         emit_receipts=True,
     )
-    return cfg, RaucleGateway(cfg)
+    return cfg, gateway_cls(cfg)
 
 
 def capture_verbatim(cfg, receipt_ids: set[str]) -> dict[str, bytes]:
@@ -99,15 +99,15 @@ def generate(workspace: pathlib.Path) -> FixtureCorpus:
         raise SystemExit(
             f"refusing fixture workspace {str(workspace)!s}: not a writable, confined directory"
         )
-    RaucleGateway = _raucle().gateway.RaucleGateway  # ensure lazy import path is valid
-    assert RaucleGateway is not None
+    gateway_cls = _raucle().gateway.RaucleGateway  # ensure lazy import path is valid
+    assert gateway_cls is not None
     workspace.mkdir(parents=True, exist_ok=True)
     if (workspace / "work").exists():
         shutil.rmtree(workspace / "work")
     work = workspace / "work"
     work.mkdir()
 
-    ProvenanceVerifier = _raucle().provenance.ProvenanceVerifier  # noqa: F841 (sanity pass below)
+    assert _raucle().provenance.ProvenanceVerifier is not None
 
     records: list[dict] = []
     cfg1, gw1 = new_gateway(workspace, "v1")

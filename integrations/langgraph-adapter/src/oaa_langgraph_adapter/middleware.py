@@ -155,7 +155,7 @@ class RaucleGateMiddleware(MIDDLEWARE_BASE):  # type: ignore[misc,valid-type]
 
         started = time.perf_counter()
         decision = self._safe_check(tool, args, call_id, ctx)
-        elapsed_Us = int((time.perf_counter() - started) * 1e6)
+        elapsed_us = int((time.perf_counter() - started) * 1e6)
 
         event = {
             "event": "gate_decision",
@@ -167,7 +167,7 @@ class RaucleGateMiddleware(MIDDLEWARE_BASE):  # type: ignore[misc,valid-type]
             "receipt_hash": decision.receipt_hash,
             "fail_open": self.fail_open,
             "gate_latency_us": decision.latency_us,
-            "adapter_latency_us": elapsed_Us,
+            "adapter_latency_us": elapsed_us,
             "agent_id": ctx.agent_id or self.agent_id,
             "source": ctx.source or self.source,
         }
