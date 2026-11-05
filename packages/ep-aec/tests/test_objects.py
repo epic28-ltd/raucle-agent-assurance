@@ -131,22 +131,24 @@ class TestAecAssembly:
         assert "jws" not in json.dumps(aec)
 
     def test_component_evidence_rejects_missing_receipt_hash(self):
+        fact = ComponentFact(
+            type="policy-permit",
+            evidence_digest="sha256:" + "aa" * 32,
+            evidence={},
+            result="VERIFIED",
+        )
         with pytest.raises(ValueError, match="receipt_hash"):
-            ComponentFact(
-                type="policy-permit",
-                evidence_digest="sha256:" + "aa" * 32,
-                evidence={},
-                result="VERIFIED",
-            ).to_dict()
+            fact.to_dict()
 
     def test_bad_result_rejected(self):
+        fact = ComponentFact(
+            type="t",
+            evidence_digest="sha256:" + "aa" * 32,
+            evidence={"receipt_hash": "x"},
+            result="MAYBE",
+        )
         with pytest.raises(ValueError, match=r"VERIFIED\|ACCEPTED"):
-            ComponentFact(
-                type="t",
-                evidence_digest="sha256:" + "aa" * 32,
-                evidence={"receipt_hash": "x"},
-                result="MAYBE",
-            ).to_dict()
+            fact.to_dict()
 
     def test_aec_digest_over_jcs(self):
         env = assemble_aec(_build(), [_fact()], "policy-permit")

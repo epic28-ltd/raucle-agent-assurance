@@ -186,13 +186,15 @@ def test_default_config_declares_no_payload_fields() -> None:
 
 
 def test_event_without_event_id_is_rejected() -> None:
+    ev = cloudtrail_event(eventID=None)
     with pytest.raises(ValueError, match="eventID"):
-        normalize_cloudtrail([cloudtrail_event(eventID=None)])
+        normalize_cloudtrail([ev])
 
 
 def test_event_without_timestamp_is_rejected() -> None:
+    ev = cloudtrail_event(eventTime="")
     with pytest.raises(ValueError, match="timestamp"):
-        normalize_cloudtrail([cloudtrail_event(eventTime="")])
+        normalize_cloudtrail([ev])
 
 
 def test_synthetic_marker_is_explicit() -> None:
@@ -205,8 +207,7 @@ def test_synthetic_marker_is_explicit() -> None:
 def test_config_source_is_validated() -> None:
     with pytest.raises(ValueError, match="unsupported audit source"):
         AuditSourceConfig(source="gcp_cloud_audit")
+    events = [cloudtrail_event()]
+    wrong_conf = AuditSourceConfig(source="github_audit")
     with pytest.raises(ValueError, match="aws_cloudtrail"):
-        normalize_cloudtrail(
-            [cloudtrail_event()],
-            AuditSourceConfig(source="github_audit"),
-        )
+        normalize_cloudtrail(events, wrong_conf)

@@ -195,20 +195,23 @@ def test_no_payloads_beyond_declared_fields() -> None:
 
 def test_missing_actor_rejected() -> None:
     ev = github_event(actor=None)
+    cfg = _cfg()
     with pytest.raises(ValueError, match="lacks actor/action"):
-        normalize_github([ev], _cfg())
+        normalize_github([ev], cfg)
 
 
 def test_missing_action_rejected() -> None:
     ev = github_event(action="")
+    cfg = _cfg()
     with pytest.raises(ValueError, match="lacks actor/action"):
-        normalize_github([ev], _cfg())
+        normalize_github([ev], cfg)
 
 
 def test_missing_timestamps_rejected() -> None:
     ev = github_event(**{"@timestamp": None, "created_at": ""})
+    cfg = _cfg()
     with pytest.raises(ValueError, match="timestamp"):
-        normalize_github([ev], _cfg())
+        normalize_github([ev], cfg)
 
 
 def test_synthetic_marker_is_explicit() -> None:
@@ -217,8 +220,7 @@ def test_synthetic_marker_is_explicit() -> None:
 
 
 def test_config_source_is_validated() -> None:
+    events = [github_event()]
+    wrong_conf = AuditSourceConfig(source="aws_cloudtrail")
     with pytest.raises(ValueError, match="github_audit"):
-        normalize_github(
-            [github_event()],
-            AuditSourceConfig(source="aws_cloudtrail"),
-        )
+        normalize_github(events, wrong_conf)

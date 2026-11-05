@@ -206,5 +206,6 @@ def test_corpus_kid_is_consistent_across_fixtures():
 
 def test_retire_unknown_key_id_raises():
     reg = _reg_current()
+    valid_until = T2.isoformat()
     with pytest.raises(KeyError, match="no current trust root"):
-        reg.retire("kid-missing", valid_until=T2.isoformat())
+        reg.retire("kid-missing", valid_until=valid_until)

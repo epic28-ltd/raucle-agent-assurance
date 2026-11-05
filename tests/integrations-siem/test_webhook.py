@@ -350,13 +350,16 @@ def test_load_config_yaml_and_schema(tmp_path):
 def test_https_enforced(tmp_path):
     cfg = WebhookConfig(url="http://siem.example/hook", org_id="org-0000")
     dedup = DedupStore(tmp_path / "d.json")
+    env = make_envelope()
     with pytest.raises(ValueError, match="https"):
-        deliver(make_envelope(), cfg, dedup=dedup, sleep=lambda s: None)
+        deliver(env, cfg, dedup=dedup, sleep=lambda s: None)
     # unknown kind and missing ids fail closed
+    event_inputs = EventInputs(**dict(BASIS, kind="trace"), fields={})
     with pytest.raises(ValueError, match="unknown outbound event kind"):
-        build_envelope(EventInputs(**dict(BASIS, kind="trace"), fields={}))
+        build_envelope(event_inputs)
 
 
 def test_build_envelope_requires_org_and_agent_id():
+    event_inputs = EventInputs(**dict(BASIS, org_id=""), fields={})
     with pytest.raises(ValueError, match="org_id and agent_id"):
-        build_envelope(EventInputs(**dict(BASIS, org_id=""), fields={}))
+        build_envelope(event_inputs)

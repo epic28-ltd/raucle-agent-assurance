@@ -336,10 +336,12 @@ def test_wrong_source_candidates_rejected() -> None:
 def test_input_validation() -> None:
     with pytest.raises(ValueError, match="unsupported reconciliation source"):
         ReconciliationConventions(source="gcp_audit")
+    now = dt.datetime.now(dt.UTC)
     with pytest.raises(ValueError, match="receipt_hash is required"):
-        ReceiptIndexRow(receipt_hash="", event_time=dt.datetime.now(dt.UTC))
+        ReceiptIndexRow(receipt_hash="", event_time=now)
+    result = reconcile([], [], CONVENTIONS, at=NOW)
     with pytest.raises(ValueError, match="unknown reconciliation state"):
-        reconcile([], [], CONVENTIONS, at=NOW).by_state("nonexistent")
+        result.by_state("nonexistent")
 
 
 def test_synthetic_markers_on_all_fixture_inputs() -> None:

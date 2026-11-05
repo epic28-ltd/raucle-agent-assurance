@@ -229,12 +229,13 @@ def test_load_receipt_index_rejects_missing_hash(tmp_path: pathlib.Path):
 # ---------------------------------------------------------------- ADR-0005
 def test_gate_id_required_for_evidence_backed_rows():
     """ADR-0005: many-gate deployments must be attributable to a gate."""
+    now = dt.datetime.now(dt.UTC)
     with pytest.raises(ValueError, match="gate_id is required"):
         ReceiptRecord(
             receipt_hash="a" * 64,
             trace_id="t1",
             decision="allow",
-            event_time=dt.datetime.now(dt.UTC),
+            event_time=now,
         )
     # synthetic rows may omit it
     r = ReceiptRecord(

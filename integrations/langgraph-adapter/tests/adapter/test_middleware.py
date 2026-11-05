@@ -161,8 +161,9 @@ def test_table_deny_with_raise_config_raises_policy_exception():
     mw = RaucleGateMiddleware(gate, on_deny="raise")
     ex = StubExecutor()
 
+    req = make_request()
     with pytest.raises(ToolCallDeniedError) as exc_info:
-        mw.wrap_tool_call(make_request(), ex)
+        mw.wrap_tool_call(req, ex)
 
     assert ex.calls == []
     assert "denied by Raucle Agent Trust gate" in str(exc_info.value)
@@ -266,5 +267,6 @@ def test_agent_id_and_source_defaults_forwarded():
 
 
 def test_invalid_on_deny_config_rejected():
+    gate = FakeGateClient([])
     with pytest.raises(ValueError, match="on_deny"):
-        RaucleGateMiddleware(FakeGateClient([]), on_deny="explode")
+        RaucleGateMiddleware(gate, on_deny="explode")
