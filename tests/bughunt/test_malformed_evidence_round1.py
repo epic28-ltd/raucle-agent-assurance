@@ -102,15 +102,17 @@ def _load_gen():
 def test_run_record_reader_garbage_line_is_named_valueerror(tmp_path):
     p = tmp_path / "idx.jsonl"
     p.write_text('{"receipt_hash": "a"}\ngarbage\n', encoding="utf-8")
+    load_receipt_index = _load_gen().load_receipt_index
     with pytest.raises(ValueError, match="not a JSON object"):
-        _load_gen().load_receipt_index(p)
+        load_receipt_index(p)
 
 
 def test_run_record_reader_null_line_is_named_valueerror(tmp_path):
     p = tmp_path / "idx.jsonl"
     p.write_text("null\n", encoding="utf-8")
+    load_receipt_index = _load_gen().load_receipt_index
     with pytest.raises(ValueError, match="NoneType, not an object"):
-        _load_gen().load_receipt_index(p)
+        load_receipt_index(p)
 
 
 # ------------------------------------------------------------ correlation -
@@ -152,10 +154,9 @@ def _load_rc():
 
 def test_release_compiler_non_object_record_is_named_schema_error():
     # Was: AttributeError 'list' object has no attribute 'get'.
+    validate_run_set = _load_rc().validate_run_set
     with pytest.raises(ValueError, match="agent_run_record schema"):
-        _load_rc().validate_run_set(
-            {"schema_version": "agent_run_record/v1", "records": [[1, 2, 3]]}
-        )
+        validate_run_set({"schema_version": "agent_run_record/v1", "records": [[1, 2, 3]]})
 
 
 # ------------------------------------------------- crosswalk validator ----

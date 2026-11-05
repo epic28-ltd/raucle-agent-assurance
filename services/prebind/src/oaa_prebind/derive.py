@@ -191,6 +191,28 @@ def _classify_red_findings(
     return held_findings, weak_findings_by_rule, narrowed_findings, no_bind_findings
 
 
+def _prescreen_receipts(receipts: list[dict]) -> tuple[list[dict], list[dict], list[str]]:
+    """(derivable, keyable, anomalies): rows the derivation cannot read are
+    malformed evidence, reported by name. A dict row without a usable
+    receipt_hash still counts (the decision is real evidence) but is
+    excluded from dup/trace grouping; a row that is not an object at all
+    carries no decision and is excluded from counts entirely. Neither is
+    guessed into a state."""
+    derivable: list[dict] = []
+    keyable: list[dict] = []
+    anomalies: list[str] = []
+    for idx, receipt in enumerate(receipts):
+        if not isinstance(receipt, dict):
+            anomalies.append(f"malformed_receipt_row:{idx}")
+            continue
+        derivable.append(receipt)
+        if isinstance(receipt.get("receipt_hash"), str) and receipt["receipt_hash"]:
+            keyable.append(receipt)
+        else:
+            anomalies.append(f"malformed_receipt_row:{idx}")
+    return derivable, keyable, anomalies
+
+
 def prebind_indicators(
     receipts: list[dict],
     runs: dict | None = None,
@@ -212,18 +234,8 @@ def prebind_indicators(
     # decision is real evidence) but is excluded from dup/trace grouping;
     # a row that is not an object at all carries no decision and is
     # excluded from counts entirely. Neither is guessed into a state.
-    derivable: list[dict] = []
-    keyable: list[dict] = []
-    for idx, receipt in enumerate(receipts):
-        if not isinstance(receipt, dict):
-            anomalies.append(f"malformed_receipt_row:{idx}")
-            continue
-        derivable.append(receipt)
-        if isinstance(receipt.get("receipt_hash"), str) and receipt["receipt_hash"]:
-            keyable.append(receipt)
-        else:
-            anomalies.append(f"malformed_receipt_row:{idx}")
-    receipts = derivable
+    receipts, keyable, prescreen_anomalies = _prescreen_receipts(receipts)
+    anomalies.extend(prescreen_anomalies)
 
     by_hash: dict[str, list[dict]] = {}
     for r in keyable:
