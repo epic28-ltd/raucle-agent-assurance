@@ -228,7 +228,8 @@ def test_diff_is_machine_readable() -> None:
     result = _run(packet, REGULATED)
     blob = json.dumps(validator.diff(result))
     parsed = json.loads(blob)
-    assert isinstance(parsed, list) and parsed
+    assert isinstance(parsed, list)
+    assert parsed
     for entry in parsed:
         assert set(entry) == {"check_id", "status", "expected", "actual", "note"}
         assert entry["status"] in ("PARTIAL", "FAIL")
@@ -261,8 +262,9 @@ def test_ci_gate_fixture_files_are_offline_readable_json() -> None:
 
 
 def test_unknown_profile_raises() -> None:
+    packet = _fixture_packet()
     with pytest.raises(ValueError, match="unknown profile"):
-        _run(_fixture_packet(), "unregulated")
+        _run(packet, "unregulated")
 
 
 # ---------------------------------------------------------------------- CLI
