@@ -392,16 +392,19 @@ def test_traversal_shorthand_via_symlink_still_reads_the_named_ref(
     packet = _build_packet({"capability_refs": ["cap:symlinked"]})
     packet_path = tmp_path / "packet.json"
     packet_path.write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n")
-    assert rv.main(
-        [
-            "--packet",
-            str(packet_path),
-            "--evidence-store",
-            str(DEMO_STORE),
-            "--capability-refs",
-            str(link),
-        ]
-    ) == 0
+    assert (
+        rv.main(
+            [
+                "--packet",
+                str(packet_path),
+                "--evidence-store",
+                str(DEMO_STORE),
+                "--capability-refs",
+                str(link),
+            ]
+        )
+        == 0
+    )
     assert "REPRODUCED" in capsys.readouterr().out
 
 
@@ -431,9 +434,7 @@ def test_directory_as_evidence_store_is_a_named_fail(tmp_path: pathlib.Path, cap
     packet = _build_packet({})
     packet_path = tmp_path / "packet.json"
     packet_path.write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n")
-    assert (
-        rv.main(["--packet", str(packet_path), "--evidence-store", str(tmp_path)]) == 1
-    )
+    assert rv.main(["--packet", str(packet_path), "--evidence-store", str(tmp_path)]) == 1
     assert "evidence store file not found" in capsys.readouterr().out
 
 
@@ -447,7 +448,5 @@ def test_store_via_symlink_traversal_still_reproduces(tmp_path: pathlib.Path, ca
     packet = _build_packet({})
     packet_path = tmp_path / "packet.json"
     packet_path.write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n")
-    assert (
-        rv.main(["--packet", str(packet_path), "--evidence-store", str(link)]) == 0
-    )
+    assert rv.main(["--packet", str(packet_path), "--evidence-store", str(link)]) == 0
     assert "REPRODUCED" in capsys.readouterr().out
