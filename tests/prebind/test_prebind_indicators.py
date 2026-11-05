@@ -53,7 +53,8 @@ def test_state_vocabulary_is_the_cage1_set() -> None:
 def test_demo_receipts_cover_allowed_denied_and_legacy_rows() -> None:
     rows = _receipts()
     decisions = {r["decision"] for r in rows}
-    assert "allow" in decisions and "deny" in decisions
+    assert "allow" in decisions
+    assert "deny" in decisions
     assert any(r["decision"] is None for r in rows)
 
 

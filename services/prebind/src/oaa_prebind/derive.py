@@ -142,22 +142,53 @@ def derive_receipt_state_from_runs(runs: dict) -> list[dict]:
     for run in runs.get("runs", []):
         for trace in run.get("traces", []):
             for span in trace.get("spans", []):
-                if span.get("receipt_hash") or not span.get("privileged"):
-                    continue
-                anomalies = ["missing_receipt_at_gate"]
-                decision_seen = (span.get("attrs") or {}).get("oaa.decision_seen")
-                if decision_seen is not None:
-                    anomalies.append(f"decision_seen:{decision_seen}")
-                out.append(
-                    {
-                        "run_id": run.get("run_id"),
-                        "trace_id": trace.get("trace_id"),
-                        "span_id": span.get("span_id"),
-                        "state": "unresolved",
-                        "anomalies": anomalies,
-                    }
-                )
+                out.extend(_missing_receipt_rows(run, trace, span))
     return out
+
+
+def _missing_receipt_rows(run: dict, trace: dict, span: dict) -> list[dict]:
+    """Unresolved rows for a privileged span carrying no boundary receipt."""
+    if span.get("receipt_hash") or not span.get("privileged"):
+        return []
+    anomalies = ["missing_receipt_at_gate"]
+    decision_seen = (span.get("attrs") or {}).get("oaa.decision_seen")
+    if decision_seen is not None:
+        anomalies.append(f"decision_seen:{decision_seen}")
+    return [
+        {
+            "run_id": run.get("run_id"),
+            "trace_id": trace.get("trace_id"),
+            "span_id": span.get("span_id"),
+            "state": "unresolved",
+            "anomalies": anomalies,
+        }
+    ]
+
+
+def _classify_red_findings(
+    red_findings: list[dict] | None,
+) -> tuple[list[str], dict[str, list[str]], list[str], list[str]]:
+    """(held, by-rule enforcement weaknesses, narrowed, no_bind) from red findings."""
+    held_findings: list[str] = []
+    weak_findings_by_rule: dict[str, list[str]] = {}
+    narrowed_findings: list[str] = []
+    no_bind_findings: list[str] = []
+    for finding in red_findings or []:
+        rule = finding.get("rule")
+        fid = finding.get("finding_id")
+        if not fid:
+            continue
+        if rule in PREBIND_NARROWED_RULES:
+            narrowed_findings.append(fid)
+        elif rule in PREBIND_NO_BIND_RULES:
+            no_bind_findings.append(fid)
+        elif rule in PREBIND_ENFORCEMENT_WEAKNESS_RULES:
+            weak_findings_by_rule.setdefault(rule, []).append(fid)
+        if rule in PREBIND_BOUNDARY_HELD_RULES:
+            # a PASS finding can evidence both the boundary-held label
+            # and a narrowed/no_bind counter (RED-004, RED-019)
+            held_findings.append(fid)
+    return held_findings, weak_findings_by_rule, narrowed_findings, no_bind_findings
 
 
 def prebind_indicators(
@@ -172,7 +203,7 @@ def prebind_indicators(
     populate are reported as an explicit (zero-count) honest limitation
     rather than suppressed.
     """
-    counts = {state: 0 for state in PREBIND_STATES}
+    counts = dict.fromkeys(PREBIND_STATES, 0)
     anomalies: list[str] = []
     annotations: list[str] = []
 
@@ -212,24 +243,12 @@ def prebind_indicators(
             counts["unresolved"] += 1
             anomalies.extend(row["anomalies"])
 
-    held_findings = []
-    weak_findings_by_rule: dict[str, list[str]] = {}
-    narrowed_findings: list[str] = []
-    no_bind_findings: list[str] = []
-    if red_findings:
-        for finding in red_findings:
-            rule = finding.get("rule")
-            fid = finding.get("finding_id")
-            if rule in PREBIND_NARROWED_RULES and fid:
-                narrowed_findings.append(fid)
-            elif rule in PREBIND_NO_BIND_RULES and fid:
-                no_bind_findings.append(fid)
-            elif rule in PREBIND_ENFORCEMENT_WEAKNESS_RULES and fid:
-                weak_findings_by_rule.setdefault(rule, []).append(fid)
-            if rule in PREBIND_BOUNDARY_HELD_RULES and fid:
-                # a PASS finding can evidence both the boundary-held label
-                # and a narrowed/no_bind counter (RED-004, RED-019)
-                held_findings.append(fid)
+    (
+        held_findings,
+        weak_findings_by_rule,
+        narrowed_findings,
+        no_bind_findings,
+    ) = _classify_red_findings(red_findings)
 
     red_evidence: dict[str, list[str]] = {}
     if narrowed_findings:
@@ -269,9 +288,7 @@ def prebind_indicators(
         "anomalies": sorted(set(anomalies)),
         "derivable_states": sorted(DERIVABLE_STATES),
         "red_derived_states": sorted(RED_DERIVABLE_STATES),
-        "enforcement_weaknesses": {
-            rule: finding_ids for rule, finding_ids in sorted(weak_findings_by_rule.items())
-        },
+        "enforcement_weaknesses": dict(sorted(weak_findings_by_rule.items())),
         "red_evidence": red_evidence,
         "derivation_note": (
             "admitted/refused/unresolved are derived from gate receipts and "

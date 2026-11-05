@@ -123,7 +123,8 @@ def test_non_bash_fence_language_is_named():
 
 def test_parse_document_reports_every_inline_span():
     spec = importlib.util.spec_from_file_location("cda", SCRIPT)
-    assert spec is not None and spec.loader is not None
+    assert spec is not None
+    assert spec.loader is not None
     cda = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(cda)
     spans, warnings = cda.parse_document("a `one` b `two` c\nx `y\n")
