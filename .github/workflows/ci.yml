@@ -27,6 +27,8 @@ jobs:
           # which kept main red on the pytest step.
           pip install cryptography pyyaml fastapi httpx opentelemetry-sdk
           pip install opentelemetry-exporter-otlp-proto-http
+          # jsonschema: schema-validation tooling for the conformance and
+          # expectations tests (OV-7/-8).
       - name: ruff format check
         run: ruff format --check .
       - name: ruff check
