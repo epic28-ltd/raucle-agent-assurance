@@ -9,10 +9,7 @@ risk annotations.
 
 Determinism contract: the same inputs produce byte-identical packet JSON
 (stable field order, no wall-clock data of any kind) and a stable
-``packet_sha256`` over the canonical form of the packet body. An optional
-ML-DSA-65 signature of the packet digest (``packet_pq_signature``, OV-22)
-is added after the digest, sits outside the digest body, and is equally
-deterministic for the same key.
+``packet_sha256`` over the canonical form of the packet body.
 
 Fail-visible contract: a tampered, malformed or missing input is an error
 that names its cause; nothing is silently dropped or repaired. Receipt
@@ -34,11 +31,6 @@ import json
 import pathlib
 import re
 from typing import cast
-
-try:  # OV-22: raucle ships the ML-DSA-65 primitive; PQ signing fails visibly without it
-    import raucle.pq as _rqpq
-except ModuleNotFoundError:  # pragma: no cover - dependency-dependent
-    _rqpq = None
 
 SHA256_PREFIX = "sha256:"
 PACKET_SCHEMA_VERSION = 1
@@ -245,38 +237,6 @@ def _governance_slots(governance_mapping: dict[str, list[str]] | None) -> dict[s
     return gov
 
 
-def _pq_signature_field(packet: dict, pq_private: object) -> dict:
-    """OV-22: ML-DSA-65 signature over the packet digest, via raucle/pq.
-
-    The signature covers the ``packet_content_sha256`` stamp bytes
-    (``"sha256:<64 hex>"`` ascii). Added after the digest and outside the
-    digest body, so the digest itself is unchanged by signing. Fails
-    visibly when the raucle PQ backend is unavailable.
-    """
-    if _rqpq is None:
-        raise ValueError("PQ signing requires the raucle package (installed dependency)")
-    if not _rqpq.pq_available():
-        raise ValueError(
-            "ML-DSA is unavailable in this runtime (raucle PQ backend);"
-            " build the packet without a PQ signature"
-        )
-    stamp = packet["packet_content_sha256"]
-    try:
-        signature = pq_private.sign(stamp.encode("ascii"))  # type: ignore[attr-defined]
-        public_key = pq_private.public_key()  # type: ignore[attr-defined]
-    except AttributeError as exc:
-        raise ValueError(
-            "pq_private must be an ML-DSA-65 private key (raucle.pq.pq_generate)"
-        ) from exc
-    return {
-        "algorithm": _rqpq.PQ1_ALG,
-        "key_id": _rqpq.pq_key_id_from_public_key(public_key),
-        "public_key_hex": _rqpq.pq_public_key_hex(public_key),
-        "signature_b64": base64.b64encode(signature).decode("ascii"),
-        "packet_content_sha256": stamp,
-    }
-
-
 def build_packet(
     evidence_store: pathlib.Path,
     *,
@@ -284,15 +244,8 @@ def build_packet(
     policy_proof_refs: list[str] | None = None,
     governance_mapping: dict[str, list[str]] | None = None,
     risk_annotations: list[str] | None = None,
-    pq_private: object | None = None,
 ) -> dict:
-    """Compile the versioned packet. Deterministic; fail-visible on bad input.
-
-    ``pq_private``, when given (an ML-DSA-65 private key from
-    ``raucle.pq.pq_generate``), adds the optional ``packet_pq_signature``
-    field: an ML-DSA-65 signature of ``packet_content_sha256`` made with
-    raucle's quantum-ready primitive.
-    """
+    """Compile the versioned packet. Deterministic; fail-visible on bad input."""
     if not evidence_store.is_file():
         raise ValueError(f"evidence store not found: {evidence_store}")
     store_file_sha = SHA256_PREFIX + hashlib.sha256(evidence_store.read_bytes()).hexdigest()
@@ -337,8 +290,6 @@ def build_packet(
     packet["packet_content_sha256"] = (
         SHA256_PREFIX + hashlib.sha256(canonical_json(body).encode()).hexdigest()
     )
-    if pq_private is not None:
-        packet["packet_pq_signature"] = _pq_signature_field(packet, pq_private)
     return packet
 
 
@@ -437,17 +388,6 @@ def _load_cli_refs(args: argparse.Namespace) -> dict:
     }
 
 
-def _load_pq_private_key(path_str: str) -> object:
-    """Load an ML-DSA-65 private key PEM file (same checks as other inputs)."""
-    path = pathlib.Path(path_str).expanduser().resolve()
-    if not path.is_file():
-        raise ValueError(f"pq private key file not found: {path}")
-    text = path.read_text(encoding="ascii")
-    if _rqpq is None:
-        raise ValueError("PQ signing requires the raucle package (installed dependency)")
-    return _rqpq.pq_private_key_from_pem(text)
-
-
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="OV-1: build a deterministic agent assurance packet")
     ap.add_argument("--evidence-store", required=True)
@@ -455,23 +395,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--policy-proof-refs", help="JSON list file of policy-proof refs")
     ap.add_argument("--governance", help="JSON object file: framework -> crosswalk ids")
     ap.add_argument("--risk-annotations", help="JSON list file of risk annotation strings")
-    ap.add_argument(
-        "--pq-private-key",
-        help="PEM file with an ML-DSA-65 private key; adds packet_pq_signature",
-    )
     ap.add_argument("--out-dir", required=True)
     args = ap.parse_args(argv)
     try:
         refs = _load_cli_refs(args)
-        if args.pq_private_key is not None:
-            pq_private = _load_pq_private_key(args.pq_private_key)
-        else:
-            pq_private = None
-        packet = build_packet(
-            pathlib.Path(args.evidence_store).expanduser().resolve(),
-            pq_private=pq_private,
-            **refs,
-        )
+        packet = build_packet(pathlib.Path(args.evidence_store).expanduser().resolve(), **refs)
     except ValueError as exc:
         print(f"rauckle-assurance-packet: FAIL: {exc}", flush=True)
         return 1

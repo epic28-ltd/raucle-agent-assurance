@@ -29,7 +29,8 @@ unknowns), every receipt-hash evidence link of the case is present among the
 bound receipts, and no receipt or capability ref touches a tool outside the
 case ``boundaries.tools``. A weakened control (drop the evidence receipt,
 widen the tool set, introduce unknowns) therefore reads as a failure and is
-caught by classification.
+caught by classification. Tool-scope checks run only where ``boundaries.tools``
+is declared: a case declaring no tool boundary imposes no tool-scope constraint.
 """
 
 from __future__ import annotations
@@ -299,16 +300,20 @@ def main(argv=None) -> int:
         expectations = load_expectations(pathlib.Path(args.expectations))
         baseline = validate_run_set(load_json(pathlib.Path(args.baseline)))
         candidate = validate_run_set(load_json(pathlib.Path(args.candidate)))
+        report = compile_comparison(expectations, baseline, candidate)
     except (ValueError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
-    report = compile_comparison(expectations, baseline, candidate)
     payload = json.dumps(report, indent=2, sort_keys=False) + "\n"
-    if args.output:
-        pathlib.Path(args.output).write_text(payload)
-    else:
-        sys.stdout.write(payload)
+    try:
+        if args.output:
+            pathlib.Path(args.output).write_text(payload)
+        else:
+            sys.stdout.write(payload)
+    except OSError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
     if args.print_summary:
         sys.stderr.write(report["human_summary"] + "\n")
     return 0

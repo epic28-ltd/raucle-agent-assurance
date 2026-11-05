@@ -497,16 +497,16 @@ def _stage_policy_receipts(
     evidence_store: pathlib.Path,
     policy_receipt_hashes: list[str] | None,
 ) -> None:
-    """Copy the deployment-chain receipt lines named by the audit."""
+    """Copy the deployment-chain receipt lines named by the audit.
+
+    Re-reads the store through _store_hash_map so undecodable lines
+    (null entries, malformed JSON) produce the same named skip the
+    receipt-selection path already prints, instead of crashing the pack.
+    """
+    by_hash = _store_hash_map(evidence_store)
     if not policy_receipt_hashes:
         return
     pol_lines: list[str] = []
-    store_all = [
-        ln.rstrip("\n")
-        for ln in evidence_store.read_text(encoding="utf-8").splitlines()
-        if ln.strip()
-    ]
-    by_hash = {json.loads(ln)["receipt_hash"]: ln for ln in store_all}
     for rh in policy_receipt_hashes:
         if rh in by_hash:
             pol_lines.append(by_hash[rh])
