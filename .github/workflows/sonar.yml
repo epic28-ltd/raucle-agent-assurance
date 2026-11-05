@@ -24,7 +24,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-cov cryptography pyyaml fastapi httpx \
-            opentelemetry-sdk opentelemetry-exporter-otlp-proto-http
+            opentelemetry-sdk opentelemetry-exporter-otlp-proto-http \
+            raucle>=0.23.5
+          # raucle is required here (optional at runtime): the analysed suite
+          # must exercise the REAL receipt verifier, not its fallback state
       # All suites: repo-root tests/ plus each package's own suite. The
       # per-package suites were previously uncollected anywhere, so their
       # new-code lines showed zero coverage in Sonar.
