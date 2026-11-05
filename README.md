@@ -1,6 +1,6 @@
 # Raucle Agent Assurance
 
-A companion to [raucle](https://github.com/craigamcw/raucle) that layers
+A companion to [raucle](https://github.com/epic28-ltd/raucle) that layers
 workflow correlation, coverage analytics and assurance reporting on top of a
 policy-enforcement gate that mints independently verifiable evidence (signed
 receipts). The companion correlates the gate's signed receipts with agent
