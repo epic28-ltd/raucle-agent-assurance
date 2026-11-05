@@ -434,19 +434,35 @@ def load_receipt_index(
             lines = fh.readlines()
         before = sha256_file(p)
     records = []
-    for line in lines:
+    for line_no, line in enumerate(lines, 1):
         if not line.strip():
             continue
-        row = json.loads(line)
-        records.append(
-            ReceiptRecord(
-                receipt_hash=row["receipt_hash"],
-                trace_id=row.get("trace_id"),
-                decision=row.get("decision"),
-                event_time=dt.datetime.fromisoformat(row["event_time"]),
-                provenance=row.get("provenance"),
-                synthetic=bool(row.get("synthetic", False)),
-                gate_id=row.get("gate_id"),
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"index file {p}: line {line_no} is not a JSON object ({exc})"
+            ) from exc
+        if not isinstance(row, dict):
+            raise TypeError(
+                f"index file {p}: line {line_no} is {type(row).__name__}, not an object"
             )
-        )
+        if "receipt_hash" not in row:
+            raise ValueError(f"index file {p}: line {line_no} has no receipt_hash field")
+        try:
+            records.append(
+                ReceiptRecord(
+                    receipt_hash=row["receipt_hash"],
+                    trace_id=row.get("trace_id"),
+                    decision=row.get("decision"),
+                    event_time=dt.datetime.fromisoformat(row["event_time"]),
+                    provenance=row.get("provenance"),
+                    synthetic=bool(row.get("synthetic", False)),
+                    gate_id=row.get("gate_id"),
+                )
+            )
+        except (KeyError, TypeError) as exc:
+            raise ValueError(
+                f"index file {p}: line {line_no} has a malformed field ({exc})"
+            ) from exc
     return records, before

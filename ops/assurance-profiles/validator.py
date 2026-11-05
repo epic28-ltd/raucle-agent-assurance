@@ -24,6 +24,7 @@ import argparse
 import hashlib
 import json
 import pathlib
+import sys
 
 import yaml
 
@@ -134,6 +135,31 @@ def validate(
     profile = profiles["profiles"][profile_name]
     index = crosswalk_index(crosswalk if crosswalk is not None else load_crosswalk())
     checks: list[dict] = []
+
+    if not isinstance(packet, dict):
+        # Fail-visible, not an AttributeError: a packet that is not a JSON
+        # object cannot declare anything, so the verdict is FAIL by name.
+        _check(
+            checks,
+            "packet:shape",
+            FAIL,
+            "packet is a JSON object",
+            f"packet is {type(packet).__name__}",
+            "a packet that is not an object cannot be validated",
+        )
+        statuses = [c["status"] for c in checks]
+        return {
+            "packet_sha256": _sha256_of(packet),
+            "profile": profile_name,
+            "verdict": "FAIL",
+            "checks": checks,
+            "summary": {
+                "total": len(checks),
+                "ok": statuses.count(OK),
+                "partial": statuses.count(PARTIAL),
+                "fail": statuses.count(FAIL),
+            },
+        }
 
     # 1. Packet shape: the packet must identify its schema. Absent fields are
     # tolerated as PARTIAL; a packet that names the WRONG schema fails.
@@ -416,7 +442,11 @@ def main(argv: list[str] | None = None) -> int:
         for problem in problems:
             print(f"profile-data defect: {problem}")
         return 3
-    packet = json.loads(pathlib.Path(args.packet).read_text())
+    try:
+        packet = json.loads(pathlib.Path(args.packet).read_text())
+    except (OSError, json.JSONDecodeError, ValueError, TypeError) as exc:
+        print(f"error: cannot load packet {args.packet}: {exc}", file=sys.stderr)
+        return 1
     result = validate(packet, args.profile)
     print(json.dumps(result, indent=2, sort_keys=True))
     return {"FAIL": 2, "PARTIAL": 1, "PASS": 0}[result["verdict"]]

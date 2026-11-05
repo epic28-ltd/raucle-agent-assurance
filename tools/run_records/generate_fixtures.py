@@ -90,14 +90,28 @@ def filter_receipt(row: dict) -> dict:
 
 
 def load_receipt_index(path: pathlib.Path) -> dict:
-    """Load a receipt index JSONL keyed by receipt_hash; comments allowed."""
-    index = {}
+    """Load a receipt index JSONL keyed by receipt_hash; comments allowed.
+
+    An undecodable line is named evidence breakage (ValueError), not a
+    traceback: a receipt index line that never parsed cannot be filtered
+    honestly, and silently dropping it would under-report the index.
+    """
+    index: dict = {}
     with path.open() as handle:
-        for line in handle:
-            line = line.strip()
+        for line_no, raw in enumerate(handle, 1):
+            line = raw.strip()
             if not line or line.startswith("#"):
                 continue
-            row = json.loads(line)
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"receipt index {path}: line {line_no} is not a JSON object ({exc})"
+                ) from exc
+            if not isinstance(row, dict):
+                raise ValueError(
+                    f"receipt index {path}: line {line_no} is {type(row).__name__}, not an object"
+                )
             hash_value = row.get("receipt_hash")
             if not hash_value:
                 continue

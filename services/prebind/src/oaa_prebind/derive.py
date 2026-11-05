@@ -62,13 +62,30 @@ RECEIPT_SCHEMA_CURRENT = "provenance-receipt/v1"
 
 
 def load_receipt_index(path: Path) -> list[dict]:
-    """Read a receipt index JSONL, skipping '#' comment header lines."""
+    """Read a receipt index JSONL, skipping '#' comment header lines.
+
+    An undecodable line fails visibly with a named ValueError: an index
+    line that never parsed is broken evidence, not absence of evidence,
+    so it is neither skipped (which would under-count the boundary) nor
+    crashed on with a traceback. Same rule as the correlation reader's
+    missing-hash reject.
+    """
     rows: list[dict] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
+    for line_no, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        line = raw.strip()
         if not line or line.startswith("#"):
             continue
-        rows.append(json.loads(line))
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"receipt index {path}: line {line_no} is not a JSON object ({exc})"
+            ) from exc
+        if not isinstance(row, dict):
+            raise ValueError(
+                f"receipt index {path}: line {line_no} is {type(row).__name__}, not an object"
+            )
+        rows.append(row)
     return rows
 
 
@@ -159,8 +176,26 @@ def prebind_indicators(
     anomalies: list[str] = []
     annotations: list[str] = []
 
+    # Rows the derivation cannot read are malformed evidence, reported by
+    # name: a dict row without a usable receipt_hash still counts (the
+    # decision is real evidence) but is excluded from dup/trace grouping;
+    # a row that is not an object at all carries no decision and is
+    # excluded from counts entirely. Neither is guessed into a state.
+    derivable: list[dict] = []
+    keyable: list[dict] = []
+    for idx, receipt in enumerate(receipts):
+        if not isinstance(receipt, dict):
+            anomalies.append(f"malformed_receipt_row:{idx}")
+            continue
+        derivable.append(receipt)
+        if isinstance(receipt.get("receipt_hash"), str) and receipt["receipt_hash"]:
+            keyable.append(receipt)
+        else:
+            anomalies.append(f"malformed_receipt_row:{idx}")
+    receipts = derivable
+
     by_hash: dict[str, list[dict]] = {}
-    for r in receipts:
+    for r in keyable:
         by_hash.setdefault(r["receipt_hash"], []).append(r)
 
     for receipt in receipts:
@@ -168,7 +203,7 @@ def prebind_indicators(
         counts[state] += 1
         anomalies.extend(per_receipt_anomalies)
 
-    trace_anomalies = _trace_grouping(receipts)
+    trace_anomalies = _trace_grouping(keyable)
     anomalies.extend(trace_anomalies)
 
     if runs is not None:
