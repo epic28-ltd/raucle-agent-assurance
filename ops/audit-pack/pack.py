@@ -520,7 +520,9 @@ def _policy_gap_note_and_readme(
 ) -> str:
     """Honest coverage note (and gap README) for the staged policy set."""
     if copied_policies and policy_receipt_hashes:
-        return f"{len(copied_policies)} policy file(s) and deployment-chain receipts under `policies/`"
+        return (
+            f"{len(copied_policies)} policy file(s) and deployment-chain receipts under `policies/`"
+        )
     if copied_policies:
         (pol_dir / README_MD).write_text(
             "# Policies\n\nDeployment-chain receipts from the gate audit were not\n"
