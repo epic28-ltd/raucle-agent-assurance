@@ -168,3 +168,20 @@ def test_diff_excludes_pq_field() -> None:
     stripped.pop("packet_pq_signature")
     rederived = rv.rederive_packet_from_inputs(DEMO_STORE)
     assert rv._diff(stripped, rederived) == []
+
+
+def test_cli_pq_key_loader_missing_file_is_named_error() -> None:
+    with pytest.raises(ValueError, match="not found"):
+        packet._load_pq_private_key(str(REPO_ROOT / "no" / "such-key.pem"))
+
+
+def test_cli_pq_key_loader_roundtrip(tmp_path: pathlib.Path) -> None:
+    pq_priv, _, _ = rqpq.pq_generate()
+    pem_path = tmp_path / "pq-key.pem"
+    pem_path.write_text(rqpq.pq_private_key_pem(pq_priv))
+    loaded = packet._load_pq_private_key(str(pem_path))
+    roundtrip = packet.build_packet(DEMO_STORE, pq_private=loaded)
+    signed, _, _ = _signed_packet()
+    del signed
+    assert roundtrip["packet_pq_signature"]["algorithm"] == "ml-dsa-65"
+    assert rv._verify_pq_signature_field(roundtrip) is None

@@ -437,6 +437,17 @@ def _load_cli_refs(args: argparse.Namespace) -> dict:
     }
 
 
+def _load_pq_private_key(path_str: str) -> object:
+    """Load an ML-DSA-65 private key PEM file (same checks as other inputs)."""
+    path = pathlib.Path(path_str).expanduser().resolve()
+    if not path.is_file():
+        raise ValueError(f"pq private key file not found: {path}")
+    text = path.read_text(encoding="ascii")
+    if _rqpq is None:
+        raise ValueError("PQ signing requires the raucle package (installed dependency)")
+    return _rqpq.pq_private_key_from_pem(text)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="OV-1: build a deterministic agent assurance packet")
     ap.add_argument("--evidence-store", required=True)
@@ -453,15 +464,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         refs = _load_cli_refs(args)
         if args.pq_private_key is not None:
-            if _rqpq is None:
-                raise ValueError("PQ signing requires the raucle package (installed dependency)")
-            try:
-                with open(args.pq_private_key, encoding="ascii") as pq_fh:
-                    pq_private = _rqpq.pq_private_key_from_pem(pq_fh.read())
-            except OSError as exc:
-                raise ValueError(
-                    f"pq private key not found: {args.pq_private_key} ({exc})"
-                ) from exc
+            pq_private = _load_pq_private_key(args.pq_private_key)
         else:
             pq_private = None
         packet = build_packet(
