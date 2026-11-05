@@ -1,0 +1,421 @@
+{
+  "schema_version": "agent_run_record/v1",
+  "note": "AgentRunRecord fixtures (OV-8) generated deterministically from the committed demo_data runs.json + synthetic_receipt_index.jsonl. Synthetic receipts are marked synthetic: true; they are demo artefacts, never canonical evidence. Metadata only: no receipt bytes, prompt spans, response spans or credentials.",
+  "records": [
+    {
+      "schema_version": "agent_run_record/v1",
+      "record_id": "arr-run-obs01-01",
+      "agent": "oaa-spike",
+      "release": "rel-0.9.2",
+      "started": "2026-11-04T08:43:30+00:00",
+      "trace_ids": [
+        "e8263e06f259316a6797f9e2b5e21375"
+      ],
+      "receipts": [
+        {
+          "receipt_hash": "sha256:7ad7bb9a68f0c3d50b1d24451b4caa2059ced33d33d0e53755fe94fc18b787db",
+          "decision": "unknown"
+        }
+      ],
+      "capability_refs": [
+        {
+          "tool": "shell",
+          "privileged": true
+        },
+        {
+          "tool": "write_file",
+          "privileged": true,
+          "via_receipt_hash": "sha256:7ad7bb9a68f0c3d50b1d24451b4caa2059ced33d33d0e53755fe94fc18b787db"
+        }
+      ],
+      "policy_proof_ids": [],
+      "governance_events": [
+        {
+          "kind": "receipt-unverifiable",
+          "decision": "unknown",
+          "receipt_hash": "sha256:7ad7bb9a68f0c3d50b1d24451b4caa2059ced33d33d0e53755fe94fc18b787db",
+          "trace_id": "e8263e06f259316a6797f9e2b5e21375",
+          "note": "receipt hash absent from the committed receipt index"
+        },
+        {
+          "kind": "receipt-missing",
+          "decision": "unknown",
+          "trace_id": "e8263e06f259316a6797f9e2b5e21375",
+          "note": "span sp-03 records no receipt hash"
+        }
+      ],
+      "usage_metrics": {
+        "receipts_total": 1,
+        "receipts_allow": 0,
+        "receipts_deny": 0,
+        "receipts_unknown": 1,
+        "privileged_tool_spans": 2,
+        "traces_total": 1
+      },
+      "privacy": {
+        "content_class": "metadata-only",
+        "filtered_fields": [
+          "receipt bytes",
+          "conversation content",
+          "credentials",
+          "user identifiers"
+        ]
+      }
+    },
+    {
+      "schema_version": "agent_run_record/v1",
+      "record_id": "arr-run-sim-02",
+      "agent": "oaa-sim",
+      "release": "rel-0.9.3",
+      "started": "2026-11-04T09:10:00+00:00",
+      "trace_ids": [
+        "t-sim-amb-0000000000000000000000000000aa",
+        "t-sim-dup-0000000000000000000000000000bb",
+        "t-sim-late-000000000000000000000000000cc",
+        "t-sim-match-000000000000000000000000000088",
+        "t-sim-na-00000000000000000000000000000ee",
+        "t-sim-pend-0000000000000000000000000000dd",
+        "t-sim-sup-0000000000000000000000000000aa",
+        "t-sim-unav-000000000000000000000000000ff"
+      ],
+      "receipts": [
+        {
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000001",
+          "decision": "allow",
+          "tool": "http_fetch",
+          "policy_ref": "policies.yaml",
+          "provenance": "ingest:sink-a",
+          "event_time": "2026-11-04T09:10:12+00:00",
+          "synthetic": true,
+          "tool_privileged": true
+        },
+        {
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000002",
+          "decision": "allow",
+          "tool": "http_fetch",
+          "policy_ref": "policies.yaml",
+          "provenance": "ingest:sink-b",
+          "event_time": "2026-11-04T09:10:20+00:00",
+          "synthetic": true,
+          "tool_privileged": true
+        },
+        {
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000003",
+          "decision": "deny",
+          "tool": "file_write",
+          "policy_ref": "policies.yaml",
+          "provenance": "ingest:sink-b",
+          "event_time": "2026-11-04T09:11:12+00:00",
+          "synthetic": true,
+          "tool_privileged": true
+        },
+        {
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000004",
+          "decision": "allow",
+          "tool": "shell",
+          "policy_ref": "policies.yaml",
+          "provenance": "ingest:sink-a",
+          "event_time": "2026-11-04T09:14:10+00:00",
+          "synthetic": true,
+          "tool_privileged": true
+        },
+        {
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000005",
+          "decision": "allow",
+          "tool": "file_write",
+          "policy_ref": "policies.yaml",
+          "provenance": "ingest:sink-a",
+          "event_time": "2026-11-04T09:13:12+00:00",
+          "synthetic": true,
+          "tool_privileged": true
+        },
+        {
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000006",
+          "decision": "unknown",
+          "tool": "file_write",
+          "policy_ref": "policies.yaml",
+          "provenance": "ingest:sink-a",
+          "event_time": "2026-11-04T09:14:12+00:00",
+          "synthetic": true,
+          "tool_privileged": true
+        },
+        {
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000007",
+          "decision": "allow",
+          "tool": "shell",
+          "policy_ref": "policies.yaml",
+          "provenance": "ingest:sink-a",
+          "event_time": "2026-11-04T09:15:12+00:00",
+          "synthetic": true,
+          "tool_privileged": true
+        },
+        {
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000008",
+          "decision": "allow",
+          "tool": "file_write",
+          "policy_ref": "policies.yaml",
+          "provenance": "ingest:sink-a",
+          "event_time": "2026-11-04T09:17:12+00:00",
+          "synthetic": true,
+          "tool_privileged": true
+        }
+      ],
+      "capability_refs": [
+        {
+          "tool": "file_write",
+          "privileged": true,
+          "via_receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000003"
+        },
+        {
+          "tool": "file_write",
+          "privileged": true,
+          "via_receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000005"
+        },
+        {
+          "tool": "file_write",
+          "privileged": true,
+          "via_receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000006"
+        },
+        {
+          "tool": "file_write",
+          "privileged": true,
+          "via_receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000008"
+        },
+        {
+          "tool": "http_fetch",
+          "privileged": true,
+          "via_receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000001"
+        },
+        {
+          "tool": "http_fetch",
+          "privileged": true,
+          "via_receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000002"
+        },
+        {
+          "tool": "shell",
+          "privileged": true
+        },
+        {
+          "tool": "shell",
+          "privileged": true,
+          "via_receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000004"
+        },
+        {
+          "tool": "shell",
+          "privileged": true,
+          "via_receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000007"
+        }
+      ],
+      "policy_proof_ids": [
+        "policies.yaml"
+      ],
+      "governance_events": [
+        {
+          "kind": "receipt-attached",
+          "decision": "allow",
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000001",
+          "trace_id": "t-sim-amb-0000000000000000000000000000aa"
+        },
+        {
+          "kind": "receipt-attached",
+          "decision": "allow",
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000002",
+          "trace_id": "t-sim-amb-0000000000000000000000000000aa"
+        },
+        {
+          "kind": "receipt-attached",
+          "decision": "deny",
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000003",
+          "trace_id": "t-sim-dup-0000000000000000000000000000bb"
+        },
+        {
+          "kind": "receipt-attached",
+          "decision": "allow",
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000004",
+          "trace_id": "t-sim-late-000000000000000000000000000cc"
+        },
+        {
+          "kind": "receipt-attached",
+          "decision": "allow",
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000005",
+          "trace_id": "t-sim-pend-0000000000000000000000000000dd"
+        },
+        {
+          "kind": "receipt-attached",
+          "decision": "unknown",
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000006",
+          "trace_id": "t-sim-na-00000000000000000000000000000ee"
+        },
+        {
+          "kind": "receipt-attached",
+          "decision": "allow",
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000007",
+          "trace_id": "t-sim-unav-000000000000000000000000000ff"
+        },
+        {
+          "kind": "receipt-attached",
+          "decision": "allow",
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000008",
+          "trace_id": "t-sim-match-000000000000000000000000000088"
+        },
+        {
+          "kind": "receipt-missing",
+          "decision": "unknown",
+          "trace_id": "t-sim-sup-0000000000000000000000000000aa",
+          "note": "span sp-s1 records no receipt hash"
+        }
+      ],
+      "usage_metrics": {
+        "receipts_total": 8,
+        "receipts_allow": 6,
+        "receipts_deny": 1,
+        "receipts_unknown": 1,
+        "privileged_tool_spans": 9,
+        "traces_total": 8
+      },
+      "privacy": {
+        "content_class": "metadata-only",
+        "filtered_fields": [
+          "receipt bytes",
+          "conversation content",
+          "credentials",
+          "user identifiers"
+        ]
+      }
+    },
+    {
+      "schema_version": "agent_run_record/v1",
+      "record_id": "arr-run-sim-03",
+      "agent": "oaa-sim",
+      "release": "rel-0.9.3",
+      "started": "2026-11-04T09:20:00+00:00",
+      "trace_ids": [
+        "t-w03-bypass-b2",
+        "t-w03-degraded-d4",
+        "t-w03-deny-a1",
+        "t-w03-loop-c3",
+        "t-w03-spanref-e5"
+      ],
+      "receipts": [
+        {
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000010",
+          "decision": "deny",
+          "tool": "shell",
+          "policy_ref": "policies.yaml",
+          "provenance": "demo-run-sim-03:sink-a",
+          "event_time": "2026-11-04T09:20:12+00:00",
+          "synthetic": true,
+          "tool_privileged": true
+        },
+        {
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000011",
+          "decision": "allow",
+          "tool": "shell",
+          "policy_ref": "policies.yaml",
+          "provenance": "demo-run-sim-03:sink-a",
+          "event_time": "2026-11-04T09:28:02+00:00",
+          "synthetic": true,
+          "tool_privileged": true
+        },
+        {
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000012",
+          "decision": "allow",
+          "tool": "file_write",
+          "policy_ref": "policies.yaml",
+          "provenance": "demo-run-sim-03:sink-a",
+          "event_time": "2026-11-04T09:22:12+00:00",
+          "synthetic": true,
+          "tool_privileged": true
+        },
+        {
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000013",
+          "decision": "allow",
+          "tool": "file_write",
+          "policy_ref": "policies.yaml",
+          "provenance": "demo-run-sim-03:sink-b",
+          "event_time": "2026-11-04T09:24:12+00:00",
+          "synthetic": true,
+          "tool_privileged": true
+        }
+      ],
+      "capability_refs": [
+        {
+          "tool": "file_write",
+          "privileged": true,
+          "via_receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000012"
+        },
+        {
+          "tool": "file_write",
+          "privileged": true,
+          "via_receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000013"
+        },
+        {
+          "tool": "shell",
+          "privileged": true
+        },
+        {
+          "tool": "shell",
+          "privileged": true,
+          "via_receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000010"
+        },
+        {
+          "tool": "shell",
+          "privileged": true,
+          "via_receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000011"
+        }
+      ],
+      "policy_proof_ids": [
+        "policies.yaml"
+      ],
+      "governance_events": [
+        {
+          "kind": "receipt-attached",
+          "decision": "deny",
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000010",
+          "trace_id": "t-w03-deny-a1"
+        },
+        {
+          "kind": "receipt-missing",
+          "decision": "unknown",
+          "trace_id": "t-w03-bypass-b2",
+          "note": "span sp-r3-b2 records no receipt hash"
+        },
+        {
+          "kind": "receipt-attached",
+          "decision": "allow",
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000011",
+          "trace_id": "t-w03-loop-c3"
+        },
+        {
+          "kind": "receipt-attached",
+          "decision": "allow",
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000012",
+          "trace_id": "t-w03-degraded-d4"
+        },
+        {
+          "kind": "receipt-attached",
+          "decision": "allow",
+          "receipt_hash": "sha256:synth0000000000000000000000000000000000000000000000000000000013",
+          "trace_id": "t-w03-spanref-e5"
+        }
+      ],
+      "usage_metrics": {
+        "receipts_total": 4,
+        "receipts_allow": 3,
+        "receipts_deny": 1,
+        "receipts_unknown": 0,
+        "privileged_tool_spans": 5,
+        "traces_total": 5
+      },
+      "privacy": {
+        "content_class": "metadata-only",
+        "filtered_fields": [
+          "receipt bytes",
+          "conversation content",
+          "credentials",
+          "user identifiers"
+        ]
+      }
+    }
+  ]
+}
