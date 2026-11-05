@@ -37,6 +37,12 @@ on `api_triage`, which traces the same env-configured demo data directory).
 
 **Flows:** CLI-supplied *input* paths in `ops/audit-pack/pack.py`
 (`--evidence-store`, `--trust-roots`, `--policy-receipts`, `--policies-dir`),
+`tools/verifier/revalidate_packet.py` (OV-3: `--packet`, `--evidence-store`,
+`--capability-refs`, `--policy-proof-refs`, `--governance`,
+`--risk-annotations`; the revalidator's entire contract is to re-derive a
+packet from exactly the offline artefacts the reviewer names, its reads are
+fail-visible with named errors, and it performs no writes from tainted
+paths),
 `ops/assurance/generate_report.py` (`--data-dir`, `--audit-events`),
 `packages/raucle-adapter/examples/run_evd.py` (output directory argument),
 `packages/raucle-adapter/src/oaa_raucle_adapter/fixture_gen.py`

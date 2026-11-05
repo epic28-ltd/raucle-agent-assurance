@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/epic28-ltd/raucle-agent-assurance/schemas/agent_assurance_packet.schema.json",
+  "title": "Agent Assurance Packet (OV-1)",
+  "description": "Deterministic, tamper-checked packet compiled from a receipt-chain evidence store. Version 1. Records ids, digests and counts only; never receipt denial reasons.",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "guard",
+    "inputs",
+    "packet_content_sha256",
+    "agent_identity",
+    "receipt_chain",
+    "gate_coverage",
+    "capability_refs",
+    "policy_proof_refs",
+    "governance_mapping",
+    "risk_annotations"
+  ],
+  "properties": {
+    "kind": {"const": "agent_assurance_packet"},
+    "schema_version": {"const": 1},
+    "guard": {"type": "string"},
+    "inputs": {"type": "object"},
+    "packet_content_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "agent_identity": {
+      "type": "object",
+      "properties": {
+        "agents": {"type": "array", "items": {"type": "string"}},
+        "issuers": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "receipt_chain": {
+      "type": "object",
+      "properties": {
+        "line_count": {"type": "integer", "minimum": 1},
+        "receipt_hashes": {"type": "array", "items": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}},
+        "operations": {"type": "object"},
+        "ruleset_hashes": {"type": "array", "items": {"type": "string"}},
+        "first_event_time": {"type": ["integer", "null"]},
+        "last_event_time": {"type": ["integer", "null"]}
+      }
+    },
+    "gate_coverage": {
+      "type": "object",
+      "properties": {
+        "admitted": {"type": "integer", "minimum": 0},
+        "held": {"type": "integer", "minimum": 0},
+        "refused": {"type": "integer", "minimum": 0},
+        "other": {"type": "integer", "minimum": 0},
+        "without_gate": {"type": "integer", "minimum": 0},
+        "distinct_policies": {"type": "array", "items": {"type": "string"}},
+        "distinct_rule_ids": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "capability_refs": {"type": "array", "items": {"type": "string"}},
+    "policy_proof_refs": {"type": "array", "items": {"type": "string"}},
+    "governance_mapping": {
+      "type": "object",
+      "description": "Framework slots; empty lists are honest and expected until OV-4 supplies crosswalk ids."
+    },
+    "risk_annotations": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}
