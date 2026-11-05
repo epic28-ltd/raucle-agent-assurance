@@ -243,29 +243,11 @@ def _within_window(
     return abs((receipt_time - candidate_time).total_seconds()) <= window.total_seconds()
 
 
-def reconcile(
-    candidates: Sequence[AuditCandidate],
-    receipt_index_rows: Sequence[ReceiptIndexRow],
-    conventions: ReconciliationConventions,
-    at: dt.datetime | None = None,
-) -> ReconciliationResult:
-    """Reconcile audit candidates against receipt index rows. Pure / offline.
-
-    ``at`` is the explicit reconciliation instant (naming the source of 'now'
-    for tests); pass ``None`` to reconcile as if every window had closed.
-    """
-    source = conventions.source
-    window = dt.timedelta(seconds=conventions.window_seconds)
-    grace = dt.timedelta(seconds=conventions.grace_seconds)
-    now = _as_utc(at) if at is not None else None
-
-    def closed(since: dt.datetime) -> bool:
-        return now is None or (since + grace) < now
-
-    collapsed_receipts = _collapse_receipts(list(receipt_index_rows))
-
-    # ---- collapse candidate deliveries (ADR-0002 §4 duplicate semantics) ----
-    logical: dict[tuple[str, str], dict[str, object]] = {}
+def _collapse_candidates(
+    candidates: Sequence[AuditCandidate], source: str
+) -> list[tuple[AuditCandidate, int, tuple[str, ...]]]:
+    """Collapse candidate deliveries (ADR-0002 §4 duplicate semantics)."""
+    logical: dict[tuple[str, str], tuple[AuditCandidate, int, list[str]]] = {}
     for cand in candidates:
         if cand.source != source:
             raise ValueError(
@@ -273,199 +255,204 @@ def reconcile(
                 f"{source!r}; reconcile one source at a time"
             )
         key = (cand.source, cand.source_event_id)
-        prov = (f"{cand.source}:{cand.source_event_id}",)
+        prov = f"{cand.source}:{cand.source_event_id}"
         if key not in logical:
-            logical[key] = {
-                "candidate": cand,
-                "deliveries": 1,
-                "provenance": prov,
-            }
+            logical[key] = (cand, 1, [prov])
         else:
-            entry = logical[key]
-            entry["deliveries"] = int(entry["deliveries"]) + 1  # type: ignore[call-overload]
-            entry["provenance"] = entry["provenance"] + prov  # type: ignore[operator]
+            cand0, n, provs = logical[key]
+            logical[key] = (cand0, n + 1, [*provs, prov])
+    return [
+        (cand, n, tuple(provs))
+        for _, (cand, n, provs) in sorted(logical.items(), key=lambda kv: kv[1][0].source_event_id)
+    ]
 
-    used_receipts: set[str] = set()
+
+def _match_by_binding(
+    cand: AuditCandidate,
+    deliveries: int,
+    provenance: tuple[str, ...],
+    collapsed_receipts: list[_CollapsedReceipt],
+    conventions: ReconciliationConventions,
+    source: str,
+    used_receipts: set[str],
+) -> ReconciliationRecord | None:
+    """Phase 1 — binding match (strong, exclusive)."""
+    if not cand.session_binding:
+        return None
+    binding_hits = [
+        c for c in collapsed_receipts if cand.session_binding in c.convention_tokens(conventions)
+    ]
+    distinct = {c.receipt_hash for c in binding_hits}
+    if len(distinct) > 1:
+        used_receipts.update(distinct)
+        return ReconciliationRecord(
+            state="ambiguous",
+            confidence=STATE_CONFIDENCE["ambiguous"],
+            source=source,
+            candidate_event_id=cand.source_event_id,
+            receipt_hashes=tuple(sorted(distinct)),
+            candidate_event_time=cand.event_time,
+            receipt_event_times=tuple(c.event_time for c in binding_hits),
+            action=cand.action,
+            match_method="binding",
+            notes=(
+                f"{len(distinct)} distinct receipts carry the same binding "
+                "token; needs human/ingest review"
+            ),
+            provenance=provenance + tuple(c.row.provenance or "" for c in binding_hits),
+            deliveries=deliveries,
+        )
+    if len(distinct) == 1:
+        one = binding_hits[0]
+        used_receipts.add(one.receipt_hash)
+        state = "duplicate" if deliveries > 1 or one.deliveries > 1 else "matched"
+        notes = (
+            f"binding token equality ({source} linkage convention); "
+            "confidence: evidence strength, never intent"
+        )
+        if deliveries > 1 or one.deliveries > 1:
+            notes = (
+                f"collapsed deliveries -> duplicate state "
+                f"(candidate x{deliveries}, receipt x{one.deliveries}); "
+                "provenance preserved"
+            )
+        return ReconciliationRecord(
+            state=state,
+            confidence=STATE_CONFIDENCE[state],
+            source=source,
+            candidate_event_id=cand.source_event_id,
+            receipt_hashes=(one.receipt_hash,),
+            candidate_event_time=cand.event_time,
+            receipt_event_times=(one.event_time,),
+            action=cand.action,
+            match_method="binding",
+            notes=notes,
+            provenance=(*provenance, one.row.provenance or ""),
+            deliveries=deliveries,
+        )
+    return None
+
+
+def _match_degraded(
+    cand: AuditCandidate,
+    deliveries: int,
+    provenance: tuple[str, ...],
+    ctime: dt.datetime,
+    collapsed_receipts: list[_CollapsedReceipt],
+    window: dt.timedelta,
+    source: str,
+    used_receipts: set[str],
+) -> ReconciliationRecord | None:
+    """Phase 2 — degraded match: time window + actor agreement (weak)."""
+    degraded_pool = [
+        c
+        for c in collapsed_receipts
+        if c.receipt_hash not in used_receipts
+        and _within_window(ctime, c.event_time, window)
+        and cand.actor is not None
+        and c.actor == cand.actor
+    ]
+    distinct_degraded = {c.receipt_hash for c in degraded_pool}
+    if len(distinct_degraded) > 1:
+        used_receipts.update(distinct_degraded)
+        return ReconciliationRecord(
+            state="ambiguous",
+            confidence=STATE_CONFIDENCE["ambiguous"],
+            source=source,
+            candidate_event_id=cand.source_event_id,
+            receipt_hashes=tuple(sorted(distinct_degraded)),
+            candidate_event_time=cand.event_time,
+            receipt_event_times=tuple(c.event_time for c in degraded_pool),
+            action=cand.action,
+            match_method="time_window+actor",
+            notes=(
+                f"{len(distinct_degraded)} distinct receipts fall in-window "
+                "for one candidate (time+actor path); needs review"
+            ),
+            provenance=provenance + tuple(c.row.provenance or "" for c in degraded_pool),
+            deliveries=deliveries,
+        )
+    if len(distinct_degraded) == 1:
+        one = degraded_pool[0]
+        used_receipts.add(one.receipt_hash)
+        state = "duplicate" if deliveries > 1 or one.deliveries > 1 else "matched_degraded"
+        notes = (
+            "no binding on candidate; matched by time window + actor — "
+            "LOWER CONFIDENCE, correlation is weaker than binding equality"
+        )
+        if deliveries > 1 or one.deliveries > 1:
+            notes = (
+                f"collapsed deliveries ({deliveries} candidate, "
+                f"{one.deliveries} receipt) over a degraded match; "
+                "provenance preserved"
+            )
+        return ReconciliationRecord(
+            state=state,
+            confidence=STATE_CONFIDENCE[state],
+            source=source,
+            candidate_event_id=cand.source_event_id,
+            receipt_hashes=(one.receipt_hash,),
+            candidate_event_time=cand.event_time,
+            receipt_event_times=(one.event_time,),
+            action=cand.action,
+            match_method="time_window+actor",
+            notes=notes,
+            provenance=(*provenance, one.row.provenance or ""),
+            deliveries=deliveries,
+        )
+    return None
+
+
+def _unmatched_record(
+    cand: AuditCandidate,
+    deliveries: int,
+    provenance: tuple[str, ...],
+    conventions: ReconciliationConventions,
+    source: str,
+) -> ReconciliationRecord:
+    """Phase 3 — no receipt at all: bypass check ONLY for privileged ops."""
+    if cand.action in conventions.privileged_ops:
+        return ReconciliationRecord(
+            state="bypass_suspected",
+            confidence=STATE_CONFIDENCE["bypass_suspected"],
+            source=source,
+            candidate_event_id=cand.source_event_id,
+            candidate_event_time=cand.event_time,
+            action=cand.action,
+            match_method=None,
+            notes=(
+                "privileged tool-side execution with no gate receipt inside "
+                "the window (ADR-0004 SEC-009); observed discrepancy only — "
+                "never intent attribution, reviewer judgement decides"
+            ),
+            provenance=provenance,
+            deliveries=deliveries,
+        )
+    return ReconciliationRecord(
+        state="receipt_missing",
+        confidence=STATE_CONFIDENCE["receipt_missing"],
+        source=source,
+        candidate_event_id=cand.source_event_id,
+        candidate_event_time=cand.event_time,
+        action=cand.action,
+        match_method=None,
+        notes=(
+            "no receipt within window; op not privileged — audit-coverage gap, not a bypass finding"
+        ),
+        provenance=provenance,
+        deliveries=deliveries,
+    )
+
+
+def _receipt_only_gaps(
+    collapsed_receipts: list[_CollapsedReceipt],
+    used_receipts: set[str],
+    source: str,
+    closed,
+) -> tuple[list[ReconciliationRecord], int]:
+    """Receipts that matched nothing: receipt_only_gap (evidence_gap)."""
     records: list[ReconciliationRecord] = []
     pending = 0
-
-    for entry in sorted(logical.values(), key=lambda e: e["candidate"].source_event_id):  # type: ignore[index,union-attr]
-        cand: AuditCandidate = entry["candidate"]  # type: ignore[assignment]
-        deliveries: int = entry["deliveries"]  # type: ignore[assignment]
-        provenance: tuple[str, ...] = entry["provenance"]  # type: ignore[assignment]
-        ctime = _as_utc(dt.datetime.fromisoformat(cand.event_time.replace("Z", "+00:00")))
-
-        if not closed(ctime):
-            # Not yet past grace: state undecided (open), never receipt_missing.
-            pending += 1
-            continue
-
-        # Phase 1 — binding match (strong, exclusive).
-        if cand.session_binding:
-            binding_hits = [
-                c
-                for c in collapsed_receipts
-                if cand.session_binding in c.convention_tokens(conventions)
-            ]
-            distinct = {c.receipt_hash for c in binding_hits}
-            if len(distinct) > 1:
-                records.append(
-                    ReconciliationRecord(
-                        state="ambiguous",
-                        confidence=STATE_CONFIDENCE["ambiguous"],
-                        source=source,
-                        candidate_event_id=cand.source_event_id,
-                        receipt_hashes=tuple(sorted(distinct)),
-                        candidate_event_time=cand.event_time,
-                        receipt_event_times=tuple(c.event_time for c in binding_hits),
-                        action=cand.action,
-                        match_method="binding",
-                        notes=(
-                            f"{len(distinct)} distinct receipts carry the same binding "
-                            "token; needs human/ingest review"
-                        ),
-                        provenance=provenance + tuple(c.row.provenance or "" for c in binding_hits),
-                        deliveries=deliveries,
-                    )
-                )
-                used_receipts.update(distinct)
-                continue
-            if len(distinct) == 1:
-                one = binding_hits[0]
-                used_receipts.add(one.receipt_hash)
-                state = "duplicate" if deliveries > 1 or one.deliveries > 1 else "matched"
-                notes = (
-                    f"binding token equality ({source} linkage convention); "
-                    "confidence: evidence strength, never intent"
-                )
-                if deliveries > 1 or one.deliveries > 1:
-                    notes = (
-                        f"collapsed deliveries -> duplicate state "
-                        f"(candidate x{deliveries}, receipt x{one.deliveries}); "
-                        "provenance preserved"
-                    )
-                records.append(
-                    ReconciliationRecord(
-                        state=state,
-                        confidence=STATE_CONFIDENCE[state],
-                        source=source,
-                        candidate_event_id=cand.source_event_id,
-                        receipt_hashes=(one.receipt_hash,),
-                        candidate_event_time=cand.event_time,
-                        receipt_event_times=(one.event_time,),
-                        action=cand.action,
-                        match_method="binding",
-                        notes=notes,
-                        provenance=(*provenance, one.row.provenance or ""),
-                        deliveries=deliveries,
-                    )
-                )
-                continue
-
-        # Phase 2 — degraded match: time window + actor agreement (weak).
-        degraded_pool = [
-            c
-            for c in collapsed_receipts
-            if c.receipt_hash not in used_receipts
-            and _within_window(ctime, c.event_time, window)
-            and cand.actor is not None
-            and c.actor == cand.actor
-        ]
-        distinct_degraded = {c.receipt_hash for c in degraded_pool}
-        if len(distinct_degraded) > 1:
-            records.append(
-                ReconciliationRecord(
-                    state="ambiguous",
-                    confidence=STATE_CONFIDENCE["ambiguous"],
-                    source=source,
-                    candidate_event_id=cand.source_event_id,
-                    receipt_hashes=tuple(sorted(distinct_degraded)),
-                    candidate_event_time=cand.event_time,
-                    receipt_event_times=tuple(c.event_time for c in degraded_pool),
-                    action=cand.action,
-                    match_method="time_window+actor",
-                    notes=(
-                        f"{len(distinct_degraded)} distinct receipts fall in-window "
-                        "for one candidate (time+actor path); needs review"
-                    ),
-                    provenance=provenance + tuple(c.row.provenance or "" for c in degraded_pool),
-                    deliveries=deliveries,
-                )
-            )
-            used_receipts.update(distinct_degraded)
-            continue
-        if len(distinct_degraded) == 1:
-            one = degraded_pool[0]
-            used_receipts.add(one.receipt_hash)
-            state = "duplicate" if deliveries > 1 or one.deliveries > 1 else "matched_degraded"
-            notes = (
-                "no binding on candidate; matched by time window + actor — "
-                "LOWER CONFIDENCE, correlation is weaker than binding equality"
-            )
-            if deliveries > 1 or one.deliveries > 1:
-                notes = (
-                    f"collapsed deliveries ({deliveries} candidate, "
-                    f"{one.deliveries} receipt) over a degraded match; "
-                    "provenance preserved"
-                )
-            records.append(
-                ReconciliationRecord(
-                    state=state,
-                    confidence=STATE_CONFIDENCE[state],
-                    source=source,
-                    candidate_event_id=cand.source_event_id,
-                    receipt_hashes=(one.receipt_hash,),
-                    candidate_event_time=cand.event_time,
-                    receipt_event_times=(one.event_time,),
-                    action=cand.action,
-                    match_method="time_window+actor",
-                    notes=notes,
-                    provenance=(*provenance, one.row.provenance or ""),
-                    deliveries=deliveries,
-                )
-            )
-            continue
-
-        # Phase 3 — no receipt at all: bypass check ONLY for privileged ops.
-        if cand.action in conventions.privileged_ops:
-            records.append(
-                ReconciliationRecord(
-                    state="bypass_suspected",
-                    confidence=STATE_CONFIDENCE["bypass_suspected"],
-                    source=source,
-                    candidate_event_id=cand.source_event_id,
-                    candidate_event_time=cand.event_time,
-                    action=cand.action,
-                    match_method=None,
-                    notes=(
-                        "privileged tool-side execution with no gate receipt inside "
-                        "the window (ADR-0004 SEC-009); observed discrepancy only — "
-                        "never intent attribution, reviewer judgement decides"
-                    ),
-                    provenance=provenance,
-                    deliveries=deliveries,
-                )
-            )
-        else:
-            records.append(
-                ReconciliationRecord(
-                    state="receipt_missing",
-                    confidence=STATE_CONFIDENCE["receipt_missing"],
-                    source=source,
-                    candidate_event_id=cand.source_event_id,
-                    candidate_event_time=cand.event_time,
-                    action=cand.action,
-                    match_method=None,
-                    notes=(
-                        "no receipt within window; op not privileged — "
-                        "audit-coverage gap, not a bypass finding"
-                    ),
-                    provenance=provenance,
-                    deliveries=deliveries,
-                )
-            )
-
-    # ---- receipts that matched nothing: receipt_only_gap (evidence_gap) ----
     for c in collapsed_receipts:
         if c.receipt_hash in used_receipts:
             continue
@@ -491,5 +478,62 @@ def reconcile(
                 deliveries=c.deliveries,
             )
         )
+    return records, pending
+
+
+def reconcile(
+    candidates: Sequence[AuditCandidate],
+    receipt_index_rows: Sequence[ReceiptIndexRow],
+    conventions: ReconciliationConventions,
+    at: dt.datetime | None = None,
+) -> ReconciliationResult:
+    """Reconcile audit candidates against receipt index rows. Pure / offline.
+
+    ``at`` is the explicit reconciliation instant (naming the source of 'now'
+    for tests); pass ``None`` to reconcile as if every window had closed.
+    """
+    source = conventions.source
+    window = dt.timedelta(seconds=conventions.window_seconds)
+    grace = dt.timedelta(seconds=conventions.grace_seconds)
+    now = _as_utc(at) if at is not None else None
+
+    def closed(since: dt.datetime) -> bool:
+        return now is None or (since + grace) < now
+
+    collapsed_receipts = _collapse_receipts(list(receipt_index_rows))
+
+    used_receipts: set[str] = set()
+    records: list[ReconciliationRecord] = []
+    pending = 0
+
+    for cand, deliveries, provenance in _collapse_candidates(candidates, source):
+        ctime = _as_utc(dt.datetime.fromisoformat(cand.event_time.replace("Z", "+00:00")))
+
+        if not closed(ctime):
+            # Not yet past grace: state undecided (open), never receipt_missing.
+            pending += 1
+            continue
+
+        matched = _match_by_binding(
+            cand, deliveries, provenance, collapsed_receipts, conventions, source, used_receipts
+        )
+        if matched is None:
+            matched = _match_degraded(
+                cand,
+                deliveries,
+                provenance,
+                ctime,
+                collapsed_receipts,
+                window,
+                source,
+                used_receipts,
+            )
+        if matched is None:
+            matched = _unmatched_record(cand, deliveries, provenance, conventions, source)
+        records.append(matched)
+
+    gap_records, gap_pending = _receipt_only_gaps(collapsed_receipts, used_receipts, source, closed)
+    records.extend(gap_records)
+    pending += gap_pending
 
     return ReconciliationResult(records=records, pending=pending)

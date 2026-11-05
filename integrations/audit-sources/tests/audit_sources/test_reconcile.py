@@ -11,6 +11,7 @@ from oaa_audit_sources.normalize import AuditCandidate, normalize_cloudtrail
 from oaa_audit_sources.reconcile import (
     ReceiptIndexRow,
     ReconciliationConventions,
+    _collapse_candidates,
     reconcile,
 )
 from test_normalize_cloudtrail import (
@@ -347,3 +348,17 @@ def test_synthetic_markers_on_all_fixture_inputs() -> None:
     assert all(c.synthetic for c in cands)
     row = aws_row()
     assert row.synthetic is True
+
+
+def test_collapse_candidates_rejects_foreign_source():
+    cand = AuditCandidate(
+        source="github_audit",
+        source_event_id="e1",
+        event_time="2026-01-01T00:00:00+00:00",
+        action="read",
+        actor="a",
+        resource="r",
+        session_binding=None,
+    )
+    with pytest.raises(ValueError, match="reconcile one source at a time"):
+        _collapse_candidates([cand], source="ok")
