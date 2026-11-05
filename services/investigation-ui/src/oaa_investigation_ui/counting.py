@@ -141,6 +141,70 @@ def counts_payload(data_dir: pathlib.Path | None = None, data: DemoData | None =
 
 
 # ------------------------------------------------------------------ counts
+def _privileged_plane_counts(data: DemoData) -> tuple[dict, dict, int, int, int]:
+    """One row per privileged span: verification/correlation state counts and
+    the healthy / at_risk / needs_investigation totals."""
+    verif_states: dict[str, int] = {}
+    corr_states: dict[str, int] = dict.fromkeys(CORRELATION_STATES, 0)
+    healthy = at_risk = needs = 0
+    for run in data.runs:
+        for trace in run["traces"]:
+            for span in trace["spans"]:
+                if not span.get("privileged"):
+                    continue
+                v = data.verification_for(span.get("receipt_hash"))
+                c = data.correlation_for_span(span, trace["trace_id"])
+                verif_states[v["status"]] = verif_states.get(v["status"], 0) + 1
+                corr_states[c["state"]] = corr_states.get(c["state"], 0) + 1
+                healthy, at_risk, needs = _healthy_at_risk_needs(
+                    v["status"], c["state"], healthy, at_risk, needs
+                )
+    return verif_states, corr_states, healthy, at_risk, needs
+
+
+def _healthy_at_risk_needs(
+    v_status: str, c_state: str, healthy: int, at_risk: int, needs: int
+) -> tuple[int, int, int]:
+    """Bucket one privileged span; unknown/pending states stay un-proven."""
+    if v_status in ("invalid", "unsupported_schema") or c_state == "receipt_missing":
+        needs += 1
+    elif (v_status == "valid" and c_state == "matched") or v_status == "not_applicable":
+        healthy += 1
+    else:
+        # unknown_key / pending / unavailable / ambiguous /
+        # duplicate / late_arrival / matched_degraded /
+        # trace_missing / pending correlation — all un-proven.
+        at_risk += 1
+    return healthy, at_risk, needs
+
+
+def _finding_lens_and_states(data_dir: pathlib.Path, all_findings: list[dict]) -> tuple[dict, dict]:
+    """Finding-lens and board-state counts over the merged finding list."""
+    from .red_intake import RED_LENS_BY_SEVERITY, RED_SOURCE  # noqa: PLC0415
+
+    lens_counts: dict[str, int] = dict.fromkeys(FINDING_LENS, 0)
+    state_counts: dict[str, int] = dict.fromkeys(BOARD_STATES, 0)
+    states = _triage_states(data_dir)
+    for f in all_findings:
+        st = states.get(f["id"]) or default_board_state(f)
+        if st not in BOARD_STATES:
+            st = default_board_state(f)
+        state_counts[st] += 1
+        if st in ("new", "investigating"):
+            if f.get("source") == RED_SOURCE:
+                # red_intake emits the board's short lens vocabulary; the
+                # canonical count set uses full names, so translate here.
+                lens_counts[
+                    _RED_LENS_CANONICAL.get(
+                        RED_LENS_BY_SEVERITY[f["severity"]],
+                        RED_LENS_BY_SEVERITY[f["severity"]],
+                    )
+                ] += 1
+            else:
+                lens_counts[_LENS_KEYS[finding_lens(f)]] += 1
+    return lens_counts, state_counts
+
+
 def count_evidence(
     data_dir: pathlib.Path | None = None,
     at: str | None = None,
@@ -160,31 +224,7 @@ def count_evidence(
     # The privileged-span index plane: one row per privileged span. These
     # same loops previously lived in app.py (dashboard) AND in the board
     # KPI code — now they live here, once.
-    verif_states: dict[str, int] = {}
-    corr_states: dict[str, int] = dict.fromkeys(CORRELATION_STATES, 0)
-    healthy = at_risk = needs = 0
-    for run in data.runs:
-        for trace in run["traces"]:
-            for span in trace["spans"]:
-                if not span.get("privileged"):
-                    continue
-                v = data.verification_for(span.get("receipt_hash"))
-                c = data.correlation_for_span(span, trace["trace_id"])
-                verif_states[v["status"]] = verif_states.get(v["status"], 0) + 1
-                corr_states[c["state"]] = corr_states.get(c["state"], 0) + 1
-                if v["status"] in ("invalid", "unsupported_schema") or c["state"] == (
-                    "receipt_missing"
-                ):
-                    needs += 1
-                elif (v["status"] == "valid" and c["state"] == "matched") or v[
-                    "status"
-                ] == "not_applicable":
-                    healthy += 1
-                else:
-                    # unknown_key / pending / unavailable / ambiguous /
-                    # duplicate / late_arrival / matched_degraded /
-                    # trace_missing / pending correlation — all un-proven.
-                    at_risk += 1
+    verif_states, corr_states, healthy, at_risk, needs = _privileged_plane_counts(data)
     ver_total = sum(verif_states.values())
     buckets = {
         "valid": verif_states.get("valid", 0),
@@ -207,9 +247,7 @@ def count_evidence(
     #   rule). Totals stay one partition: assurance + red == total, and
     #   open + closed + suppressed == total holds over the merged list.
     from .red_intake import (  # noqa: PLC0415
-        RED_LENS_BY_SEVERITY,
         RED_SEVERITIES,
-        RED_SOURCE,
         load_red_findings,
         red_board_finding,
     )
@@ -220,26 +258,7 @@ def count_evidence(
         red_by_severity[r["severity"]] += 1
     red_total = len(red_rows)
     all_findings = [*data.findings, *red_rows]
-    lens_counts: dict[str, int] = dict.fromkeys(FINDING_LENS, 0)
-    state_counts: dict[str, int] = dict.fromkeys(BOARD_STATES, 0)
-    states = _triage_states(data_dir)
-    for f in all_findings:
-        st = states.get(f["id"]) or default_board_state(f)
-        if st not in BOARD_STATES:
-            st = default_board_state(f)
-        state_counts[st] += 1
-        if st in ("new", "investigating"):
-            if f.get("source") == RED_SOURCE:
-                # red_intake emits the board's short lens vocabulary; the
-                # canonical count set uses full names, so translate here.
-                lens_counts[
-                    _RED_LENS_CANONICAL.get(
-                        RED_LENS_BY_SEVERITY[f["severity"]],
-                        RED_LENS_BY_SEVERITY[f["severity"]],
-                    )
-                ] += 1
-            else:
-                lens_counts[_LENS_KEYS[finding_lens(f)]] += 1
+    lens_counts, state_counts = _finding_lens_and_states(data_dir, all_findings)
     open_total = sum(lens_counts.values())
     total_findings = len(all_findings)
     assert open_total + state_counts["closed"] + state_counts["suppressed"] == total_findings
