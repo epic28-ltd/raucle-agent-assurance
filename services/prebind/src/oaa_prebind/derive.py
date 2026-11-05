@@ -9,8 +9,12 @@ no-bind, plus one documented extension, unresolved.
 The unresolved case is honest absence of evidence, not a hidden verdict: an
 ambiguous, duplicated, or receipt-less action attempt is reported as
 unresolved with an explicit anomaly, never promoted to a fabricated
-consequence state. The repo invariant (no fabricated verdicts, fail-visible)
-outranks the desire to fill all seven counters.
+consequence state. Two further states are evidence-backed by committed red
+findings (round 2): narrowed from RED-004's verified matched_degraded
+attenuation, no_bind from RED-019's unconfigured-tool no-bind denials. The
+remaining zeros (held, escalated, quarantined) stay annotated: the repo
+invariant (no fabricated verdicts, fail-visible) outranks the desire to
+fill all seven counters.
 """
 
 from __future__ import annotations
@@ -36,6 +40,20 @@ DERIVABLE_STATES = frozenset({"admitted", "refused", "unresolved"})
 # tool layer admitted something beyond the documented contract. These
 # suppress an unqualified 'admitted' reading in the indicator summary.
 PREBIND_ENFORCEMENT_WEAKNESS_RULES = frozenset({"RED-011", "RED-013", "RED-017"})
+
+# States additionally derivable from red-finding evidence (round 2, OV-16).
+RED_DERIVABLE_STATES = frozenset({"narrowed", "no_bind"})
+
+# Red rules that evidence a NARROWED (attenuated) boundary outcome: the forge
+# suite's weaker class landed on matched_degraded — trust attenuated, not
+# refused, not admitted at full strength (the CAGE-1 narrowed/attenuated
+# consequence).
+PREBIND_NARROWED_RULES = frozenset({"RED-004"})
+
+# Red rules that evidence a NO_BIND outcome: a cross-server or unconfigured
+# MCP tool name resolves to no policy binding at all, so the gate denies it
+# on the grounds that nothing binds it (the CAGE-1 no-bind consequence).
+PREBIND_NO_BIND_RULES = frozenset({"RED-019"})
 
 # Red rules that evidence the boundary HELD (verified PASS findings).
 PREBIND_BOUNDARY_HELD_RULES = frozenset({"RED-004", "RED-009", "RED-015", "RED-019"})
@@ -161,18 +179,44 @@ def prebind_indicators(
 
     held_findings = []
     weak_findings_by_rule: dict[str, list[str]] = {}
+    narrowed_findings: list[str] = []
+    no_bind_findings: list[str] = []
     if red_findings:
         for finding in red_findings:
             rule = finding.get("rule")
-            if rule in PREBIND_BOUNDARY_HELD_RULES and finding.get("finding_id"):
-                held_findings.append(finding["finding_id"])
-            elif rule in PREBIND_ENFORCEMENT_WEAKNESS_RULES and finding.get("finding_id"):
-                weak_findings_by_rule.setdefault(rule, []).append(finding["finding_id"])
+            fid = finding.get("finding_id")
+            if rule in PREBIND_NARROWED_RULES and fid:
+                narrowed_findings.append(fid)
+            elif rule in PREBIND_NO_BIND_RULES and fid:
+                no_bind_findings.append(fid)
+            elif rule in PREBIND_ENFORCEMENT_WEAKNESS_RULES and fid:
+                weak_findings_by_rule.setdefault(rule, []).append(fid)
+            if rule in PREBIND_BOUNDARY_HELD_RULES and fid:
+                # a PASS finding can evidence both the boundary-held label
+                # and a narrowed/no_bind counter (RED-004, RED-019)
+                held_findings.append(fid)
 
-    for state in sorted(set(PREBIND_STATES) - DERIVABLE_STATES):
+    red_evidence: dict[str, list[str]] = {}
+    if narrowed_findings:
+        red_evidence["narrowed"] = sorted(narrowed_findings)
+    if no_bind_findings:
+        red_evidence["no_bind"] = sorted(no_bind_findings)
+    # Each evidence-backed finding increments its state once: a verified
+    # matched_degraded forge outcome IS an attenuation (narrowed, not
+    # refused, not full-strength admission); a denial for an unconfigured
+    # tool name IS a no-bind outcome (nothing resolves to a binding).
+    counts["narrowed"] += len(red_evidence.get("narrowed", []))
+    counts["no_bind"] += len(red_evidence.get("no_bind", []))
+
+    non_derivable = (
+        set(PREBIND_STATES)
+        - DERIVABLE_STATES
+        - set(red_evidence)  # only skip states actually evidence-backed here
+    )
+    for state in sorted(non_derivable):
         annotations.append(
-            f"{state}: not derivable from receipts or committed runs today; "
-            "count is honest zero, not silent absence"
+            f"{state}: not derivable from receipts, committed runs, or red "
+            "findings today; count is honest zero, not silent absence"
         )
 
     if held_findings:
@@ -180,19 +224,27 @@ def prebind_indicators(
             "boundary-held red rules verified PASS: " + ", ".join(sorted(set(held_findings))[:5])
         )
 
+    for state, fids in red_evidence.items():
+        annotations.append(f"{state}: evidence-backed from red findings " + ", ".join(fids))
+
     return {
         "schema": "oaa.prebind-indicators/v1",
         "states": PREBIND_STATES,
         "counts": counts,
         "anomalies": sorted(set(anomalies)),
         "derivable_states": sorted(DERIVABLE_STATES),
+        "red_derived_states": sorted(RED_DERIVABLE_STATES),
         "enforcement_weaknesses": {
             rule: finding_ids for rule, finding_ids in sorted(weak_findings_by_rule.items())
         },
+        "red_evidence": red_evidence,
         "derivation_note": (
             "admitted/refused/unresolved are derived from gate receipts and "
-            "committed run spans only; held, narrowed, escalated, quarantined "
-            "and no_bind await receipt vocabulary in the gate itself"
+            "committed run spans; narrowed and no_bind are evidence-backed from "
+            "red findings (RED-004 matched_degraded attenuation, RED-019 "
+            "unconfigured-tool no-bind denial); held, escalated and "
+            "quarantined remain honest zeros pending receipt vocabulary in "
+            "the gate itself"
         ),
         "annotation_count": len(annotations),
         "annotations": annotations,
