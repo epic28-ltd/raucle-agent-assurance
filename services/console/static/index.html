@@ -194,8 +194,8 @@ const COVERAGE_DEFAULT = 95;
 /* Gateway console base URL, trailing slashes trimmed. A plain slice loop
    replaces the /\/+$/ regex (Sonar S8786 flags that pattern as capable of
    super-linear backtracking). */
-const gatewayConsoleUrl = (u) => {
-  let s = u || 'https://demo.raucle.com/';
+const gatewayConsoleUrl = (u = 'https://demo.raucle.com/') => {
+  let s = u;
   while (s.endsWith('/')) s = s.slice(0, -1);
   return s;
 };
@@ -210,20 +210,27 @@ const sevPill = (sev) => {
   const name = (sev || 'unknown').toLowerCase();
   return el('span', ['pill', 'num', SEV_TONE[name] || 'tok-exempt'].join(' '), name + ' severity');
 };
-const dotCls = (status) => status === 'connected' ? 'side-dot dot-good'
-  : status === 'degraded' ? 'side-dot dot-look' : 'side-dot';
+const dotCls = (status) => {
+  let cls = 'side-dot';
+  if (status === 'connected') cls = 'side-dot dot-good';
+  else if (status === 'degraded') cls = 'side-dot dot-look';
+  return cls;
+};
+
+const relativeDuration = (s) => {
+  if (s < 60) return s < 10 ? 'just now' : s + 's ago';
+  const m = Math.round(s / 60);
+  if (m < 60) return m + 'm ago';
+  const h = Math.round(m / 60);
+  if (h < 24) return h + 'h ago';
+  return Math.round(h / 24) + 'd ago';
+};
 
 const relativeTime = (ts, fallback) => {
   if (ts) {
     const t = Date.parse(ts);
     if (!Number.isNaN(t)) {
-      let s = Math.max(0, Math.round((Date.now() - t) / 1000));
-      if (s < 60) return s < 10 ? 'just now' : s + 's ago';
-      const m = Math.round(s / 60);
-      if (m < 60) return m + 'm ago';
-      const h = Math.round(m / 60);
-      if (h < 24) return h + 'h ago';
-      return Math.round(h / 24) + 'd ago';
+      return relativeDuration(Math.max(0, Math.round((Date.now() - t) / 1000)));
     }
   }
   return fallback || 'in the current window';
@@ -415,9 +422,9 @@ function findingsCountsFooter(counts, overview) {
   /* counts footer from the SHARED counting module (via /api/assurance/counts
      live, or the console's own overview fallback): open + closed =
      suppressed reconciles everywhere; no local re-computation */
-  const fc = counts && counts.findings
-    ? counts.findings
-    : (overview && overview.trust && overview.trust.findings ? overview.trust.findings : null);
+  let fc = null;
+  if (counts && counts.findings) fc = counts.findings;
+  else if (overview && overview.trust && overview.trust.findings) fc = overview.trust.findings;
   const footSpan = fc
     ? spanCounts(fc)
     : el('span', 'muted small', 'Counts unavailable: add-in offline.');
@@ -1339,7 +1346,6 @@ async function redTickReceipts(ctx, d) {
     ctx.receiptsLine.textContent = 'Receipts counter unavailable this tick (nothing guessed).';
   }
 }
-f
 function redCompleteLine(ctx, line, prefix, d) {
   ctx.setLiveLine(line);
   ctx.countersLine.textContent = redCountersLine(prefix, d);
