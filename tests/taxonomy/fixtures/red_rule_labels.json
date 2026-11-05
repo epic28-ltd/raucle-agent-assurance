@@ -1,0 +1,12 @@
+{
+  "RED-003": "policy-author-gap: a variant permits more than its author intent while matching configuration",
+  "RED-004": "forge-resisted: forged correlations did not reach the strong matched state (PASS)",
+  "RED-006": "custody-rule-coverage-gap: an Assurance custody rule misses a lease-misuse shape",
+  "RED-007": "custody-sec010-verified: lease-less consumption produces the SEC-010 finding (PASS)",
+  "RED-009": "receipt-replay-attributable: replay detection by receipt_hash equality verified (PASS)",
+  "RED-011": "documented-limitation-observed: the gate admitted an unconstrained (out-of-DSL) argument",
+  "RED-013": "http-oversize-accepted: an oversized /gate payload was processed to a full verdict with no size bound",
+  "RED-015": "http-transport-parity-verified: HTTP and in-process decisions matched for every parity probe (PASS)",
+  "RED-017": "mcp-uri-traversal-allowed: an MCP resource URI carrying path traversal was allowed",
+  "RED-019": "mcp-namespace-scope-verified: MCP-namespaced and cross-server tool names denied on policy (PASS)"
+}
