@@ -220,7 +220,7 @@ def test_report_document_written_on_mismatch(tmp_path: pathlib.Path) -> None:
     assert any(c["status"] == "FAIL" for c in doc["checks"])
 
 
-def test_unwritable_report_is_a_named_fail(tmp_path: pathlib.Path) -> None:
+def test_unwritable_report_is_a_named_fail(tmp_path: pathlib.Path, capsys) -> None:
     _result, packet_path = _green_run(tmp_path)
     assert _result == 0
     assert (
@@ -236,6 +236,87 @@ def test_unwritable_report_is_a_named_fail(tmp_path: pathlib.Path) -> None:
         )
         == 1
     )
+    # fail-visible: the named FAIL must name the report itself
+    out = capsys.readouterr().out
+    assert any("[FAIL] revalidation report not written" in line for line in out.splitlines())
+    assert "revalidation report not written" in out
+
+
+def test_report_path_refused_for_unusable_destinations(tmp_path: pathlib.Path, capsys) -> None:
+    """Resolved-to-root and resolved-to-home --report destinations are refused."""
+    _result, packet_path = _green_run(tmp_path)
+    assert _result == 0
+    for bad in (pathlib.Path("/"), pathlib.Path("~")):
+        assert (
+            rv.main(
+                [
+                    "--packet",
+                    str(packet_path),
+                    "--evidence-store",
+                    str(DEMO_STORE),
+                    "--report",
+                    str(bad),
+                ]
+            )
+            == 1
+        )
+        # fail-visible: the refusal is a named FAIL that quotes the argument
+        assert any(
+            "[FAIL] --report path refused" in line for line in capsys.readouterr().out.splitlines()
+        )
+
+
+def test_report_path_is_canonicalised_before_write(tmp_path: pathlib.Path) -> None:
+    """A traversal shorthand (--report ./dir/../sub/report.json) resolves to one file."""
+    _result, packet_path = _green_run(tmp_path)
+    assert _result == 0
+    (tmp_path / "sub").mkdir()
+    tangled = tmp_path / "sub" / ".." / "report.json"
+    assert (
+        rv.main(
+            [
+                "--packet",
+                str(packet_path),
+                "--evidence-store",
+                str(DEMO_STORE),
+                "--capability-refs",
+                str(tmp_path / "caps.json"),
+                "--risk-annotations",
+                str(tmp_path / "risks.json"),
+                "--governance",
+                str(tmp_path / "gov.json"),
+                "--report",
+                str(tangled),
+            ]
+        )
+        == 0
+    )
+    assert (tmp_path / "report.json").exists()
+
+
+def test_main_catches_derivation_fail_as_named_fail(tmp_path: pathlib.Path, capsys) -> None:
+    """A _Fail from the input loaders inside the derivation try is a named FAIL."""
+    _result, packet_path = _green_run(tmp_path)
+    assert _result == 0
+    bad_caps = tmp_path / "bad_caps.json"
+    bad_caps.write_text(json.dumps({"cap: x": "not a list"}))
+    result = rv.main(
+        [
+            "--packet",
+            str(packet_path),
+            "--evidence-store",
+            str(DEMO_STORE),
+            "--capability-refs",
+            str(bad_caps),
+            "--risk-annotations",
+            str(tmp_path / "risks.json"),
+            "--governance",
+            str(tmp_path / "gov.json"),
+        ]
+    )
+    assert result == 1
+    out = capsys.readouterr().out
+    assert "[FAIL] capability-refs" in out
 
 
 def test_revalidator_fails_on_missing_packet(tmp_path: pathlib.Path) -> None:

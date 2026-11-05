@@ -41,6 +41,7 @@ import contextlib
 import hashlib
 import json
 import os
+import pathlib
 import re
 
 SHA256_PREFIX = "sha256:"
@@ -321,7 +322,17 @@ def main(argv: list[str] | None = None) -> int:
 
     def fail(message: str) -> int:
         checks.append(("FAIL", message))
-        return _report(checks, args.report)
+        return _report(checks, report_path)
+
+    # The --report destination is a tainted CLI path: canonicalise it (and
+    # refuse unusable destinations as a named FAIL) before anything else.
+    report_path: str | None = None
+    if args.report is not None:
+        canonical = _report_path(args.report)
+        if canonical == 1:
+            checks.append(("FAIL", f"--report path refused (unusable destination): {args.report}"))
+            return _report(checks, None)
+        report_path = canonical
 
     try:
         with open(args.packet, encoding="utf-8") as fh:
@@ -393,9 +404,9 @@ def main(argv: list[str] | None = None) -> int:
     if diffs:
         for d in diffs:
             checks.append(("FAIL", f"re-derived packet differs at {d}"))
-        return _report(checks, args.report)
+        return _report(checks, report_path)
     checks.append(("PASS", "packet body reproduces exactly from the supplied evidence"))
-    return _report(checks, args.report)
+    return _report(checks, report_path)
 
 
 REPORT_SCHEMA = "oaa.revalidation-report/v1"
@@ -409,6 +420,21 @@ def _report_document(checks: list[tuple[str, str]]) -> dict:
         "verdict": "MISMATCH" if failed else "REPRODUCED",
         "checks": [{"status": status, "message": message} for status, message in checks],
     }
+
+
+def _report_path(report_path: str) -> int | str | None:
+    """Canonicalise the ``--report`` destination or refuse it (named FAIL).
+
+    The path arrives from a CLI argument, so it is resolved to an absolute
+    canonical form before any write, and destinations that resolve to a
+    filesystem root or the home directory are refused outright — traversal
+    shorthands die here, per the same hardening as generate_report's --out.
+    An ``int`` return is the named-FAIL exit for a refused path.
+    """
+    resolved = pathlib.Path(report_path).expanduser().resolve()
+    if resolved == pathlib.Path(resolved.root) or resolved == pathlib.Path.home():
+        return 1
+    return str(resolved)
 
 
 def _report(checks: list[tuple[str, str]], report_path: str | None = None) -> int:
