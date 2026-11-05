@@ -45,9 +45,7 @@ def test_phase5_beat_resolves_chain_graph_from_repo_checkout() -> None:
         "import raucle.chain_graph as cg\n"
         "print(cg.__file__)\n"
     )
-    result = subprocess.run(
-        [str(CLOUD_VENV_PY), "-c", script], capture_output=True, text=True
-    )
+    result = subprocess.run([str(CLOUD_VENV_PY), "-c", script], capture_output=True, text=True)
     assert result.returncode == 0, f"beat import failed: {result.stderr}"
     resolved = result.stdout.strip().strip("'\"")
     assert resolved.startswith(str(RAUCLE_REPO)), (

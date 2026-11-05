@@ -11,6 +11,6 @@ pack = Path(sys.argv[1])
 target = pack / "receipts.jsonl"
 lines = target.read_text().splitlines()
 env = json.loads(lines[0])
-env["jws"] = env["jws"][:-4] + "AAAA"        # flip trailing JWS bytes, envelope stays well-formed
+env["jws"] = env["jws"][:-4] + "AAAA"  # flip trailing JWS bytes, envelope stays well-formed
 target.write_bytes((json.dumps(env) + "\n" + "\n".join(lines[1:]) + "\n").encode())
 print("tamper applied: 4 trailing JWS bytes flipped on receipt 1 (copy only, original untouched)")

@@ -44,13 +44,21 @@ def main() -> int:
     workdir.mkdir(parents=True, exist_ok=True)
 
     pack = _load("demo_p1_1v_pack", REPO_ROOT / "ops" / "audit-pack" / "pack.py")
-    verify_pack = _load("demo_p1_1v_verify_pack", REPO_ROOT / "tools" / "verifier" / "verify_pack.py")
+    verify_pack = _load(
+        "demo_p1_1v_verify_pack", REPO_ROOT / "tools" / "verifier" / "verify_pack.py"
+    )
 
     print("== P1.1V: building the demo pack (cryptography runs locally) ==")
-    built = pack.build_pack(DEMO / "evidence_store.jsonl", DEMO / "trust_roots.jsonl", workdir / "pack", clock=CLOCK)
+    built = pack.build_pack(
+        DEMO / "evidence_store.jsonl", DEMO / "trust_roots.jsonl", workdir / "pack", clock=CLOCK
+    )
     pack_dir = pathlib.Path(built["pack_dir"])
     print(f"   pack: {pack_dir}")
-    print(f"   self_contained: {built['self_contained']}" if "self_contained" in built else "   (self-contained manifest block embedded)")
+    print(
+        f"   self_contained: {built['self_contained']}"
+        if "self_contained" in built
+        else "   (self-contained manifest block embedded)"
+    )
 
     print()
     print("== Beat 1: verification starts, then the plug is pulled mid-run ==")
@@ -71,7 +79,9 @@ def main() -> int:
     assert not worker.is_alive(), "verification did not finish"
     report = box["report"]
     print(report.render())
-    print(f"   external-call attempts recorded: {len(attempts)} (audit list: {attempts or 'empty'})")
+    print(
+        f"   external-call attempts recorded: {len(attempts)} (audit list: {attempts or 'empty'})"
+    )
     if report.failed:
         print("FAIL: clean pack did not verify green under the plug pull")
         return 1
@@ -96,19 +106,35 @@ def main() -> int:
     print()
     print("== Beat 3 (probe): standalone CLI under a network-less namespace ==")
     if not shutil.which("unshare"):
-        print("   unshare not present: namespace probe unavailable on this machine (honest gap: beat covered by in-process audit only)")
+        print(
+            "   unshare not present: namespace probe unavailable on this machine (honest gap: beat covered by in-process audit only)"
+        )
     else:
         probe = subprocess.run(
-            ["unshare", "-n", sys.executable, "-c", "import socket; socket.create_connection(('localhost', 1))"],
+            [
+                "unshare",
+                "-n",
+                sys.executable,
+                "-c",
+                "import socket; socket.create_connection(('localhost', 1))",
+            ],
             capture_output=True,
             text=True,
             timeout=30,
         )
         if probe.returncode != 0 and "permitted" in (probe.stderr + probe.stdout).lower():
-            print(f"   unshare -n refused by the kernel here: {probe.stderr.strip()} (honest gap: namespace beat unavailable)")
+            print(
+                f"   unshare -n refused by the kernel here: {probe.stderr.strip()} (honest gap: namespace beat unavailable)"
+            )
         else:
             proc = subprocess.run(
-                ["unshare", "-n", sys.executable, str(REPO_ROOT / "tools" / "verifier" / "verify_pack.py"), str(pack_dir)],
+                [
+                    "unshare",
+                    "-n",
+                    sys.executable,
+                    str(REPO_ROOT / "tools" / "verifier" / "verify_pack.py"),
+                    str(pack_dir),
+                ],
                 capture_output=True,
                 text=True,
                 timeout=120,

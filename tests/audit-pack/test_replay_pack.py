@@ -82,7 +82,9 @@ def test_replay_policy_is_honest_about_versioned_text(pack_dirs) -> None:
     for pack_dir in pack_dirs.values():
         policy = _replay(pack_dir)["policy"]
         assert policy["binding_state"] in (
-            "deployment_bound", "receipt_rule_digest_only", "unbound",
+            "deployment_bound",
+            "receipt_rule_digest_only",
+            "unbound",
         )
         if policy["version_in_force"] is None:
             assert policy["version_null_reason"]

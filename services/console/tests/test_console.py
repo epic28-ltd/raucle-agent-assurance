@@ -161,9 +161,12 @@ def test_spa_textcontent_discipline():
         assert src.startswith("http://127.0.0.1"), src
     for href in re.findall(r'<link[^>]*href=["\']([^"\']+)', html):
         assert href.startswith("http://127.0.0.1") or href.startswith("/"), href
-    # the only cross-origin fetch target is the configured add-in origin
+    # the allowed cross-origin fetch targets are the pinned loopback add-in
+    # origin and the documented public trust-gateway demo origin
+    # (demo.raucle.com, the TRUST_GATEWAY_URL default from app.py)
     for url in re.findall(r"https?://[^'\"\\s]+", html):
-        assert url.startswith("http://127.0.0.1:"), url
+        allowed = ("http://127.0.0.1:", "https://demo.raucle.com/")
+        assert url.startswith(allowed), url
 
 
 def test_spa_single_tenant_and_no_cookies():
@@ -443,8 +446,11 @@ def test_spa_dashboard_additions_keep_discipline():
     html = (STATIC / "index.html").read_text()
     for forbidden in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval("):
         assert forbidden not in html
+    # allowed cross-origin targets: pinned loopback add-in + documented
+    # public trust-gateway demo origin (TRUST_GATEWAY_URL default in app.py)
     for url in re.findall(r"https?://[^'\"\\s]+", html):
-        assert url.startswith("http://127.0.0.1:"), url
+        allowed = ("http://127.0.0.1:", "https://demo.raucle.com/")
+        assert url.startswith(allowed), url
 
 
 # ------------------------------------------------------------- wave 2.5 Red ops
@@ -676,10 +682,7 @@ def test_trust_portal_url_configurable():
     os.environ["RAUCLE_TRUST_PORTAL_URL"] = "http://127.0.0.1:9410"
     try:
         c = TestClient(create_app())
-        assert (
-            c.get("/api/config").json()["trust_portal_url"]
-            == "http://127.0.0.1:9410"
-        )
+        assert c.get("/api/config").json()["trust_portal_url"] == "http://127.0.0.1:9410"
     finally:
         del os.environ["RAUCLE_TRUST_PORTAL_URL"]
 

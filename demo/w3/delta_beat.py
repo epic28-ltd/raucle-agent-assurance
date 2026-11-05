@@ -61,12 +61,8 @@ def candidate_rules() -> list[dict]:
 
 def main() -> None:
     out_dir = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
-    base = PolicyFile.from_dict(
-        {"version": 1, "issuer": "board", "policies": BASELINE_RULES}
-    )
-    cand = PolicyFile.from_dict(
-        {"version": 1, "issuer": "board", "policies": candidate_rules()}
-    )
+    base = PolicyFile.from_dict({"version": 1, "issuer": "board", "policies": BASELINE_RULES})
+    cand = PolicyFile.from_dict({"version": 1, "issuer": "board", "policies": candidate_rules()})
 
     prompts = [
         "friendly hello",

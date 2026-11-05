@@ -31,9 +31,7 @@ RAUCLE = Path(__file__).resolve().parents[3] / "raucle"
 if (RAUCLE / "raucle" / "chain_graph.py").is_file():
     sys.path.insert(0, str(RAUCLE))
 
-_spec = importlib.util.spec_from_file_location(
-    "w3_phase5", ROOT / "tests" / "test_phase5_push.py"
-)
+_spec = importlib.util.spec_from_file_location("w3_phase5", ROOT / "tests" / "test_phase5_push.py")
 assert _spec is not None and _spec.loader is not None
 _mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_mod)
@@ -58,27 +56,23 @@ def _beat(e: dict, out_dir: Path) -> None:
     created.raise_for_status()
     policy_id = created.json()["policy"]["id"]
 
-    activated = client.post(
-        f"/api/v1/policies/{policy_id}/activate", json={}, headers=headers
-    )
+    activated = client.post(f"/api/v1/policies/{policy_id}/activate", json={}, headers=headers)
     activated.raise_for_status()
 
-    rows = client.get(
-        f"/api/v1/policies/{policy_id}/deployments", headers=headers
-    ).json()
+    rows = client.get(f"/api/v1/policies/{policy_id}/deployments", headers=headers).json()
     row = rows["deployments"][0]
-    chained = row["push_status"] == "accepted" and row["remote_receipt_hash"].startswith(
-        "sha256:"
+    chained = row["push_status"] == "accepted" and row["remote_receipt_hash"].startswith("sha256:")
+    print(
+        json.dumps(
+            {
+                "beat": "P1.9a phase 5 portal push",
+                "policy_id": policy_id,
+                "deployment_row": row,
+                "chained": chained,
+            },
+            indent=2,
+        )
     )
-    print(json.dumps(
-        {
-            "beat": "P1.9a phase 5 portal push",
-            "policy_id": policy_id,
-            "deployment_row": row,
-            "chained": chained,
-        },
-        indent=2,
-    ))
     assert chained, "deployment row is not chained"
     (out_dir / "phase5-beat.json").write_text(json.dumps(row, indent=2))
     remote = row["remote_receipt_hash"]

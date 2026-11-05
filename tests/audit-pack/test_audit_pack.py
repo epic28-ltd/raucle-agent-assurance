@@ -34,13 +34,17 @@ RAUCLE_OSS_HOME = pathlib.Path(os.environ.get("RAUCLE_OSS_HOME", "~/Projects/rau
 CLOCK = dt.datetime(2026, 11, 5, 12, 0, 0, tzinfo=dt.UTC)
 MANIFEST = "manifest.json"
 
-_spec = importlib.util.spec_from_file_location("oaa_audit_pack", REPO_ROOT / "ops" / "audit-pack" / "pack.py")
+_spec = importlib.util.spec_from_file_location(
+    "oaa_audit_pack", REPO_ROOT / "ops" / "audit-pack" / "pack.py"
+)
 assert _spec and _spec.loader
 pack = importlib.util.module_from_spec(_spec)
 sys.modules["oaa_audit_pack"] = pack
 _spec.loader.exec_module(pack)
 
-_vspec = importlib.util.spec_from_file_location("oaa_verify_pack", REPO_ROOT / "tools" / "verifier" / "verify_pack.py")
+_vspec = importlib.util.spec_from_file_location(
+    "oaa_verify_pack", REPO_ROOT / "tools" / "verifier" / "verify_pack.py"
+)
 assert _vspec and _vspec.loader
 verify_pack = importlib.util.module_from_spec(_vspec)
 sys.modules["oaa_verify_pack"] = verify_pack
@@ -101,9 +105,7 @@ def test_window_filter_single_receipt(built: dict, tmp_path: pathlib.Path) -> No
     assert len(first) == 1 and first[0] == lines[0]
     t0 = pack._event_time(lines[0])
     lo, hi = t0.replace(microsecond=0), t0.replace(microsecond=0)
-    sub = pack.select_envelopes(
-        DEMO / "evidence_store.jsonl", from_utc=lo, to_utc=hi
-    )
+    sub = pack.select_envelopes(DEMO / "evidence_store.jsonl", from_utc=lo, to_utc=hi)
     assert sub == [ln for ln in lines if lo <= pack._event_time(ln) <= hi]
 
 
@@ -130,7 +132,9 @@ def test_no_timestamps_degrades_honestly(built: dict) -> None:
 
 
 def test_policies_degrade_honestly(built: dict) -> None:
-    assert "Not included" in (pathlib.Path(built["pack_dir"]) / "policies" / "README.md").read_text()
+    assert (
+        "Not included" in (pathlib.Path(built["pack_dir"]) / "policies" / "README.md").read_text()
+    )
 
 
 def test_deterministic_build(built: dict, tmp_path: pathlib.Path) -> None:
@@ -155,7 +159,14 @@ def test_verify_green_on_demo_pack(built: dict) -> None:
     assert not report.failed
     assert not report.warned
     names = [c.name for c in report.checks]
-    for want in ("manifest-integrity", "key-snapshot", "receipt-signatures", "timestamp-tokens", "claim-sheet-guard", "chain-graph-slot"):
+    for want in (
+        "manifest-integrity",
+        "key-snapshot",
+        "receipt-signatures",
+        "timestamp-tokens",
+        "claim-sheet-guard",
+        "chain-graph-slot",
+    ):
         assert want in names, want
     sig = next(c for c in report.checks if c.name == "receipt-signatures")
     # real cryptography ran: the demo Ed25519 receipts verify
@@ -194,9 +205,13 @@ def test_tampered_receipt_named(built: dict, tmp_path: pathlib.Path) -> None:
     h, pay, s = rec["jws"].split(".")
     payload = json.loads(verify_pack._b64d(pay))
     payload["agent_id"] = "agent:evil"
-    new_pay = base64.urlsafe_b64encode(
-        json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
-    ).rstrip(b"=").decode()
+    new_pay = (
+        base64.urlsafe_b64encode(
+            json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
+        )
+        .rstrip(b"=")
+        .decode()
+    )
     rec["jws"] = f"{h}.{new_pay}.{s}"
     lines = p.read_text().splitlines()
     lines[0] = json.dumps(rec)
@@ -204,7 +219,9 @@ def test_tampered_receipt_named(built: dict, tmp_path: pathlib.Path) -> None:
     report = verify_pack.verify_pack(d)
     assert report.failed
     # the manifest names the changed file, and the receipt check agrees
-    assert "receipts.jsonl" in next(c for c in report.checks if c.name == "manifest-integrity").message
+    assert (
+        "receipts.jsonl" in next(c for c in report.checks if c.name == "manifest-integrity").message
+    )
 
 
 def test_strip_claim_guard_is_warning_not_failure(built: dict, tmp_path: pathlib.Path) -> None:
@@ -232,7 +249,11 @@ def test_timestamp_token_green_path(tmp_path: pathlib.Path) -> None:
     the verifier validates the embedded token presence."""
     key = Ed25519PrivateKey.generate()
     kid = "0123456789abcdef"
-    pem = key.public_key().public_bytes(ser.Encoding.PEM, ser.PublicFormat.SubjectPublicKeyInfo).decode()
+    pem = (
+        key.public_key()
+        .public_bytes(ser.Encoding.PEM, ser.PublicFormat.SubjectPublicKeyInfo)
+        .decode()
+    )
     root = {
         "key_id": kid,
         "public_key_pem": pem,
@@ -245,10 +266,26 @@ def test_timestamp_token_green_path(tmp_path: pathlib.Path) -> None:
         "agent_id": "agent:ts-test",
         "iat": 1793781819,
         "input_hash": "00" * 32,
-        "x_timestamp": {"mode": "tsa", "digest": "sha256:" + "00" * 32, "token": base64.b64encode(b"TSA-TOKEN-DER").decode()},
+        "x_timestamp": {
+            "mode": "tsa",
+            "digest": "sha256:" + "00" * 32,
+            "token": base64.b64encode(b"TSA-TOKEN-DER").decode(),
+        },
     }
-    hp = base64.urlsafe_b64encode(json.dumps({"alg": "EdDSA", "kid": kid, "typ": "provenance-receipt/v1"}).encode()).rstrip(b"=").decode()
-    pp = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()).rstrip(b"=").decode()
+    hp = (
+        base64.urlsafe_b64encode(
+            json.dumps({"alg": "EdDSA", "kid": kid, "typ": "provenance-receipt/v1"}).encode()
+        )
+        .rstrip(b"=")
+        .decode()
+    )
+    pp = (
+        base64.urlsafe_b64encode(
+            json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
+        )
+        .rstrip(b"=")
+        .decode()
+    )
     sig = base64.urlsafe_b64encode(key.sign(f"{hp}.{pp}".encode())).rstrip(b"=").decode()
     jws = f"{hp}.{pp}.{sig}"
     rh = "sha256:" + hashlib.sha256(jws.encode()).hexdigest()
@@ -293,7 +330,9 @@ def test_verifier_import_boundary_stdlib_plus_cryptography_only() -> None:
         elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
             roots.add(node.module.split(".")[0])
     allowed = set(sys.stdlib_module_names) | {"cryptography"}
-    assert roots - allowed == set(), f"verifier imports outside stdlib+cryptography: {roots - allowed}"
+    assert roots - allowed == set(), (
+        f"verifier imports outside stdlib+cryptography: {roots - allowed}"
+    )
     assert "raucle" not in roots
     assert "oaa_raucle_adapter" not in roots
     assert "oaa_investigation_ui" not in roots
@@ -317,10 +356,20 @@ def test_verify_makes_no_network_attempt(built: dict, monkeypatch: pytest.Monkey
             raise AssertionError("network attempted during offline verification")
 
     monkeypatch.setattr(socket, "socket", _RefusingSocket)
-    monkeypatch.setattr(socket, "create_connection", lambda *a, **k: attempts.append("socket.create_connection"))
-    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: attempts.append(f"socket.getaddrinfo({a!r})"))
-    monkeypatch.setattr(http.client.HTTPConnection, "connect", lambda self: attempts.append("http.client.HTTPConnection.connect"))
-    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: attempts.append("urllib.request.urlopen"))
+    monkeypatch.setattr(
+        socket, "create_connection", lambda *a, **k: attempts.append("socket.create_connection")
+    )
+    monkeypatch.setattr(
+        socket, "getaddrinfo", lambda *a, **k: attempts.append(f"socket.getaddrinfo({a!r})")
+    )
+    monkeypatch.setattr(
+        http.client.HTTPConnection,
+        "connect",
+        lambda self: attempts.append("http.client.HTTPConnection.connect"),
+    )
+    monkeypatch.setattr(
+        urllib.request, "urlopen", lambda *a, **k: attempts.append("urllib.request.urlopen")
+    )
 
     for target in (pathlib.Path(built["pack_dir"]), pathlib.Path(built["zip"])):
         attempts.clear()
@@ -355,34 +404,74 @@ def test_build_refuses_key_not_in_pinned_snapshot(tmp_path: pathlib.Path) -> Non
     kid = "deadbeefdeadbeef"
     key.public_key().public_bytes(ser.Encoding.PEM, ser.PublicFormat.SubjectPublicKeyInfo).decode()
     payload = {"agent_id": "agent:x", "agent_key_id": kid, "iat": 1700000000}
-    hp = base64.urlsafe_b64encode(json.dumps({"alg": "EdDSA", "kid": kid, "typ": "provenance-receipt/v1"}).encode()).rstrip(b"=").decode()
-    pp = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode()).rstrip(b"=").decode()
+    hp = (
+        base64.urlsafe_b64encode(
+            json.dumps({"alg": "EdDSA", "kid": kid, "typ": "provenance-receipt/v1"}).encode()
+        )
+        .rstrip(b"=")
+        .decode()
+    )
+    pp = (
+        base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode())
+        .rstrip(b"=")
+        .decode()
+    )
     sig = base64.urlsafe_b64encode(key.sign(f"{hp}.{pp}".encode())).rstrip(b"=").decode()
     jws = f"{hp}.{pp}.{sig}"
     store = tmp_path / "evidence_store.jsonl"
-    store.write_text(json.dumps({"receipt_hash": "sha256:" + hashlib.sha256(jws.encode()).hexdigest(), "jws": jws}) + "\n")
+    store.write_text(
+        json.dumps(
+            {"receipt_hash": "sha256:" + hashlib.sha256(jws.encode()).hexdigest(), "jws": jws}
+        )
+        + "\n"
+    )
     # a snapshot that intentionally misses the signing key
     roots = tmp_path / "trust_roots.jsonl"
     other = Ed25519PrivateKey.generate()
-    other_pem = other.public_key().public_bytes(ser.Encoding.PEM, ser.PublicFormat.SubjectPublicKeyInfo).decode()
-    roots.write_text(json.dumps({"key_id": "other", "public_key_pem": other_pem, "valid_from": "1970-01-01T00:00:00+00:00", "valid_until": None}) + "\n")
+    other_pem = (
+        other.public_key()
+        .public_bytes(ser.Encoding.PEM, ser.PublicFormat.SubjectPublicKeyInfo)
+        .decode()
+    )
+    roots.write_text(
+        json.dumps(
+            {
+                "key_id": "other",
+                "public_key_pem": other_pem,
+                "valid_from": "1970-01-01T00:00:00+00:00",
+                "valid_until": None,
+            }
+        )
+        + "\n"
+    )
     with pytest.raises(ValueError, match="deadbeefdeadbeef"):
         pack.build_pack(store, roots, tmp_path / "out")
 
 
-@pytest.mark.skipif(not RAUCLE_OSS_HOME.is_dir(), reason="RAUCLE_OSS_HOME tree not present on this machine")
-def test_resolved_pack_with_pinned_keys_self_contained(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.skipif(
+    not RAUCLE_OSS_HOME.is_dir(), reason="RAUCLE_OSS_HOME tree not present on this machine"
+)
+def test_resolved_pack_with_pinned_keys_self_contained(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """With RAUCLE_OSS_HOME opt-in the resolved graphs embed real verify
     results from the pinned snapshot, and any receipt the graphs reference
     beyond the window ships in signatures/ (the full signature bundle)."""
     monkeypatch.setenv("RAUCLE_OSS_HOME", str(RAUCLE_OSS_HOME))
-    built = pack.build_pack(DEMO / "evidence_store.jsonl", DEMO / "trust_roots.jsonl", tmp_path / "out", clock=CLOCK)
+    built = pack.build_pack(
+        DEMO / "evidence_store.jsonl", DEMO / "trust_roots.jsonl", tmp_path / "out", clock=CLOCK
+    )
     d = pathlib.Path(built["pack_dir"])
     cg = json.loads((d / "chain_graph.json").read_text())
     assert cg["status"] == "resolved-by-pinned-verifier"
     graphs = cg["graphs"]
     assert graphs, "demo receipts must resolve"
-    sig_states = [n["signature"]["status"] for g in graphs.values() for n in g.get("nodes", []) if n.get("kind") == "receipt" and isinstance(n.get("signature"), dict)]
+    sig_states = [
+        n["signature"]["status"]
+        for g in graphs.values()
+        for n in g.get("nodes", [])
+        if n.get("kind") == "receipt" and isinstance(n.get("signature"), dict)
+    ]
     assert sig_states and all(s == "verified" for s in sig_states), sig_states
     bundle = d / "signatures" / "chain_receipts.jsonl"
     # every graph receipt id is carried inside the pack
@@ -396,7 +485,12 @@ def test_resolved_pack_with_pinned_keys_self_contained(tmp_path: pathlib.Path, m
             for ln in (d / rel).read_text().splitlines():
                 if ln.strip():
                     packed_hashes.add(json.loads(ln)["receipt_hash"])
-        node_ids = {n["id"] for g in graphs.values() for n in g.get("nodes", []) if n.get("kind") == "receipt"}
+        node_ids = {
+            n["id"]
+            for g in graphs.values()
+            for n in g.get("nodes", [])
+            if n.get("kind") == "receipt"
+        }
         assert node_ids <= packed_hashes
         report2 = verify_pack.verify_pack(d)
         assert any(c.name == "signature-bundle" and c.status == "PASS" for c in report2.checks)
@@ -413,7 +507,9 @@ def test_chain_pack_graph_coverage_check_fails_without_bundle(
     data = json.loads(cg.read_text())
     assert data["status"] == "pending P1.1a wire-up"
     data["status"] = verify_pack.CHAIN_GRAPH_RESOLVED
-    data["graphs"] = {"sha256:aa" * 1: {"nodes": [{"id": "sha256:" + "aa" * 32, "kind": "receipt"}]}}
+    data["graphs"] = {
+        "sha256:aa" * 1: {"nodes": [{"id": "sha256:" + "aa" * 32, "kind": "receipt"}]}
+    }
     cg.write_text(json.dumps(data))
     m = json.loads((d / MANIFEST).read_text())
     m["files"]["chain_graph.json"] = hashlib.sha256(cg.read_bytes()).hexdigest()
@@ -446,9 +542,12 @@ def test_render_claim_sheet_cli_matches_pack(built: dict, tmp_path: pathlib.Path
     cmd = [
         sys.executable,
         str(repo / "scripts" / "render_claim_sheet.py"),
-        "--evidence-store", str(DEMO / "evidence_store.jsonl"),
-        "--trust-roots", str(DEMO / "trust_roots.jsonl"),
-        "--clock", CLOCK.isoformat(),
+        "--evidence-store",
+        str(DEMO / "evidence_store.jsonl"),
+        "--trust-roots",
+        str(DEMO / "trust_roots.jsonl"),
+        "--clock",
+        CLOCK.isoformat(),
     ]
     env = {**os.environ, "PYTHONPATH": str(repo)}
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, env=env)

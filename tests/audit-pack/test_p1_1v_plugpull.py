@@ -69,7 +69,9 @@ def offline_guard():
 @pytest.fixture(scope="module")
 def built_pack(tmp_path_factory: pytest.TempPathFactory) -> dict:
     out = tmp_path_factory.mktemp("p1-1v")
-    return pack.build_pack(DEMO / "evidence_store.jsonl", DEMO / "trust_roots.jsonl", out / "pack", clock=CLOCK)
+    return pack.build_pack(
+        DEMO / "evidence_store.jsonl", DEMO / "trust_roots.jsonl", out / "pack", clock=CLOCK
+    )
 
 
 def test_plug_pulled_midrun_verification_still_completes_green(
@@ -155,7 +157,13 @@ def test_full_verifier_path_zero_external_calls_and_namespace_probe(
     if not shutil.which("unshare"):
         pytest.skip("unshare not present; namespace isolation probe unavailable on this machine")
     probe = subprocess.run(
-        ["unshare", "-n", sys.executable, "-c", "import socket; socket.create_connection(('localhost', 1))"],
+        [
+            "unshare",
+            "-n",
+            sys.executable,
+            "-c",
+            "import socket; socket.create_connection(('localhost', 1))",
+        ],
         capture_output=True,
         text=True,
         timeout=30,
@@ -165,7 +173,13 @@ def test_full_verifier_path_zero_external_calls_and_namespace_probe(
     assert probe.returncode != 0, "unshare -n must make connections fail"
     # and the standalone CLI completes green inside the network-less namespace
     proc = subprocess.run(
-        ["unshare", "-n", sys.executable, str(REPO_ROOT / "tools" / "verifier" / "verify_pack.py"), str(built_pack["pack_dir"])],
+        [
+            "unshare",
+            "-n",
+            sys.executable,
+            str(REPO_ROOT / "tools" / "verifier" / "verify_pack.py"),
+            str(built_pack["pack_dir"]),
+        ],
         capture_output=True,
         text=True,
         timeout=120,

@@ -159,9 +159,7 @@ def _policy_node(graph: dict[str, Any], receipt_hash: str) -> dict[str, Any] | N
     return None
 
 
-def _policy_section(
-    policy_node: dict[str, Any] | None, pack_dir: pathlib.Path
-) -> dict[str, Any]:
+def _policy_section(policy_node: dict[str, Any] | None, pack_dir: pathlib.Path) -> dict[str, Any]:
     node = policy_node or {}
     section: dict[str, Any] = {
         "binding_state": node.get("binding_state", "unbound"),
@@ -193,9 +191,7 @@ def _policy_files(pack_dir: pathlib.Path) -> list[str]:
     pol_dir = pack_dir / "policies"
     if not pol_dir.is_dir():
         return []
-    return sorted(
-        p.name for p in pol_dir.iterdir() if p.suffix in {".yaml", ".yml", ".json"}
-    )
+    return sorted(p.name for p in pol_dir.iterdir() if p.suffix in {".yaml", ".yml", ".json"})
 
 
 def _hops(graph: dict[str, Any]) -> list[dict[str, Any]]:
@@ -203,9 +199,7 @@ def _hops(graph: dict[str, Any]) -> list[dict[str, Any]]:
     for edge in graph.get("edges", []):
         if edge.get("kind") == "delegation_parent":
             parents[edge["from"]] = edge["to"]
-    delegation_nodes = {
-        n["id"]: n for n in graph.get("nodes", []) if n.get("kind") == "delegation"
-    }
+    delegation_nodes = {n["id"]: n for n in graph.get("nodes", []) if n.get("kind") == "delegation"}
     if not delegation_nodes:
         return [
             {
@@ -286,9 +280,7 @@ def _verify(
             {
                 "receipt_hash": rec["receipt_hash"],
                 "verify": state,
-                "graph_signature_state": by_id.get(rec["receipt_hash"], {}).get(
-                    "signature"
-                ),
+                "graph_signature_state": by_id.get(rec["receipt_hash"], {}).get("signature"),
             }
         )
     return out
@@ -372,9 +364,11 @@ def _timestamps(graph: dict[str, Any], envelopes: list[str]) -> list[dict[str, A
             at = dt.datetime.fromtimestamp(int(payload.get("iat", 0)), tz=dt.UTC)
         except (ValueError, TypeError, KeyError, OverflowError):
             continue
-        anchoring = "rfc3161_token_in_pack" if isinstance(
-            payload.get("x_timestamp"), dict
-        ) and payload["x_timestamp"].get("token") else "signed_iat_only"
+        anchoring = (
+            "rfc3161_token_in_pack"
+            if isinstance(payload.get("x_timestamp"), dict) and payload["x_timestamp"].get("token")
+            else "signed_iat_only"
+        )
         events.append((at.isoformat(), "receipt", rec["receipt_hash"], anchoring))
     for node in graph.get("nodes", []):
         if node.get("kind") == "audit_event" and node.get("event_timestamp"):
