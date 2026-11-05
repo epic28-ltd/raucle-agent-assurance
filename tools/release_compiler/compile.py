@@ -111,10 +111,13 @@ def validate_run_set(raw):
         errors = list(validator.iter_errors(record))
         if errors:
             detail = "; ".join(e.message for e in sorted(errors, key=str))
-            raise ValueError(
-                f"records[{index}] ({record.get('record_id', '<no id>')}) "
-                f"fails agent_run_record schema: {detail}"
-            )
+            if isinstance(record, dict):
+                bad_id = record.get("record_id", "<no id>")
+            else:
+                # A non-object record cannot carry an id; name its type
+                # instead of crashing with AttributeError.
+                bad_id = f"<non-object {type(record).__name__}>"
+            raise ValueError(f"records[{index}] ({bad_id}) fails agent_run_record schema: {detail}")
 
     bindings = runset.get("case_bindings") or {}
     if not isinstance(bindings, dict):
