@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentassurance.dev/schemas/agent_process_expectations.schema.json",
+  "title": "AgentProcessExpectations",
+  "description": "Per-case agent process expectations (Sprint backlog OV-7). One document binds a set of cases to the outcomes that count as passing, the evidence that must anchor each outcome, the human-review routes that must exist before anything autonomous is trusted, the provider/tool/privacy boundaries the process must respect, the usage budgets it must not exceed, and the streaming-integrity invariants it must uphold. Validation is closed-set: anything not listed here is out of scope by construction.",
+  "type": "object",
+  "required": ["schema_version", "case_set", "cases"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "agent_process_expectations/v1"
+    },
+    "case_set": {
+      "type": "object",
+      "required": ["name", "description", "allowed_providers", "allowed_tools"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "allowed_providers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "The complete set of providers this case set may mention in its cases. Per-case providers must be a subset; the validator refuses widening."
+        },
+        "allowed_tools": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "The complete set of tools this case set may mention in its cases. Per-case tools must be a subset; the validator refuses widening."
+        }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["case_id", "expected_outcome", "evidence_links", "boundaries", "budgets"],
+        "additionalProperties": false,
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 3
+          },
+          "expected_outcome": {
+            "type": "object",
+            "description": "Outcomes that count as passing for the case. `unknown` is a first-class value and is never mapped into pass: a run whose gate decision is unknown does not satisfy any case here (architecture rule 3).",
+            "required": ["gate_decisions", "on_unknown"],
+            "additionalProperties": false,
+            "properties": {
+              "gate_decisions": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "enum": ["allow", "deny"] },
+                "description": "The gate decisions this case expects. Unknown is deliberately absent: 'on_unknown' governs it."
+              },
+              "on_unknown": {
+                "enum": ["fail", "escalate"],
+                "description": "An unknown gate decision either fails the case or routes it to human review; it is never read as a pass."
+              }
+            }
+          },
+          "evidence_links": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Receipt hashes / trace ids / artefact paths the verdict must be traceable to. At least one evidence link of kind receipt-hash is required, keyed to kind.",
+            "items": {
+              "type": "object",
+              "required": ["kind", "ref"],
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "enum": ["receipt-hash", "trace-id", "artefact-path", "policy-proof-id"]
+                },
+                "ref": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The link target: sha256:<hex> for receipt-hash, a trace id, repo-relative path for artefact-path, policy id otherwise. No bytes, only references."
+                }
+              }
+            }
+          },
+          "human_review": {
+            "type": "array",
+            "description": "Review routes that must exist before autonomy. Empty is allowed only for read-only/no-op cases.",
+            "items": {
+              "type": "object",
+              "required": ["route_id", "triggers"],
+              "additionalProperties": false,
+              "properties": {
+                "route_id": { "type": "string", "minLength": 1 },
+                "triggers": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "enum": [
+                      "gate-deny",
+                      "gate-unknown",
+                      "boundary-near-limit",
+                      "stream-integrity-breach"
+                    ]
+                  }
+                },
+                "reviewer": { "type": "string", "minLength": 1 }
+              }
+            }
+          },
+          "boundaries": {
+            "type": "object",
+            "description": "Provider/tool/privacy boundaries the process must stay inside.",
+            "required": ["providers", "tools", "privacy"],
+            "additionalProperties": false,
+            "properties": {
+              "providers": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 },
+                "uniqueItems": true
+              },
+              "tools": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 },
+                "uniqueItems": true
+              },
+              "privacy": {
+                "type": "object",
+                "required": ["content_class"],
+                "additionalProperties": false,
+                "properties": {
+                  "content_class": {
+                    "enum": ["metadata-only"],
+                    "description": "Only metadata-only is representable today: metadata-only telemetry by default, redaction tested not promised (docs/README.md rule 6)."
+                  },
+                  "forbidden_data": {
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1 },
+                    "uniqueItems": true
+                  }
+                }
+              }
+            }
+          },
+          "budgets": {
+            "type": "object",
+            "description": "Usage ceilings. All values are integers >= 0; zero is a real ceiling that permits nothing.",
+            "required": ["max_tool_calls", "max_provider_requests"],
+            "additionalProperties": false,
+            "properties": {
+              "max_tool_calls": { "type": "integer", "minimum": 0 },
+              "max_provider_requests": { "type": "integer", "minimum": 0 },
+              "max_privileged_tool_calls": { "type": "integer", "minimum": 0 },
+              "wall_clock_seconds": { "type": "integer", "minimum": 0 }
+            }
+          },
+          "streaming_integrity": {
+            "type": "array",
+            "description": "Invariants that must hold over streamed provider responses. Named by id; checked by the validator harness, not inferred.",
+            "items": {
+              "type": "object",
+              "required": ["invariant"],
+              "additionalProperties": false,
+              "properties": {
+                "invariant": {
+                  "enum": [
+                    "no-response-content-persisted",
+                    "terminator-verified",
+                    "sequence-numbers-monotonic",
+                    "truncation-flagged-not-filled"
+                  ]
+                },
+                "verdict_on_breach": {
+                  "enum": ["fail", "escalate"],
+                  "default": "fail"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
