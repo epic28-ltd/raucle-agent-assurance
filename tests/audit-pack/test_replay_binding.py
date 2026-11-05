@@ -56,9 +56,7 @@ def _mint(iat: int, kid: str = KID, agent: str = "agent:gw") -> tuple[dict, str,
         "ruleset_hash": "sha256:" + "cd" * 32,
     }
     pp = (
-        base64.urlsafe_b64encode(
-            json.dumps(body, separators=(",", ":"), sort_keys=True).encode()
-        )
+        base64.urlsafe_b64encode(json.dumps(body, separators=(",", ":"), sort_keys=True).encode())
         .rstrip(b"=")
         .decode()
     )
@@ -80,7 +78,9 @@ def _pack(
     d = tmp_path / "pack"
     d.mkdir()
     (d / "receipts.jsonl").write_text(
-        "".join(ln + "\n" for ln in (raw_receipt_lines if raw_receipt_lines is not None else receipts))
+        "".join(
+            ln + "\n" for ln in (raw_receipt_lines if raw_receipt_lines is not None else receipts)
+        )
     )
     keys = d / "keys"
     keys.mkdir()
@@ -107,8 +107,12 @@ def _resolved_graph(rh: str) -> dict:
     return {
         "status": "resolved-by-pinned-verifier",
         "nodes": [
-            {"id": rh, "kind": "receipt", "signature": {"status": "verified"},
-             "gate": {"decision": "allow", "agent_id": "agent:gw"}},
+            {
+                "id": rh,
+                "kind": "receipt",
+                "signature": {"status": "verified"},
+                "gate": {"decision": "allow", "agent_id": "agent:gw"},
+            },
             {
                 "id": "policy:base",
                 "kind": "policy",
@@ -160,7 +164,11 @@ def test_binding_happy_path_renders_resolved_replay(tmp_path: pathlib.Path) -> N
     # from=child, to=parent: the chain starts at the most-delegated hop
     assert [h["id"] for h in hops] == ["delegation:2", "delegation:1"]
     narrowed = hops[0]["narrowed_from_parent"]
-    assert narrowed == {"added": {}, "removed": [], "changed": {"amount_limit": {"from": 100, "to": 10}}}
+    assert narrowed == {
+        "added": {},
+        "removed": [],
+        "changed": {"amount_limit": {"from": 100, "to": 10}},
+    }
     assert all(h["proof"]["state"] == "no_proof_recorded" for h in hops)
     # verify states agree with the graph's own signature state
     assert out["verify"][0]["verify"] == "valid"
@@ -199,7 +207,9 @@ def test_timestamp_anchoring_names_rfc3161_token(tmp_path: pathlib.Path) -> None
 def test_audit_event_nodes_join_the_timestamp_line(tmp_path: pathlib.Path) -> None:
     row, line, rh = _mint(IAT)
     graph = _resolved_graph_doc(rh)
-    graph["graphs"][rh]["nodes"].append({"id": "audit:1", "kind": "audit_event", "event_timestamp": "2026-11-06T09:00:00+00:00"})
+    graph["graphs"][rh]["nodes"].append(
+        {"id": "audit:1", "kind": "audit_event", "event_timestamp": "2026-11-06T09:00:00+00:00"}
+    )
     d = _pack(tmp_path, receipts=[line], roots=[row], graph=graph)
     ts = replay_receipt_from_pack(d, rh)["timestamps"]
     assert any(t["kind"] == "audit_event" and t["id"] == "audit:1" for t in ts)
@@ -269,7 +279,12 @@ def test_swapped_receipt_hash_is_invalid_never_valid(tmp_path: pathlib.Path) -> 
     _row, line, _rh = _mint(IAT)
     rec = json.loads(line)
     rec["receipt_hash"] = "sha256:" + "ab" * 32
-    d = _pack(tmp_path, receipts=[json.dumps(rec)], roots=[_row], graph=_resolved_graph_doc(rec["receipt_hash"]))
+    d = _pack(
+        tmp_path,
+        receipts=[json.dumps(rec)],
+        roots=[_row],
+        graph=_resolved_graph_doc(rec["receipt_hash"]),
+    )
     out = replay_receipt_from_pack(d, rec["receipt_hash"])
     assert out["verify"][0]["verify"] == "invalid"
 
@@ -290,7 +305,9 @@ def test_forged_signature_is_invalid(tmp_path: pathlib.Path) -> None:
     jws2 = f"{h}.{pay}.{forged_sig}"
     rec2 = {"receipt_hash": "sha256:" + hashlib.sha256(jws2.encode()).hexdigest(), "jws": jws2}
     line2 = json.dumps(rec2)
-    d = _pack(tmp_path, receipts=[line2], roots=[row], graph=_resolved_graph_doc(rec2["receipt_hash"]))
+    d = _pack(
+        tmp_path, receipts=[line2], roots=[row], graph=_resolved_graph_doc(rec2["receipt_hash"])
+    )
     out = replay_receipt_from_pack(d, rec2["receipt_hash"])
     assert out["verify"][0]["verify"] == "invalid"
 
@@ -303,12 +320,12 @@ def test_malformed_jws_is_invalid(tmp_path: pathlib.Path) -> None:
     assert out["verify"][0]["verify"] == "invalid"
 
 
-def test_missing_crypto_dependency_is_unreachable_never_pass(tmp_path: pathlib.Path, monkeypatch) -> None:
+def test_missing_crypto_dependency_is_unreachable_never_pass(
+    tmp_path: pathlib.Path, monkeypatch
+) -> None:
     row, line, rh = _mint(IAT)
     d = _pack(tmp_path, receipts=[line], roots=[row], graph=None)
-    for name in [
-        k for k in sys.modules if k == "cryptography" or k.startswith("cryptography.")
-    ]:
+    for name in [k for k in sys.modules if k == "cryptography" or k.startswith("cryptography.")]:
         monkeypatch.setitem(sys.modules, name, None)
     out = replay_receipt_from_pack(d, rh)
     assert out["verify"][0]["verify"] == "unreachable"
@@ -317,7 +334,9 @@ def test_missing_crypto_dependency_is_unreachable_never_pass(tmp_path: pathlib.P
 def test_delegation_chain_cycles_are_cut_and_late_nodes_appended(tmp_path: pathlib.Path) -> None:
     row, line, rh = _mint(IAT)
     graph = _resolved_graph_doc(rh)
-    graph["graphs"][rh]["edges"].append({"kind": "delegation_parent", "from": "delegation:1", "to": "delegation:2"})
+    graph["graphs"][rh]["edges"].append(
+        {"kind": "delegation_parent", "from": "delegation:1", "to": "delegation:2"}
+    )
     d = _pack(tmp_path, receipts=[line], roots=[row], graph=graph)
     out = replay_receipt_from_pack(d, rh)
     ids = [h["id"] for h in out["hops"]]

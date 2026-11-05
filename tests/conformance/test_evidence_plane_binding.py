@@ -110,11 +110,7 @@ def stub_raucle(monkeypatch: pytest.MonkeyPatch):
 
 def _registry(row: dict) -> TrustRootRegistry:
     reg = TrustRootRegistry()
-    reg.add(
-        TrustRoot(
-            row["key_id"], row["public_key_pem"], row["valid_from"], row["valid_until"]
-        )
-    )
+    reg.add(TrustRoot(row["key_id"], row["public_key_pem"], row["valid_from"], row["valid_until"]))
     return reg
 
 
@@ -142,9 +138,7 @@ def test_key_known_but_not_trusted_at_event_time_is_invalid(stub_raucle) -> None
     row, line = _mint()
     # the key exists in the archive but only became valid after the event
     reg = TrustRootRegistry()
-    reg.add(
-        TrustRoot(row["key_id"], row["public_key_pem"], "2099-01-01T00:00:00+00:00", None)
-    )
+    reg.add(TrustRoot(row["key_id"], row["public_key_pem"], "2099-01-01T00:00:00+00:00", None))
     out = classify(line, reg)
     assert out.verification_status == "invalid"
     assert "not trusted at event time" in " ".join(out.checks_performed)
@@ -194,6 +188,7 @@ def test_missing_raucle_raises_with_install_guidance(
 ) -> None:
     """raucle is optional: without it the plane raises ImportError with
     install guidance, it does not fall back to an unverified state."""
+
     class _Blocker:
         def find_spec(self, name, path=None, target=None):
             if name == "raucle" or name.startswith("raucle."):
@@ -216,7 +211,9 @@ def test_store_get_returns_first_verbatim_line(tmp_path: pathlib.Path):
     store.put(line2)
     first = store.get(json.loads(line)["receipt_hash"])
     assert first == line
-    assert json.loads(store.get_by_digest(digest))["receipt_hash"] == json.loads(line)["receipt_hash"]
+    assert (
+        json.loads(store.get_by_digest(digest))["receipt_hash"] == json.loads(line)["receipt_hash"]
+    )
 
 
 def test_store_get_missing_hash_raises(tmp_path: pathlib.Path):
