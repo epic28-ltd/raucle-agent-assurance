@@ -31,10 +31,13 @@ import argparse
 import base64
 import datetime as dt
 import hashlib
+import http.client
 import json
 import pathlib
 import shutil
+import socket
 import tempfile
+import urllib.request
 import zipfile
 from dataclasses import dataclass, field
 
@@ -502,6 +505,55 @@ def verify_pack(target: pathlib.Path) -> Report:
         if is_temp:
             shutil.rmtree(pack.parent, ignore_errors=True)
     return report
+
+
+# -------------------------------------------- P1.1V mid-run plug-pull audit ----
+
+EXTERNAL_CALL_AUDIT: list[str] = []
+
+
+def install_offline_audit() -> list[str]:
+    """P1.1V: instrument the verifier path so that ANY attempted external
+    call fails the run loudly (OSError) instead of passing silently, and
+    every attempt is recorded on EXTERNAL_CALL_AUDIT.
+
+    Honest gap, stated plainly: this is same-kernel monkeypatch isolation
+    inside one Python process, not a physically unplugged machine and not a
+    separate network namespace. The physical plug-pull beat is the W8 live
+    demo, which is out of scope here. subprocess/namespace isolation is
+    exercised separately by the demo and tests where `unshare -n` is
+    available on the machine.
+    """
+    def _refuse(where: str):
+        def _hook(*args, **kwargs):
+            EXTERNAL_CALL_AUDIT.append(where)
+            raise OSError(
+                f"P1.1V offline audit: external call refused at {where}; "
+                "zero external calls are permitted in the verifier path"
+            )
+
+        return _hook
+
+    class _RefusingSocket:
+        def __init__(self, *a, **k):
+            EXTERNAL_CALL_AUDIT.append("socket.socket")
+            raise OSError(
+                "P1.1V offline audit: socket creation refused "
+                "(zero external calls permitted in the verifier path)"
+            )
+
+        def __getattr__(self, name):
+            raise OSError(
+                "P1.1V offline audit: socket use refused "
+                "(zero external calls permitted in the verifier path)"
+            )
+
+    socket.socket = _RefusingSocket  # type: ignore[assignment,misc]
+    socket.create_connection = _refuse("socket.create_connection")  # type: ignore[assignment]
+    socket.getaddrinfo = _refuse("socket.getaddrinfo")  # type: ignore[assignment]
+    http.client.HTTPConnection.connect = _refuse("http.client.HTTPConnection.connect")  # type: ignore[assignment]
+    urllib.request.urlopen = _refuse("urllib.request.urlopen")  # type: ignore[assignment]
+    return EXTERNAL_CALL_AUDIT
 
 
 def main(argv: list[str] | None = None) -> int:
