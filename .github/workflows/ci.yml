@@ -21,6 +21,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install ruff pytest
+          # test-suite dependencies (raucle-free set): these are imported
+          # directly by root tests/ modules (cryptography, yaml, fastapi
+          # TestClient, otel workflow test) and were previously missing,
+          # which kept main red on the pytest step.
+          pip install cryptography pyyaml fastapi httpx opentelemetry-sdk
       - name: ruff format check
         run: ruff format --check .
       - name: ruff check
