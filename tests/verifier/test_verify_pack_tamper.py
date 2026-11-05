@@ -86,15 +86,15 @@ def mint_envelope(
         .decode()
     )
     pp = (
-        base64.urlsafe_b64encode(
-            json.dumps(body, separators=(",", ":"), sort_keys=True).encode()
-        )
+        base64.urlsafe_b64encode(json.dumps(body, separators=(",", ":"), sort_keys=True).encode())
         .rstrip(b"=")
         .decode()
     )
     sig = base64.urlsafe_b64encode(key.sign(f"{hp}.{pp}".encode())).rstrip(b"=").decode()
     jws = f"{hp}.{pp}.{sig}"
-    line = json.dumps({"receipt_hash": "sha256:" + hashlib.sha256(jws.encode()).hexdigest(), "jws": jws})
+    line = json.dumps(
+        {"receipt_hash": "sha256:" + hashlib.sha256(jws.encode()).hexdigest(), "jws": jws}
+    )
     return row, line
 
 
@@ -122,6 +122,8 @@ def restamp_manifest(d: pathlib.Path) -> None:
     this; every test using it proves the check that trips is deeper than
     the manifest alone)."""
     write_manifest(d)
+
+
 MANIFEST = "manifest.json"
 RECEIPTS = "receipts.jsonl"
 
@@ -185,12 +187,14 @@ def test_manifest_unreadable_json_fails(tmp_path: pathlib.Path) -> None:
     (d / MANIFEST).write_text("{broken")
     report = verify_pack.verify_pack(d)
     assert report.failed
-    assert "not readable JSON" in next(
-        c for c in report.checks if c.name == "manifest-integrity"
-    ).message
-    assert "not readable JSON" in next(
-        c for c in report.checks if c.name == "pinned-key-snapshot"
-    ).message
+    assert (
+        "not readable JSON"
+        in next(c for c in report.checks if c.name == "manifest-integrity").message
+    )
+    assert (
+        "not readable JSON"
+        in next(c for c in report.checks if c.name == "pinned-key-snapshot").message
+    )
 
 
 def test_extra_undeclared_file_fails_manifest(tmp_path: pathlib.Path) -> None:
@@ -210,12 +214,14 @@ def test_missing_pinned_snapshot_file_fails_manifest_and_key_check(
     (d / "keys" / "trust_roots.jsonl").unlink()
     report = verify_pack.verify_pack(d)
     assert report.failed
-    assert "keys/trust_roots.jsonl" in next(
-        c for c in report.checks if c.name == "manifest-integrity"
-    ).message
-    assert "key snapshot is empty" in next(
-        c for c in report.checks if c.name == "key-snapshot"
-    ).message
+    assert (
+        "keys/trust_roots.jsonl"
+        in next(c for c in report.checks if c.name == "manifest-integrity").message
+    )
+    assert (
+        "key snapshot is empty"
+        in next(c for c in report.checks if c.name == "key-snapshot").message
+    )
 
 
 # ------------------------------------------------------- receipt tamper classes ----
@@ -263,9 +269,10 @@ def test_missing_key_snapshot_dir_fails(tmp_path: pathlib.Path) -> None:
     assert "key snapshot is empty" in check.message
     # the removed snapshot is also caught at manifest and pin level
     assert report.failed
-    assert "keys/trust_roots.jsonl" in next(
-        c for c in report.checks if c.name == "manifest-integrity"
-    ).message
+    assert (
+        "keys/trust_roots.jsonl"
+        in next(c for c in report.checks if c.name == "manifest-integrity").message
+    )
 
 
 def test_empty_key_snapshot_fails(tmp_path: pathlib.Path) -> None:
@@ -273,9 +280,10 @@ def test_empty_key_snapshot_fails(tmp_path: pathlib.Path) -> None:
     restamp_manifest(d)
     report = verify_pack.verify_pack(d)
     assert report.failed
-    assert "key snapshot is empty" in next(
-        c for c in report.checks if c.name == "key-snapshot"
-    ).message
+    assert (
+        "key snapshot is empty"
+        in next(c for c in report.checks if c.name == "key-snapshot").message
+    )
 
 
 def test_duplicate_and_unreadable_key_rows_fail(tmp_path: pathlib.Path) -> None:
@@ -323,9 +331,10 @@ def test_envelope_missing_fields_fails_cleanly(tmp_path: pathlib.Path) -> None:
     restamp_manifest(d)
     report = verify_pack.verify_pack(d)
     assert report.failed
-    assert "malformed envelope, missing envelope fields" in next(
-        c for c in report.checks if c.name == "receipt-signatures"
-    ).message
+    assert (
+        "malformed envelope, missing envelope fields"
+        in next(c for c in report.checks if c.name == "receipt-signatures").message
+    )
 
 
 def test_non_eddsa_algorithm_is_refused(tmp_path: pathlib.Path) -> None:
@@ -368,9 +377,10 @@ def test_signature_verify_failure_against_pinned_key_fails(tmp_path: pathlib.Pat
     restamp_manifest(d)
     report = verify_pack.verify_pack(d)
     assert report.failed
-    assert "signature does not verify against the key snapshot" in next(
-        c for c in report.checks if c.name == "receipt-signatures"
-    ).message
+    assert (
+        "signature does not verify against the key snapshot"
+        in next(c for c in report.checks if c.name == "receipt-signatures").message
+    )
 
 
 def test_non_ed25519_snapshot_key_is_refused(tmp_path: pathlib.Path) -> None:
@@ -489,7 +499,6 @@ def test_wrapperless_zip_with_lone_keys_subdir_is_normalised(tmp_path: pathlib.P
                         "keys/trust_roots.jsonl": hashlib.sha256(
                             (json.dumps(row) + "\n").encode()
                         ).hexdigest(),
-
                     },
                 },
                 sort_keys=True,
@@ -576,9 +585,10 @@ def test_unreadable_chain_graph_fails(tmp_path: pathlib.Path) -> None:
     restamp_manifest(d)
     report = verify_pack.verify_pack(d)
     assert report.failed
-    assert "not readable JSON" in next(
-        c for c in report.checks if c.name == "chain-graph-slot"
-    ).message
+    assert (
+        "not readable JSON"
+        in next(c for c in report.checks if c.name == "chain-graph-slot").message
+    )
 
 
 def test_chain_graph_other_status_is_reported_not_faked(tmp_path: pathlib.Path) -> None:
@@ -625,9 +635,10 @@ def test_pinned_snapshot_file_missing_fails(tmp_path: pathlib.Path) -> None:
     (d / MANIFEST).write_text(json.dumps(m, sort_keys=True))
     report = verify_pack.verify_pack(d)
     assert report.failed
-    assert "declared snapshot 'keys/gone.jsonl' is missing" in next(
-        c for c in report.checks if c.name == "pinned-key-snapshot"
-    ).message
+    assert (
+        "declared snapshot 'keys/gone.jsonl' is missing"
+        in next(c for c in report.checks if c.name == "pinned-key-snapshot").message
+    )
 
 
 def test_pinned_snapshot_digest_mismatch_fails(tmp_path: pathlib.Path) -> None:
@@ -641,9 +652,10 @@ def test_pinned_snapshot_digest_mismatch_fails(tmp_path: pathlib.Path) -> None:
     (d / MANIFEST).write_text(json.dumps(m, sort_keys=True))
     report = verify_pack.verify_pack(d)
     assert report.failed
-    assert "does not match the embedded bytes" in next(
-        c for c in report.checks if c.name == "pinned-key-snapshot"
-    ).message
+    assert (
+        "does not match the embedded bytes"
+        in next(c for c in report.checks if c.name == "pinned-key-snapshot").message
+    )
 
 
 def test_pre_p1_1c_pack_without_pinned_block_warns_honestly(tmp_path: pathlib.Path) -> None:
