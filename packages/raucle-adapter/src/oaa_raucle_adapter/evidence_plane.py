@@ -52,14 +52,15 @@ def _raucle():
     """Lazy import of the optional raucle dependency, with install guidance."""
     try:
         import raucle  # noqa: PLC0415
+
+        importlib.import_module("raucle.gateway")
+        importlib.import_module("raucle.provenance")
     except ImportError as exc:
         raise ImportError(
             "raucle is required for signature verification but is not installed. "
             "Install it from the pinned v0.23.5 worktree (git 63edacd) or "
             "PyPI raucle==0.23.5 — see packages/raucle-adapter/README.md."
         ) from exc
-    importlib.import_module("raucle.gateway")
-    importlib.import_module("raucle.provenance")
     return raucle
 
 
