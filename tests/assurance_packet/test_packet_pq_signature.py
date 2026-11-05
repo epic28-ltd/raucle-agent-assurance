@@ -185,3 +185,77 @@ def test_cli_pq_key_loader_roundtrip(tmp_path: pathlib.Path) -> None:
     del signed
     assert roundtrip["packet_pq_signature"]["algorithm"] == "ml-dsa-65"
     assert rv._verify_pq_signature_field(roundtrip) is None
+
+
+def test_verify_rejects_non_object_field() -> None:
+    signed, _, _ = _signed_packet()
+    bad = json.loads(json.dumps(signed))
+    bad["packet_pq_signature"] = "not-an-object"
+    with pytest.raises(rv._Fail, match="must be an object"):
+        rv._verify_pq_signature_field(bad)
+
+
+def test_verify_rejects_non_string_public_key_hex() -> None:
+    signed, _, _ = _signed_packet()
+    bad = json.loads(json.dumps(signed))
+    bad["packet_pq_signature"]["public_key_hex"] = 42
+    with pytest.raises(rv._Fail, match="public_key_hex"):
+        rv._verify_pq_signature_field(bad)
+
+
+def test_verify_rejects_public_key_hex_not_a_key() -> None:
+    signed, _, _ = _signed_packet()
+    bad = json.loads(json.dumps(signed))
+    bad["packet_pq_signature"]["public_key_hex"] = "ab"
+    with pytest.raises(rv._Fail, match="ML-DSA-65 key"):
+        rv._verify_pq_signature_field(bad)
+
+
+def test_verify_rejects_non_string_signature_b64() -> None:
+    signed, _, _ = _signed_packet()
+    bad = json.loads(json.dumps(signed))
+    bad["packet_pq_signature"]["signature_b64"] = 7
+    with pytest.raises(rv._Fail, match="base64"):
+        rv._verify_pq_signature_field(bad)
+
+
+def test_verify_rejects_non_string_stamp() -> None:
+    signed, _, _ = _signed_packet()
+    bad = json.loads(json.dumps(signed))
+    bad["packet_content_sha256"] = 12345
+    with pytest.raises(rv._Fail, match="digest string"):
+        rv._verify_pq_signature_field(bad)
+
+
+def test_verify_fails_closed_when_pq_backend_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    signed, _, _ = _signed_packet()
+    monkeypatch.setattr(rv._rqpq, "pq_available", lambda: False)
+    with pytest.raises(rv._Fail, match="cannot"):
+        rv._verify_pq_signature_field(signed)
+
+
+def test_verify_rejects_key_id_of_wrong_form() -> None:
+    signed, _, _ = _signed_packet()
+    bad = json.loads(json.dumps(signed))
+    bad["packet_pq_signature"]["key_id"] = ""
+    with pytest.raises(rv._Fail, match="16-char key id"):
+        rv._verify_pq_signature_field(bad)
+
+
+def test_verify_rejects_malformed_public_key_hex() -> None:
+    signed, _, _ = _signed_packet()
+    bad = json.loads(json.dumps(signed))
+    bad["packet_pq_signature"]["public_key_hex"] = "zz zz"
+    with pytest.raises(rv._Fail, match="is not hex"):
+        rv._verify_pq_signature_field(bad)
+
+
+def test_verify_fails_closed_when_raucle_module_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    signed, _, _ = _signed_packet()
+    monkeypatch.setattr(rv, "_rqpq", None)
+    with pytest.raises(rv._Fail, match="raucle"):
+        rv._verify_pq_signature_field(signed)
