@@ -351,7 +351,7 @@ def _attempt_delivery(
     except urllib.error.HTTPError as exc:
         code = exc.code
         return None, f"HTTP {code}", not (400 <= code < 500 and code != 429)
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+    except OSError as exc:
         return None, str(exc) or type(exc).__name__, True
 
 
