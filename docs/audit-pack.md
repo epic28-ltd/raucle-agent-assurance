@@ -1,6 +1,9 @@
 # The auditor export pack (AUD-01)
 
-*Status: P1.7a/P1.7b, extended by P1.1c (self-contained offline export).
+*Status: P1.7a/P1.7b, extended by P1.1c (self-contained offline export) and
+P1.7c (auditor quickstart: `docs/auditor-quickstart.md`; rendered demo claim
+sheet: `docs/demo/auditor-claims-demo.md`; claim-sheet renderer CLI:
+`scripts/render_claim_sheet.py`).
 The pack is a directory plus a `.zip`. It is produced by
 `ops/audit-pack/pack.py` (operator CLI: `scripts/build_audit_pack.py`) and
 checked offline by the standalone verifier `tools/verifier/verify_pack.py`.*

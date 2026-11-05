@@ -37,6 +37,15 @@ from completed 4-Nov-2026 spike work (EPIC K, Open Agent Assurance companion).
 
 ### Known gaps / TODOs
 
+- P1.7a/P1.7b shipped: offline auditor export pack (self-contained, pinned
+  key snapshot) and standalone verifier CLI; verifier hardened against
+  damaged packs with named RED verdicts.
+- P1.7c shipped: one-page auditor quickstart (`docs/auditor-quickstart.md`),
+  claim-sheet renderer CLI (`scripts/render_claim_sheet.py`) that re-renders
+  the generated claim sheet through the same honest-report generator with the
+  no-claim guard re-checked before print, and a rendered demo claim sheet
+  (`docs/demo/auditor-claims-demo.md`). Honest gap: no independent human
+  dry run of the quickstart yet; automated offline-path test stands in.
 - Remote hosting decision for the repository; no remote/push exists yet.
 - Name and trademark check for "Open Agent Assurance" before public branding.
 - CI on a hosted runner pending the remote decision.

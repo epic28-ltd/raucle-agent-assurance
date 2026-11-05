@@ -434,3 +434,36 @@ def test_signature_bundle_tamper_fails_named(built: dict, tmp_path: pathlib.Path
     assert report.failed
     check = next(c for c in report.checks if c.name == "manifest-integrity")
     assert "chain_receipts.jsonl" in check.message
+
+
+# ------------------------------------------------ claim sheet rendering (P1.7c) ---
+
+
+def test_render_claim_sheet_cli_matches_pack(built: dict, tmp_path: pathlib.Path) -> None:
+    """The renderer CLI is thin wiring, not a second claim-sheet code path."""
+    import subprocess
+
+    repo = REPO_ROOT
+    cmd = [
+        sys.executable,
+        str(repo / "scripts" / "render_claim_sheet.py"),
+        "--evidence-store", str(DEMO / "evidence_store.jsonl"),
+        "--trust-roots", str(DEMO / "trust_roots.jsonl"),
+        "--clock", CLOCK.isoformat(),
+    ]
+    env = {**os.environ, "PYTHONPATH": str(repo)}
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, env=env)
+    assert proc.returncode == 0, proc.stderr
+    expected = (pathlib.Path(built["pack_dir"]) / "claims.md").read_text()
+    assert proc.stdout == expected
+    pack.assert_no_compliance_claims(proc.stdout)
+    assert pack.GUARD_HEADER in proc.stdout and pack.GUARD_SENTINEL in proc.stdout
+
+
+def test_rendered_demo_claim_sheet_ships_with_guard() -> None:
+    """The checked-in rendered sample is a real generator output, guard intact."""
+    sample = REPO_ROOT / "docs" / "demo" / "auditor-claims-demo.md"
+    text = sample.read_text()
+    assert pack.GUARD_HEADER in text and pack.GUARD_SENTINEL in text
+    pack.assert_no_compliance_claims(text)
+    assert "<!-- Rendered sample" in text
