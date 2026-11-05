@@ -118,93 +118,90 @@ Working agreements (all items):
 - GRC platform connectors (Sprint 13): formats only, no vendor integrations.
 - Anything touching OSS raucle main (that is a morning-review lane).
 
-## Overnight outcome (12h check-in)
+## Overnight outcome (final, 12h check-in)
 
-Checked 5 Nov 2026, ~12 hours in. All numbers below read live from `gh pr`,
-`gh run` and git on `epic28-ltd/raucle-agent-assurance`; nothing inferred.
+Checked 5 Nov 2026, ~12 hours in, updated at end of wave 5. All numbers below
+read live from `gh pr list --state merged`, `gh pr view` and git on
+`epic28-ltd/raucle-agent-assurance` (and the raucle repo where cited); nothing
+inferred.
 
-### Merged overnight: 16 PRs merged, plus 2 closed superseded (#26-#45)
+### Final tallies
 
-Delivered (what it does and why it matters for a LASR auditor):
+- 25 PRs merged overnight on the assurance repo (#26-#53 except closes),
+  2 closed as superseded (#31, #39), 1 still open by design (#41, OV-9
+  follow-ups, CI green, ready for morning review). Every merge passed CI and
+  the SonarCloud quality gate.
+- Bug-hunt round 1: 11 findings across 4 repos in total. Fixes landed via PRs
+  #48 and #49 here and raucle#183 (projection + passport CLI crash-class
+  fixes, merged). Cross-repo finding tallies live in the bug-hunt lane's
+  tracker (raucle, agent-assurance, cloud, red).
+- Assurance Sonar sweep: standing accepted-findings set driven down from 26
+  toward the agreed target of 2. Round shipped #50-#53 (single-assert test
+  discipline, prebind helper extraction, per-path S8707 acceptance in #52,
+  residual S3776/S5778 hoists). The accepted set now lives in
+  docs/spikes/SONAR-ACCEPTANCE.md with per-path rationales; final residual
+  count reconciliation is morning work if the Sonar gate flags anything new.
 
-- #26 docs — validated overnight 10x sprint backlog: this document landed so
-  every later item has an agreed, externally sourced definition of done.
-- #27 OV-8 — privacy-filtered AgentRunRecord schema + fixture generator:
-  auditors now have a structured, secrets-free run record to attach to a release.
-- #28 OV-1 — assurance packet generator: the claim "here is the release's
-  assurance packet" is now produced by a reproducible CLI with golden sha
-  tests, built on the existing pack primitives.
-- #29 OV-6 — role-based assurance pages (leaders/architects/engineers) plus a
-  docs-alignment check: role-facing claims can only reference commands and
-  artefacts that actually exist.
-- #30 OV-3 — offline re-validation of a packet: an independent party can
-  re-derive the packet's verdict from committed artefacts, fail-visible.
-- #31 OV-4 — governance profiles + crosswalk + validator (closed PR, content
-  landed on main via the OV-5 gate branch): packet vs profile now yields
-  PASS/PARTIAL/FAIL with a machine-readable diff.
-- #32 OV-7 — Agent Process Expectations schema + validator: expected
-  outcomes, review routes and boundaries are declarative and validated.
-- #33 OV-5 — assurance-gate CI action + reusable workflow + fixture runs:
-  PASS/FAIL/WARN gating of packets runs inside CI; the fixture runs on main
-  (`assurance-gate-fixtures` workflow) are green.
-- #34 OV-11 — scenario taxonomy (OpenAgentSafety 8 categories + CAGE-1 12
-  dimensions) mapped to evidencing raucle primitives with honest coverage.
-- #35 OV-12 — prebind module: per-receipt lifecycle states (admitted, held,
-  narrowed, refused, escalated, quarantined, no-bind) derivable from receipts.
-- #36 OV-13 — Independent Assurance Agent scaffold: a structurally isolated
-  verifier agent (separate process entry, no builder context) under the AAS
-  dual-agent pattern.
-- #37 OV-9 — release compiler: expectations + candidate RunSet vs baseline is
-  classified into new/persistent failure, preserved controls, improved.
-- #38 OV-2 — assurance packet served over HTTP on the investigation UI:
-  reviewers can fetch the packet without CLI access.
-- #39 CLOSED, superseded by #40 (same OV, narrower first cut).
-- #40 OV-10 — controls-efficacy mutation catalog + campaign runner v0:
-  mutation types defined, kill ratios reported with bounded claims and
-  known-outcome synthetic campaign tests.
-- #42 OV-15 — fence-aware docs-alignment parser: docs-alignment no longer
-  chokes on fenced code blocks, so the gate is trustworthy on markdown.
-- #43 OV-16 — prebind indicators round 2: evidence-backed narrowed and
-  no_bind counters replace inferred ones, so counts are auditable.
-- #44 OV-22 — optional ML-DSA-65 packet signature over the packet digest:
-  post-quant cryptographic binding of packet to identity, opt-in.
+### Round-2 improvement review items (OV-15..23 disposition)
 
-Backlog status after the run: every item OV-1 through OV-14 has delivered
-code on main (OV-14's review output is this section and the OV-15+ additions
-below). The "Phase 2/3/4 start" items are scaffolds, not finished systems.
+Delivered tonight:
 
-### Quality observations (review gate)
+- OV-20 — done: #45 merged; the IAA consumes the revalidation report and
+  cites REPRODUCED/MISMATCH, so its opinion is evidence-backed.
+- OV-18 — done: improvement-review round 1 items that fed the sweep landed
+  through #50-#53 (no open code work remains from that list).
+- OV-22 — merged: #44 (optional ML-DSA-65 packet signature) with trust-model
+  follow-up in #46 (OV-24).
 
-- All 16 merged PRs passed CI and the SonarCloud quality gate at merge; the
-  `assurance-gate-fixtures` workflow on main is green (run 42099428527,
-  conclusion success).
-- CI on main head (0d4091f, PR #44): 574 passed, 12 skipped.
-- Two merged PRs carried exactly one new SonarCloud issue with the gate still
-  passing: #38 (OV-2) and #42 (OV-15). Both should be picked up by the
-  SonarQube Cloud cleanup lane rather than accepted.
-- #30 and #36 each recorded a failed quality gate during review and were
-  remediated before merge; the failed-gate comments remain as history.
-- Reasoned acceptance record (docs/spikes/SONAR-ACCEPTANCE.md) still covers
-  the standing accepted findings: S3415 (ep-aec test assertion order),
-  S8707/S2083 (deliberate CLI input-path and triage sidecar flows, with the
-  named acceptance rationale), S6819/S6845 (combobox/listbox pattern and
-  `<main tabindex="0">` on the console shell).
+Morning-review lane (landed in raucle, not the assurance repo; do not count
+as delivered here):
 
-### Remaining accepted items (not for tonight)
-
-- S3415, S8707-accepted, S6819, S6845 — accepted with recorded rationale in
-  docs/spikes/SONAR-ACCEPTANCE.md, each with a named revisit trigger. No
-  action for the next waves unless their revisit conditions fire.
-
-### What the next waves should take (OV-15+ still open)
-
-- #45 OV-20 (open): IAA consumes the revalidation report and cites
-  REPRODUCED/MISMATCH — makes the independent agent's opinion evidence-backed.
-- #41 OV-9 follow-ups (open): determinism test, --output error path,
+- raucle#182 (open): agent-passport export from audit packs (OV-23, round-trip
+  verified) plus chain-graph linkage (OV-21). When it merges, mark both items
+  morning-review-complete.
+- #41 OV-9 follow-ups (open here): determinism test, --output error path,
   tool-scope docstring for the release compiler.
-- The single new SonarCloud issues from #38 and #42 (cleanup lane, one each).
-- Trust-model notes (branch ov24-trust-model-notes is parked, unmerged; do
-  not treat as delivered).
+- Trust-model notes from ov24 trust-model work landed through #46; the parked
+  ov24-trust-model-notes branch remains unmerged and is not counted.
 
-All figures verified 5 Nov 2026 against CI run 42099467246 (ci workflow,
-success) and the SonarCloud gate badges on each PR listed above.
+### Honest limits — what tonight did NOT deliver
+
+Roadmap phases 2-4 are scaffolds, not systems. Still open from the roadmap:
+
+- Scenario banks: OV-10's mutation catalog v0 and the OV-11 taxonomy exist,
+  but the roadmap's per-category scenario banks (OpenAgentSafety 8 risk
+  categories exercised end-to-end against real fixtures) are not built.
+- GRC connectors: non-goal tonight, unchanged. Crosswalk/profiles are data
+  and format only; no vendor integrations exist.
+- Dashboards expansion: the board cards are as they were this morning; UI
+  expansion deliberately held until the packet format stabilises through
+  review.
+- Phase 2/3/4 items OV-7 through OV-13 are first cuts: schemas, compilers and
+  the IAA scaffold work but none has been exercised against a full release
+  cycle with a real candidate RunSet.
+
+### Honest LASR statement
+
+Tonight a LASR auditor can credibly see, for the first time in one place, the
+basic machinery an independent reviewer needs: an assurance packet generated
+deterministically from committed receipt chains, re-derivable offline by a
+second party, expressed against governance profiles and a scenario taxonomy,
+signed optionally post-quantum, and reviewed by a structurally isolated
+independent agent that cites whether the verdict was reproduced. What we have
+not done is claim this constitutes an operating assurance regime: the packet
+format has been exercised only on demonstration fixtures, not on a real
+release; the independent agent's review is structurally sound but unexercised
+as a workflow; and none of the roadmap's scenario banks, GRC integrations or
+expanded dashboards exist. The 11 bug-hunt findings and the Sonar sweep
+reduced the obvious defects and standing debt, which raises our confidence in
+the fixtures themselves, but confidence in machinery is not evidence of
+conformance, and no statement above should be read as conformance evidence
+for any production agent run.
+
+Backlog status after the run: OV-1 through OV-14 and the round-2 items
+delivered code or dispositioned; phase 2-4 items remain scaffolds as noted
+above; the open items are tracked in this section only.
+
+All figures verified 5 Nov 2026, end of wave 5, against live `gh pr` state:
+merges #45-#53, open #41 and raucle#182, and the SonarCloud gates on each
+listed PR.
