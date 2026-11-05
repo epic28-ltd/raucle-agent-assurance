@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "description": "Governance crosswalk: framework controls mapped to the raucle evidence that satisfies them. evidence_field is a dotted path into the agent assurance packet (see docs/roadmap/overnight-sprint-backlog.md OV-1 shape); basis cites the repo artifact that backs it. UNSUPPORTED means nothing in the current raucle evidence plane satisfies the control: the validator surfaces this honestly rather than claiming coverage.",
+  "statuses": {
+    "SUPPORTED": "The cited packet evidence field carries real, verifiable evidence for the control.",
+    "PARTIAL": "Some evidence exists but it is scoped or informal; the claim is narrower than the control.",
+    "UNSUPPORTED": "No raucle evidence field satisfies the control. Honest gap, not a silent pass."
+  },
+  "rows": [
+    {
+      "framework": "DORA",
+      "control_id": "Art 5(1) ICT risk framework",
+      "title": "Documented ICT risk-management framework",
+      "evidence_field": "governance.DORA",
+      "status": "PARTIAL",
+      "basis": "Trust model, event contract and bypass detection are documented as ADRs (docs/adr/0001-0005) and ops/runbook.md, which a firm can fold into its ICT risk framework; the packet itself only carries governance mapping slots, not the firm's legal framework."
+    },
+    {
+      "framework": "DORA",
+      "control_id": "Art 28(1)-28(3) transaction logging",
+      "title": "Logging of transactions and records for financial entities",
+      "evidence_field": "receipt_chain.verified_count",
+      "status": "SUPPORTED",
+      "basis": "Every gated tool call produces a sha256-pinned receipt (receipts.jsonl, ADR-0001/0002); the audit pack stages and re-verifies those bytes offline (ops/audit-pack/pack.py)."
+    },
+    {
+      "framework": "DORA",
+      "control_id": "Art 11 incident reporting",
+      "title": "Reporting major ICT-related incidents to authorities",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The evidence plane detects and evidences incidents (SEC-001..SEC-011 findings) but no regulatory reporting pipeline or authority-submission artefact exists in the repo."
+    },
+    {
+      "framework": "EU AI Act",
+      "control_id": "Art 12(1) logging",
+      "title": "Automatic logging of events over the lifetime of the AI system",
+      "evidence_field": "receipt_chain.verified_count",
+      "status": "SUPPORTED",
+      "basis": "Receipt chain over gated tool calls with tamper-evident hashes and independent verification; missing/invalid receipts are first-class findings (SEC-001, SEC-002), never silent."
+    },
+    {
+      "framework": "EU AI Act",
+      "control_id": "Art 15(1) robustness and accuracy",
+      "title": "Robustness, accuracy and cybersecurity of high-risk AI systems",
+      "evidence_field": "risk_annotations",
+      "status": "PARTIAL",
+      "basis": "Red-run findings (policy fuzz, tamper, forge suites) and denial-rate/bypass rules measure attack resistance, but there is no formal accuracy standard or robustness certificate in the evidence plane."
+    },
+    {
+      "framework": "EU AI Act",
+      "control_id": "Art 14 human oversight",
+      "title": "Human oversight measures for high-risk AI systems",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "No oversight-operator roles, approval workflows or human-in-the-loop evidence fields exist in the packet schema or repo."
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "A.7.2 AI system impact assessment",
+      "title": "Documented AI-system impact assessment",
+      "evidence_field": "risk_annotations",
+      "status": "PARTIAL",
+      "basis": "The GOV-01 scoped assurance report (ops/assurance/generate_report.py, structural no-claim guard) and documented legal-compliance boundary provide assessment inputs, but no formal impact-assessment artefact is produced."
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "A.9.7 AI system operation and monitoring",
+      "title": "Ongoing monitoring of AI system operation",
+      "evidence_field": "coverage.gate_covered_tools",
+      "status": "SUPPORTED",
+      "basis": "Custody-coverage map (ops/assurance/config/coverage.yaml, ADR-0004) plus deterministic security rules (services/rules SEC-001..SEC-011) monitor every gated tool call continuously."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC7.1 configuration monitoring",
+      "title": "Monitoring of system configuration and potential anomalies",
+      "evidence_field": "coverage.gate_covered_tools",
+      "status": "SUPPORTED",
+      "basis": "Per-tool custody coverage defaults to unverified unless the gate signed receipts (fail-visible default), and registry changes surface as SEC-006."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC7.2 anomaly detection",
+      "title": "Detection of anomalous events and response",
+      "evidence_field": "receipt_chain.invalid_or_missing_count",
+      "status": "SUPPORTED",
+      "basis": "SEC-001/002 catch missing and invalid receipts, SEC-003/004 catch denial-rate anomalies and tool-side success after a correlated deny, SEC-005/006 catch looping and capability drift."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC9.1 access risk mitigation",
+      "title": "Risk mitigation for the use of access credentials",
+      "evidence_field": "coverage.unverified_tools",
+      "status": "PARTIAL",
+      "basis": "Credential leases are observed on the custody plane for gate-covered tools (ADR-0004) with unverified tools reported fail-visible, but there is no vault-level credential custody control in the repo itself."
+    },
+    {
+      "framework": "NCSC CAF",
+      "control_id": "B1 governing risk",
+      "title": "Appropriate structures, policies and processes to direct and govern risk",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "Repository offers technical evidence only; no documented organisational governance structure or management-process artefact satisfies CAF principle B1."
+    },
+    {
+      "framework": "NCSC CAF",
+      "control_id": "C1 security monitoring",
+      "title": "Systems that monitor security status and events",
+      "evidence_field": "receipt_chain.invalid_or_missing_count",
+      "status": "SUPPORTED",
+      "basis": "Receipt-chain verification with deterministic findings rules gives continuous, tamper-evident monitoring of the agent's tool surface, including what was NOT seen (unknown/missing states are first-class)."
+    },
+    {
+      "framework": "NIST AI RMF",
+      "control_id": "GOVERN 1.1 policies",
+      "title": "Legal and regulatory requirements involving AI are documented",
+      "evidence_field": "governance.NIST AI RMF",
+      "status": "PARTIAL",
+      "basis": "ADRs, the runbook and the compliance-honest reporting boundary document requirements handling; the packet carries mapping slots but no requirements register."
+    },
+    {
+      "framework": "NIST AI RMF",
+      "control_id": "MEASURE 2.5 monitoring efficacy",
+      "title": "The AI system is monitored for effectiveness of deployed controls",
+      "evidence_field": "risk_annotations",
+      "status": "SUPPORTED",
+      "basis": "Red-run suites measure control efficacy directly: policy fuzz, gateway HTTP, mcp, tamper and forge attempts are receipted, counted and ingested as findings."
+    },
+    {
+      "framework": "NIST AI RMF",
+      "control_id": "MANAGE 2.2 issue response",
+      "title": "Mechanisms for responding to identified AI-system issues",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "Findings are produced and evidenced but no remediation workflow, ticketing integration or response SLA exists in the repo; detection is honest, remediation is out of scope."
+    },
+    {
+      "framework": "OWASP LLM Top 10",
+      "control_id": "LLM01 Prompt Injection",
+      "title": "Direct and indirect prompt injection",
+      "evidence_field": "policy_proof_refs",
+      "status": "SUPPORTED",
+      "basis": "Gate policy proofs (staged and receipted by the audit pack, re-verified offline) plus the red-run policy-fuzz suite exercise injection resistance with receipted outcomes."
+    },
+    {
+      "framework": "OWASP LLM Top 10",
+      "control_id": "LLM03 Inadequate Sandboxing",
+      "title": "Inadequate restriction of model/agent capabilities",
+      "evidence_field": "capability_chain",
+      "status": "SUPPORTED",
+      "basis": "The gate records the capability chain per tool call; privileged invocations without gate receipts fail visibly (SEC-001) and ADR-0001 pins the trust model for the boundary."
+    },
+    {
+      "framework": "OWASP LLM Top 10",
+      "control_id": "LLM06 Sensitive Information Disclosure",
+      "title": "Disclosure of sensitive or personal information",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "Findings never carry content (INDEX-PLANE only) and no DLP or disclosure-scanning control exists; the system cannot claim to detect sensitive-data leakage today."
+    },
+    {
+      "framework": "OWASP LLM Top 10",
+      "control_id": "LLM08 Excessive Agency",
+      "title": "Agent granted excessive functionality, permissions or autonomy",
+      "evidence_field": "coverage.gate_covered_tools",
+      "status": "SUPPORTED",
+      "basis": "Per-tool custody-coverage map bounds the agency surface; new privileged tools for an agent release fail visibly (SEC-006) and every privileged invocation is receipted."
+    }
+  ]
+}

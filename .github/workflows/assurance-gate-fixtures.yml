@@ -1,0 +1,56 @@
+name: assurance-gate-fixtures
+
+on:
+  push:
+    branches: [main]
+    paths: [".github/actions/assurance-gate/**", "ops/assurance-profiles/**"]
+  pull_request:
+    paths: [".github/actions/assurance-gate/**", "ops/assurance-profiles/**"]
+
+# OV-5 fixture CI runs: the action itself is exercised end to end against
+# committed fixture packets (green passes, missing coverage warns, invalid
+# receipts fail), so the gate stays reproducible offline.
+jobs:
+  green-packet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/assurance-gate
+        with:
+          packet: ops/assurance-profiles/fixtures/green.json
+          profile: basic
+          summary-title: "Assurance gate fixture: green packet"
+
+  partial-packet-warns:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/assurance-gate
+        with:
+          packet: ops/assurance-profiles/fixtures/partial.json
+          profile: basic
+          summary-title: "Assurance gate fixture: partial warns"
+      - name: assert PARTIAL verdict
+        run: |
+          # re-run locally to assert exit code 1 (warn-and-continue) for the
+          # partial packet
+          output=$(python3 ops/assurance-profiles/validator.py --packet ops/assurance-profiles/fixtures/partial.json --profile basic) || code=$?
+          echo "exit $code - partial fixture must exit 1"
+          [ "$code" = "1" ]
+
+  failing-packet-fails:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/assurance-gate
+        with:
+          packet: ops/assurance-profiles/fixtures/failing.json
+          profile: basic
+          summary-title: "Assurance gate fixture: failing packet"
+        continue-on-error: true
+        id: gate
+      - name: assert FAIL verdict
+        run: |
+          python3 ops/assurance-profiles/validator.py --packet ops/assurance-profiles/fixtures/failing.json --profile basic >/dev/null 2>&1 || code=$?
+          echo "exit $code - failing fixture must exit 2"
+          [ "$code" = "2" ]

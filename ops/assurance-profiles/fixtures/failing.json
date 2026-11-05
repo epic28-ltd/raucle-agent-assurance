@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "kind": "agent_assurance_packet",
+  "agent": {"id": "fixture-failing", "release": "r1"},
+  "receipt_chain": {"total_count": 12, "verified_count": 10, "invalid_or_missing_count": 2},
+  "coverage": {"gate_covered_tools": ["shell"], "unverified_tools": ["http_fetch"]},
+  "governance": {
+    "EU AI Act": {"Art 12(1) logging": {"status": "SUPPORTED"}}
+  },
+  "policy_proof_refs": ["policy://fixture/shell"],
+  "capability_chain": ["shell"],
+  "risk_annotations": ["fixture: invalid receipts and unverified tool: gate failure"]
+}
