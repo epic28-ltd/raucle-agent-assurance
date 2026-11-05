@@ -387,41 +387,13 @@ def build_signature_bundle(
     return len(extra), note
 
 
-def build_pack(
-    evidence_store: pathlib.Path,
-    trust_roots: pathlib.Path,
-    out_dir: pathlib.Path,
-    *,
-    from_utc: dt.datetime | None = None,
-    to_utc: dt.datetime | None = None,
-    receipt_hash: str | None = None,
-    policies_dir: pathlib.Path | None = None,
-    policy_receipt_hashes: list[str] | None = None,
-    clock: dt.datetime | None = None,
-) -> dict:
-    """Build the pack directory (and its ``.zip``); return a summary dict.
+def _assert_key_snapshot_covers(snapshot_kids: set[str], used_kids: set[str]) -> None:
+    """Refuse to export a pack whose signing keys are missing from the snapshot.
 
-    Deterministic for fixed inputs and a fixed injected clock (used for
-    ``claims.md`` and manifest timestamps).
+    Key snapshot coverage: the pinned snapshot travels in the pack, so it MUST
+    carry the public half of every signing key used inside the window. A pack
+    that could not be verified offline is not exported at all.
     """
-    evidence_store = pathlib.Path(evidence_store)
-    trust_roots = pathlib.Path(trust_roots)
-    out_dir = _resolve_out_dir(pathlib.Path(out_dir))
-    if out_dir.exists():
-        shutil.rmtree(out_dir)
-
-    envelopes = select_envelopes(
-        evidence_store, from_utc=from_utc, to_utc=to_utc, receipt_hash=receipt_hash
-    )
-    pack = out_dir / "audit-pack"
-    pack.mkdir(parents=True)
-
-    # Key snapshot coverage: the pinned snapshot travels in the pack, so it
-    # MUST carry the public half of every signing key used inside the window.
-    # A pack that could not be verified offline is not exported at all.
-    snapshot_rows = _snapshot_rows(trust_roots)
-    snapshot_kids = {str(row["key_id"]) for row in snapshot_rows}
-    used_kids = _envelope_kids(envelopes)
     uncovered = sorted(used_kids - snapshot_kids)
     if uncovered:
         raise ValueError(
@@ -432,16 +404,21 @@ def build_pack(
             "export that cannot verify offline"
         )
 
-    # receipts.jsonl — canonical byte-exact envelope lines.
-    (pack / "receipts.jsonl").write_text("\n".join(envelopes) + "\n", encoding="utf-8")
 
-    # keys/ — verbatim pinned key snapshot (public halves only).
+def _stage_receipts_and_keys(
+    pack: pathlib.Path, envelopes: list[str], trust_roots: pathlib.Path
+) -> tuple[pathlib.Path, int]:
+    """Write ``receipts.jsonl`` (byte-exact) and the verbatim key snapshot."""
+    (pack / "receipts.jsonl").write_text("\n".join(envelopes) + "\n", encoding="utf-8")
     keys_dir = pack / "keys"
     keys_dir.mkdir()
     shutil.copyfile(trust_roots, keys_dir / trust_roots.name)
     n_keys = sum(1 for ln in trust_roots.read_text().splitlines() if ln.strip())
+    return keys_dir, n_keys
 
-    # timestamps/ — extract RFC 3161 tokens from envelopes that claim one.
+
+def _stage_timestamps(pack: pathlib.Path, envelopes: list[str]) -> int:
+    """Extract RFC 3161 tokens from envelopes that claim one; honest absence."""
     ts_dir = pack / "timestamps"
     ts_dir.mkdir()
     token_count = 0
@@ -463,8 +440,16 @@ def build_pack(
             "the claim sheet states exactly this scope.\n",
             encoding="utf-8",
         )
+    return token_count
 
-    # policies/ — policy files + deployment-chain receipts, degrade honestly.
+
+def _stage_policies(
+    pack: pathlib.Path,
+    evidence_store: pathlib.Path,
+    policies_dir: pathlib.Path | None,
+    policy_receipt_hashes: list[str] | None,
+) -> tuple[str, int]:
+    """Copy policy files + deployment-chain receipts; note every gap honestly."""
     pol_dir = pack / "policies"
     pol_dir.mkdir()
     copied_policies: list[str] = []
@@ -524,46 +509,67 @@ def build_pack(
             "separately and verify it against the gate-audit records.\n",
             encoding="utf-8",
         )
+    return policies_note, len(copied_policies)
 
-    # chain_graph.json — the P1.1a wire-up: resolve each in-window receipt's
-    # authority graph with raucle's resolver when it is importable; keep the
-    # documented pending slot when it is not (the pack never fakes resolution).
-    graphs: dict = {}
-    graph_status = CHAIN_GRAPH_PENDING
+
+def _chain_graph_resolver_path() -> pathlib.Path | None:
+    """Opt-in resolver source: ``RAUCLE_OSS_HOME``, when it ships chain_graph."""
     # The assurance venv pins raucle 0.23.5 (pinned worktree); the resolver
     # ships in the OSS tree. Honour RAUCLE_OSS_HOME as an explicit, opt-in
     # source for the wire-up; without it the pack degrades to the pending
     # slot - never a fake graph.
     _oss = os.environ.get("RAUCLE_OSS_HOME")
-    _cg_path = None
     if _oss and pathlib.Path(_oss).is_dir():
         # The pinned raucle install in the venv may shadow the OSS tree and
         # ship without chain_graph, so load the resolver straight from the
         # declared OSS home instead of relying on sys.path order.
         cand = pathlib.Path(_oss) / "raucle" / "chain_graph.py"
         if cand.is_file():
-            _cg_path = cand
-    if _cg_path is not None:
-        spec = importlib.util.spec_from_file_location("raucle_chain_graph_p1_1a", _cg_path)
-        assert spec is not None and spec.loader is not None
-        _cg = importlib.util.module_from_spec(spec)
-        sys.modules.setdefault(spec.name, _cg)
-        spec.loader.exec_module(_cg)
+            return cand
+    return None
 
-        # Self-contained (P1.1c): the pinned snapshot is embedded in the pack,
-        # so it is also fed to the resolver: per-node signature states become
-        # real verify results, not "key_absent" placeholders.
-        public_keys = {str(r["key_id"]): r["public_key_pem"] for r in snapshot_rows}
-        for line in envelopes:
-            rh = json.loads(line)["receipt_hash"]
-            try:
-                graphs[rh] = _cg.resolve_chain_graph(
-                    rh,
-                    [json.loads(env_line) for env_line in envelopes],
-                    public_keys=public_keys,
-                )
-            except Exception as exc:  # per-receipt: a graph state, not a crash
-                graphs[rh] = {"status": "unresolved", "reason": type(exc).__name__}
+
+def _load_chain_graph_module(cg_path: pathlib.Path):
+    spec = importlib.util.spec_from_file_location("raucle_chain_graph_p1_1a", cg_path)
+    assert spec is not None and spec.loader is not None
+    _cg = importlib.util.module_from_spec(spec)
+    sys.modules.setdefault(spec.name, _cg)
+    spec.loader.exec_module(_cg)
+    return _cg
+
+
+def resolve_chain_graphs(envelopes: list[str], snapshot_rows: list[dict], _cg) -> dict:
+    """Per-receipt authority graphs; failures become graph states, not crashes.
+
+    Self-contained (P1.1c): the pinned snapshot is embedded in the pack, so it
+    is also fed to the resolver: per-node signature states become real verify
+    results, not "key_absent" placeholders.
+    """
+    public_keys = {str(r["key_id"]): r["public_key_pem"] for r in snapshot_rows}
+    graphs: dict = {}
+    for line in envelopes:
+        rh = json.loads(line)["receipt_hash"]
+        try:
+            graphs[rh] = _cg.resolve_chain_graph(
+                rh,
+                [json.loads(env_line) for env_line in envelopes],
+                public_keys=public_keys,
+            )
+        except Exception as exc:  # per-receipt: a graph state, not a crash
+            graphs[rh] = {"status": "unresolved", "reason": type(exc).__name__}
+    return graphs
+
+
+def _stage_chain_graph(
+    pack: pathlib.Path, envelopes: list[str], snapshot_rows: list[dict]
+) -> tuple[str, dict]:
+    """chain_graph.json — resolve with raucle's resolver when available."""
+    graphs: dict = {}
+    graph_status = CHAIN_GRAPH_PENDING
+    cg_path = _chain_graph_resolver_path()
+    if cg_path is not None:
+        _cg = _load_chain_graph_module(cg_path)
+        graphs = resolve_chain_graphs(envelopes, snapshot_rows, _cg)
         graph_status = CHAIN_GRAPH_RESOLVED
     (pack / "chain_graph.json").write_text(
         json.dumps(
@@ -584,40 +590,28 @@ def build_pack(
         + "\n",
         encoding="utf-8",
     )
+    return graph_status, graphs
 
-    # signatures/ — the full signature bundle (P1.1c): every envelope the
-    # pack's claims depend on, inside the query window or referenced by a
-    # resolved chain graph, so re-verification needs nothing but the pack.
-    bundle_extra, bundle_note = build_signature_bundle(
-        evidence_store, envelopes, graph_status, graphs, pack
-    )
 
-    # claims.md — honest-report pattern, no-claim guard preserved.
-    if receipt_hash is not None:
-        window = f"single receipt {receipt_hash}"
-    else:
-        lo = min((_event_time(ln) for ln in envelopes), default=None)
-        hi = max((_event_time(ln) for ln in envelopes), default=None)
-        window = f"{lo.isoformat() if lo else '…'} .. {hi.isoformat() if hi else '…'} (event time, signed iat)"
-    claims = build_claim_sheet(
-        window=window,
-        receipts=len(envelopes),
-        keys=n_keys,
-        timestamp_tokens=token_count,
-        policies=policies_note,
-        chain_graph=f"`chain_graph.json` is recorded as {graph_status}.",
-        bundle=bundle_note,
-        clock=clock,
-    )
-    (pack / "claims.md").write_text(claims, encoding="utf-8")
-
-    # verify-notes.md — reviewer instructions.
-    (pack / "verify-notes.md").write_text(
-        _verify_notes(receipts=len(envelopes), timestamps=token_count, policies=policies_note),
-        encoding="utf-8",
-    )
-
-    # manifest.json — sha256 of every file so far (itself excluded; written last).
+def _build_pack_manifest(
+    pack: pathlib.Path,
+    *,
+    envelopes: list[str],
+    n_keys: int,
+    token_count: int,
+    policy_files: int,
+    bundle_extra: int,
+    snapshot_kids: set[str],
+    keys_dir: pathlib.Path,
+    trust_roots: pathlib.Path,
+    from_utc,
+    to_utc,
+    receipt_hash,
+    clock,
+    window: str,
+    policies_note: str,
+) -> dict:
+    """manifest.json + zip; return the summary dict."""
     files = {
         str(p.relative_to(pack)): _sha256_file(p) for p in sorted(pack.rglob("*")) if p.is_file()
     }
@@ -648,7 +642,7 @@ def build_pack(
             "receipts": len(envelopes),
             "keys": n_keys,
             "timestamp_tokens": token_count,
-            "policy_files": len(copied_policies),
+            "policy_files": policy_files,
             "chain_receipts": bundle_extra,
         },
         "files": files,
@@ -656,15 +650,13 @@ def build_pack(
     (pack / "manifest.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-
-    zip_path = out_dir / ZIP_NAME
+    zip_path = pack.parent / ZIP_NAME
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for p in sorted(pack.rglob("*")):
             if p.is_file():
                 # every entry lives under one top-level "audit-pack/" dir so
                 # an unpacked zip is always exactly the pack directory
-                zf.write(p, str(p.relative_to(out_dir)))
-
+                zf.write(p, str(p.relative_to(pack.parent)))
     return {
         "pack_dir": str(pack),
         "zip": str(zip_path),
@@ -672,6 +664,97 @@ def build_pack(
         "counts": manifest["counts"],
         "manifest_files": len(files),
     }
+
+
+def build_pack(
+    evidence_store: pathlib.Path,
+    trust_roots: pathlib.Path,
+    out_dir: pathlib.Path,
+    *,
+    from_utc: dt.datetime | None = None,
+    to_utc: dt.datetime | None = None,
+    receipt_hash: str | None = None,
+    policies_dir: pathlib.Path | None = None,
+    policy_receipt_hashes: list[str] | None = None,
+    clock: dt.datetime | None = None,
+) -> dict:
+    """Build the pack directory (and its ``.zip``); return a summary dict.
+
+    Deterministic for fixed inputs and a fixed injected clock (used for
+    ``claims.md`` and manifest timestamps).
+    """
+    evidence_store = pathlib.Path(evidence_store)
+    trust_roots = pathlib.Path(trust_roots)
+    out_dir = _resolve_out_dir(pathlib.Path(out_dir))
+    if out_dir.exists():
+        shutil.rmtree(out_dir)
+
+    envelopes = select_envelopes(
+        evidence_store, from_utc=from_utc, to_utc=to_utc, receipt_hash=receipt_hash
+    )
+    pack = out_dir / "audit-pack"
+    pack.mkdir(parents=True)
+
+    snapshot_rows = _snapshot_rows(trust_roots)
+    snapshot_kids = {str(row["key_id"]) for row in snapshot_rows}
+    _assert_key_snapshot_covers(snapshot_kids, _envelope_kids(envelopes))
+
+    keys_dir, n_keys = _stage_receipts_and_keys(pack, envelopes, trust_roots)
+    token_count = _stage_timestamps(pack, envelopes)
+    policies_note, policy_files = _stage_policies(
+        pack, evidence_store, policies_dir, policy_receipt_hashes
+    )
+    graph_status, stage_graphs = _stage_chain_graph(pack, envelopes, snapshot_rows)
+
+    # signatures/ — the full signature bundle (P1.1c): every envelope the
+    # pack's claims depend on, inside the query window or referenced by a
+    # resolved chain graph, so re-verification needs nothing but the pack.
+    bundle_extra, bundle_note = build_signature_bundle(
+        evidence_store, envelopes, graph_status, stage_graphs, pack
+    )
+
+    # claims.md — honest-report pattern, no-claim guard preserved.
+    if receipt_hash is not None:
+        window = f"single receipt {receipt_hash}"
+    else:
+        lo = min((_event_time(ln) for ln in envelopes), default=None)
+        hi = max((_event_time(ln) for ln in envelopes), default=None)
+        window = f"{lo.isoformat() if lo else '…'} .. {hi.isoformat() if hi else '…'} (event time, signed iat)"
+    claims = build_claim_sheet(
+        window=window,
+        receipts=len(envelopes),
+        keys=n_keys,
+        timestamp_tokens=token_count,
+        policies=policies_note,
+        chain_graph=f"`chain_graph.json` is recorded as {graph_status}.",
+        bundle=bundle_note,
+        clock=clock,
+    )
+    (pack / "claims.md").write_text(claims, encoding="utf-8")
+
+    # verify-notes.md — reviewer instructions.
+    (pack / "verify-notes.md").write_text(
+        _verify_notes(receipts=len(envelopes), timestamps=token_count, policies=policies_note),
+        encoding="utf-8",
+    )
+
+    return _build_pack_manifest(
+        pack,
+        envelopes=envelopes,
+        n_keys=n_keys,
+        token_count=token_count,
+        policy_files=policy_files,
+        bundle_extra=bundle_extra,
+        snapshot_kids=snapshot_kids,
+        keys_dir=keys_dir,
+        trust_roots=trust_roots,
+        from_utc=from_utc,
+        to_utc=to_utc,
+        receipt_hash=receipt_hash,
+        clock=clock,
+        window=window,
+        policies_note=policies_note,
+    )
 
 
 def _verify_notes(receipts: int, timestamps: int, policies: str) -> str:

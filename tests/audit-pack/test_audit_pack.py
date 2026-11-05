@@ -565,3 +565,14 @@ def test_rendered_demo_claim_sheet_ships_with_guard() -> None:
     assert pack.GUARD_HEADER in text and pack.GUARD_SENTINEL in text
     pack.assert_no_compliance_claims(text)
     assert "<!-- Rendered sample" in text
+
+
+def test_key_snapshot_coverage_guard():
+    pack._assert_key_snapshot_covers({"sha256:abc"}, {"sha256:abc"})
+    with pytest.raises(ValueError, match="cannot build a self-contained export"):
+        pack._assert_key_snapshot_covers({"sha256:abc"}, {"sha256:def"})
+
+
+def test_chain_graph_resolver_path_requires_opt_in(monkeypatch):
+    monkeypatch.delenv("RAUCLE_OSS_HOME", raising=False)
+    assert pack._chain_graph_resolver_path() is None
