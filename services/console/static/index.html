@@ -585,33 +585,34 @@ function trendsCard(series) {
 /* Which SEC rules fired in this window: chips with counts over SEC-001..006;
    rules with nothing in the window show as grey silent chips (never hidden). */
 const COVERAGE_RULES = ['SEC-001', 'SEC-002', 'SEC-003', 'SEC-004', 'SEC-005', 'SEC-006'];
-function ruleCoverageCard(list, offline) {
-  const c = card('Rule coverage', 'SEC rules that fired in this window');
-  const strip = el('div', 'rule-strip');
+function _coverageCounts(list) {
   const counts = {};
   for (const f of (list || [])) {
     if (!f.suppressed) counts[f.rule_id] = (counts[f.rule_id] || 0) + 1;
   }
+  return counts;
+}
+
+function _coverageChip(rid, n) {
+  const chip = el(n ? 'a' : 'span', n
+    ? ['chip rule-chip', n >= 3 ? 'chip-alert' : 'chip-look'].join(' ')
+    : 'chip chip-exempt rule-chip');
+  chip.textContent = n ? rid + ' · ' + n : rid + ' · silent';
+  chip.title = rid + (n
+    ? ': ' + n + ' finding(s) in this window - click to drill in'
+    : ': no findings in this window');
+  chip.dataset.rule = rid;
+  chip.dataset.count = String(n);
+  if (n) chip.href = '#/rules/' + rid;
+  return chip;
+}
+
+function ruleCoverageCard(list, offline) {
+  const c = card('Rule coverage', 'SEC rules that fired in this window');
+  const strip = el('div', 'rule-strip');
+  const counts = _coverageCounts(list);
   for (const rid of COVERAGE_RULES) {
-    const n = counts[rid] || 0;
-    const chip = el(n
-      ? 'a'
-      : 'span', n
-      ? ['chip rule-chip', n >= 3 ? 'chip-alert' : 'chip-look'].join(' ')
-      : 'chip chip-exempt rule-chip');
-    chip.textContent = n ? rid + ' · ' + n : rid + ' · silent';
-    chip.title = rid + (n
-      ? ': ' + n + ' finding(s) in this window - click to drill in'
-      : ': no findings in this window');
-    if (n) {
-      chip.href = '#/rules/' + rid;
-      chip.dataset.rule = rid;
-      chip.dataset.count = String(n);
-    } else {
-      chip.dataset.rule = rid;
-      chip.dataset.count = '0';
-    }
-    strip.appendChild(chip);
+    strip.appendChild(_coverageChip(rid, counts[rid] || 0));
   }
   c.body.appendChild(strip);
   const fired = COVERAGE_RULES.filter((r) => counts[r]).length;

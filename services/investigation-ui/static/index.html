@@ -1328,8 +1328,10 @@ function showBoard() {
       nameBox.appendChild(moreBtn);
       top.appendChild(nameBox);
       card.appendChild(top);
-
-
+      card.appendChild(_cardTokens(f));
+      if (boardSelection.get(f.id)) {
+        _selectionPanels(card, f);
+      }
       const pick = () => {
         boardSelection.set(f.id, !boardSelection.get(f.id));
         drawBoard();

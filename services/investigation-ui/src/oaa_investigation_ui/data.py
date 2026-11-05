@@ -432,7 +432,7 @@ class DemoData:
         demo run the finding belongs to (None for corpus-level findings)."""
         refs = set(base["evidence_refs"])
         trace_ids = {t["trace_id"] for r in self.runs for t in r["traces"] for t in [t]}
-        run_id = self._finding_run_id(base, refs)
+        run_id = self._finding_run_id(refs)
         detected = self._finding_detection_time(base)
         return {
             "id": self._finding_id(base),
@@ -441,7 +441,7 @@ class DemoData:
             "trace_ids_only": None if not refs & trace_ids else sorted(refs & trace_ids),
         }
 
-    def _finding_run_id(self, base: dict, refs: set[str]) -> str | None:
+    def _finding_run_id(self, refs: set[str]) -> str | None:
         """The demo run the finding belongs to (None for corpus-level)."""
         run_hashes = {
             s["receipt_hash"]: r["run_id"]

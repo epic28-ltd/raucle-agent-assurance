@@ -532,19 +532,24 @@ def _shipped_receipt_hashes(pack: pathlib.Path, report: Report) -> set[str] | No
     return shipped
 
 
+def _graph_receipt_ids(g: dict) -> list[str]:
+    """sha256 receipt ids a chain graph depends on."""
+    return [
+        node.get("id", "")
+        for node in (g or {}).get("nodes", [])
+        if isinstance(node, dict) and node.get("kind") == "receipt"
+    ]
+
+
 def _chain_graph_holes(data: dict, shipped: set[str]) -> list[str]:
     """Receipts a graph depends on that the pack does not ship."""
     holes: list[str] = []
     for rh, g in data.get("graphs", {}).items():
         if isinstance(g, dict) and g.get("status") == "unresolved":
             continue
-        for node in (g or {}).get("nodes", []):
-            if isinstance(node, dict) and node.get("kind") == "receipt":
-                rid = node.get("id", "")
-                if rid.startswith(SHA256_PREFIX) and rid not in shipped:
-                    holes.append(
-                        f"{rh[:24]}… depends on {rid[:24]}… which is not shipped in the pack"
-                    )
+        for rid in _graph_receipt_ids(g):
+            if rid.startswith(SHA256_PREFIX) and rid not in shipped:
+                holes.append(f"{rh[:24]}… depends on {rid[:24]}… which is not shipped in the pack")
     return holes
 
 
