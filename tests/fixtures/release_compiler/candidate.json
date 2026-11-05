@@ -1,0 +1,185 @@
+{
+  "schema_version": "agent_run_record/v1",
+  "note": "OV-9 candidate fixture: two controls weakened on purpose; both must be caught.",
+  "release": "rel-0.9.3",
+  "records": [
+    {
+      "schema_version": "agent_run_record/v1",
+      "record_id": "gate-allow-stable",
+      "agent": "oaa-spike",
+      "release": "rel-0.9.3",
+      "started": "2026-11-05T09:00:00+00:00",
+      "trace_ids": [
+        "traceble"
+      ],
+      "receipts": [
+        {
+          "receipt_hash": "sha256:aaaa0000000000000000000000000000000000000000000000000000000001",
+          "decision": "allow",
+          "tool": "http_fetch",
+          "event_time": "2026-11-05T09:00:00+00:00",
+          "synthetic": true
+        }
+      ],
+      "governance_events": [],
+      "usage_metrics": {
+        "receipts_total": 1,
+        "receipts_allow": 1,
+        "receipts_deny": 0,
+        "receipts_unknown": 0,
+        "privileged_tool_spans": 0,
+        "traces_total": 1
+      },
+      "privacy": {
+        "content_class": "metadata-only"
+      }
+    },
+    {
+      "schema_version": "agent_run_record/v1",
+      "record_id": "gate-deny-evidence",
+      "agent": "oaa-spike",
+      "release": "rel-0.9.3",
+      "started": "2026-11-05T09:00:00+00:00",
+      "trace_ids": [
+        "tracence"
+      ],
+      "receipts": [
+        {
+          "receipt_hash": "sha256:aaaa0000000000000000000000000000000000000000000000000000000001",
+          "decision": "allow",
+          "tool": "http_fetch",
+          "event_time": "2026-11-05T09:00:00+00:00",
+          "synthetic": true
+        }
+      ],
+      "governance_events": [],
+      "usage_metrics": {
+        "receipts_total": 1,
+        "receipts_allow": 1,
+        "receipts_deny": 0,
+        "receipts_unknown": 0,
+        "privileged_tool_spans": 0,
+        "traces_total": 1
+      },
+      "privacy": {
+        "content_class": "metadata-only"
+      }
+    },
+    {
+      "schema_version": "agent_run_record/v1",
+      "record_id": "boundary-tool-scope",
+      "agent": "oaa-spike",
+      "release": "rel-0.9.3",
+      "started": "2026-11-05T09:00:00+00:00",
+      "trace_ids": [
+        "traceope"
+      ],
+      "receipts": [
+        {
+          "receipt_hash": "sha256:aaaa0000000000000000000000000000000000000000000000000000000002",
+          "decision": "allow",
+          "tool": "http_fetch",
+          "event_time": "2026-11-05T09:00:00+00:00",
+          "synthetic": true
+        }
+      ],
+      "governance_events": [],
+      "usage_metrics": {
+        "receipts_total": 1,
+        "receipts_allow": 1,
+        "receipts_deny": 0,
+        "receipts_unknown": 0,
+        "privileged_tool_spans": 0,
+        "traces_total": 1
+      },
+      "privacy": {
+        "content_class": "metadata-only"
+      },
+      "capability_refs": [
+        {
+          "tool": "shell",
+          "privileged": true
+        }
+      ]
+    },
+    {
+      "schema_version": "agent_run_record/v1",
+      "record_id": "recovered-unknown",
+      "agent": "oaa-spike",
+      "release": "rel-0.9.3",
+      "started": "2026-11-05T09:00:00+00:00",
+      "trace_ids": [
+        "traceown"
+      ],
+      "receipts": [
+        {
+          "receipt_hash": "sha256:bbbb0000000000000000000000000000000000000000000000000000000003",
+          "decision": "allow",
+          "tool": "http_fetch",
+          "event_time": "2026-11-05T09:00:00+00:00",
+          "synthetic": true
+        }
+      ],
+      "governance_events": [],
+      "usage_metrics": {
+        "receipts_total": 1,
+        "receipts_allow": 1,
+        "receipts_deny": 0,
+        "receipts_unknown": 0,
+        "privileged_tool_spans": 0,
+        "traces_total": 1
+      },
+      "privacy": {
+        "content_class": "metadata-only"
+      }
+    },
+    {
+      "schema_version": "agent_run_record/v1",
+      "record_id": "persistent-deny-case",
+      "agent": "oaa-spike",
+      "release": "rel-0.9.3",
+      "started": "2026-11-05T09:00:00+00:00",
+      "trace_ids": [
+        "tracease"
+      ],
+      "receipts": [
+        {
+          "receipt_hash": "sha256:eeee0000000000000000000000000000000000000000000000000000000005",
+          "decision": "deny",
+          "tool": "http_fetch",
+          "event_time": "2026-11-05T09:00:00+00:00",
+          "synthetic": true
+        }
+      ],
+      "governance_events": [],
+      "usage_metrics": {
+        "receipts_total": 1,
+        "receipts_allow": 0,
+        "receipts_deny": 1,
+        "receipts_unknown": 0,
+        "privileged_tool_spans": 0,
+        "traces_total": 1
+      },
+      "privacy": {
+        "content_class": "metadata-only"
+      }
+    }
+  ],
+  "case_bindings": {
+    "gate-allow-stable": [
+      "gate-allow-stable"
+    ],
+    "gate-deny-evidence": [
+      "gate-deny-evidence"
+    ],
+    "boundary-tool-scope": [
+      "boundary-tool-scope"
+    ],
+    "recovered-unknown": [
+      "recovered-unknown"
+    ],
+    "persistent-deny-case": [
+      "persistent-deny-case"
+    ]
+  }
+}
