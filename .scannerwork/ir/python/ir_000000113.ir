@@ -1,12 +1,0 @@
-
-µ«"Return {key_id: pem} for roots trusted at *event_time*, including
-        retired (archived) roots â€” ADR-0001: retirement never degrades
-        historic verification."strself
-¸ ¸( 
-event_time
-¸" ¸(9"B.
-,
-
-¼ ¼(\"?python-unknown?:Bdict
-
-¼ ¼(\*n/home/craigamcw/Projects/open-agent-assurance/packages/raucle-adapter/src/oaa_raucle_adapter/evidence_plane.py

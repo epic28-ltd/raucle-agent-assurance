@@ -1,12 +1,0 @@
-
-;2"Byte-stable JCS serialisation of the AEC object."strself
-Ï Ï("i&
-$
-
-Ñ Ñ("#get-field# aec:-
-+
-
-Ñ Ñ("
-oaa_epaec.objectsjcs:
-
-Ñ Ñ(*V/home/craigamcw/Projects/open-agent-assurance/packages/ep-aec/src/oaa_epaec/objects.py

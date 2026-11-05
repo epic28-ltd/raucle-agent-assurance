@@ -1,45 +1,0 @@
-
-"label"str
-
-"built_at"str
-"digest"str
-"tools"str
-		"version"strself
-ƒ ƒ("Ë&
-$
-
-„ Š(	"#new-object#Bdict(
-&
-
-… …("#get-field# label:"
- 
-
-… …("	#map-set#:+
-)
-
-† †(%"#get-field# built_at:"
- 
-
-† †(%"	#map-set#:*
-(
-
-‡ ‡(#
-"#get-field# version:"
- 
-
-‡ ‡(#"	#map-set#:	
-)
-'
-
-ˆ ˆ(!"#get-field# digest:"
- 
-
-ˆ ˆ(!"	#map-set#:-
-+
-
-‰ ‰(6"?python-unknown?:Blist"
- 
-
-‰ ‰(6"	#map-set#:
-
-„ Š(	*V/home/craigamcw/Projects/open-agent-assurance/services/rules/src/oaa_rules/baseline.py

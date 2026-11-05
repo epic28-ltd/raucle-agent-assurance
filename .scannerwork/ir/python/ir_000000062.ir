@@ -1,65 +1,0 @@
-
-"x_gate"str
-
-
-"agent_id"str
-"policy"str
-"reason"str
- "provenance-receipt/v1"str
-#"{tool}/{agent_id}/0"str
-"guardrail_scan"str
-%"tool"str
-"typ"str
- "ok"str
-
-1793781666int
-"approval_id"str
-""str
-"	"rule_id"str
-"policies.yaml"str
-"operation"str
-'
-"trace_id"str
-
-"decision"str
-"iat"str
-"acting_for"strtool) )(agent_id* *(trace_id+ +($decision, ,(xgate_extra- -("dict"„$
-"
-/ @("#new-object#Bdict 
-
-0 0(&	"	#map-set#: 
-
-1 1("	#map-set#:
- 
-
-2 2(%"	#map-set#: 
-
-3 3("	#map-set#:$
-"
-4 ?(	"#new-object#Bdict 
-
-5 5("	#map-set#: 
-
-6 6( "	#map-set#:
- 
-
-7 7("	#map-set#: 
-
-8 8( "	#map-set#: 
-
-9 9(%"	#map-set#: 
-
-: :(!"	#map-set#:  
-
-; ;(-$"	#map-set#:"# 
-
-< <(&"	#map-set#:% 
-
-= =( ("	#map-set#:'%
-#
-> >()"#unaryop **#2**:#
-!
-> >(*"#map-set-all#:) 
-
-4 ?(	+"	#map-set#:
-/ @(*N/home/craigamcw/Projects/open-agent-assurance/packages/ep-aec/tests/helpers.py

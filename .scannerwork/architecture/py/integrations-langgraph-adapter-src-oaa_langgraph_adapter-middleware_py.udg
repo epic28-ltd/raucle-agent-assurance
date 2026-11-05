@@ -1,522 +1,0 @@
-
-1.0PythonFrontend*py2.B…
-
-imports1
-
-extends2
-
-returns3
-
-	has param4
-
-
-calls5
-
-module6
-
-
-class7
-
-method8
-
-function9
-L
-Fintegrations/langgraph-adapter/src/oaa_langgraph_adapter/middleware.py11
-&
- oaa_langgraph_adapter.middleware13
-
-
-__future__14
-
-
-time16
-
-collections.abc18
-
-dataclasses20
-
-typing22
-'
-!oaa_langgraph_adapter.gate_client24
-4
-.oaa_langgraph_adapter.runtimes.MIDDLEWARE_BASE26
-$
-oaa_langgraph_adapter.runtimes28
-)
-#langchain_core.messages.ToolMessage30
-
-langchain_core.messages32
-0
-*oaa_langgraph_adapter.middleware.AuditSink34
->
-8oaa_langgraph_adapter.middleware.AuditSink.on_gate_event36
-
-NoneType38
-
-
-dict40
-:
-4oaa_langgraph_adapter.middleware.ToolCallDeniedError42
-
-dataclasses.dataclass44
-
-RuntimeError45
-B
-<oaa_langgraph_adapter.middleware.ToolCallDeniedError.__str__47
-	
-str49
-7
-1oaa_langgraph_adapter.middleware.GateTraceContext51
-=
-7oaa_langgraph_adapter.middleware._default_trace_context53
-4
-.oaa_langgraph_adapter.runtimes.ToolCallRequest55
-;
-5oaa_langgraph_adapter.middleware._make_denied_message57
-;
-5oaa_langgraph_adapter.middleware.RaucleGateMiddleware59
-D
->oaa_langgraph_adapter.middleware.RaucleGateMiddleware.__init__61
-
-
-bool63
-J
-Doaa_langgraph_adapter.middleware.RaucleGateMiddleware.wrap_tool_call65
-N
-Hoaa_langgraph_adapter.middleware.RaucleGateMiddleware._attach_span_attrs67
-G
-Aoaa_langgraph_adapter.middleware.RaucleGateMiddleware._safe_check69
-A
-;oaa_langgraph_adapter.middleware.RaucleGateMiddleware._veto71
-5
-/oaa_langgraph_adapter.middleware._RecordingList73
-
-
-list75
->
-8oaa_langgraph_adapter.middleware._RecordingList.__init__77
-
-dataclasses.field79
-
-
-isinstance81
-
-tuple83
-
-getattr85
-
-
-ValueError87
-I
-Coaa_langgraph_adapter.runtimes.MIDDLEWARE_BASE.trace_context_getter89
-
-time.perf_counter91
-	
-int93
-M
-Goaa_langgraph_adapter.runtimes.MIDDLEWARE_BASE.audit_sink.on_gate_event95
-R
-Loaa_langgraph_adapter.runtimes.MIDDLEWARE_BASE.span_sink.set_tool_attributes97
-I
-Coaa_langgraph_adapter.runtimes.MIDDLEWARE_BASE.gate.check_tool_call99
-5
-.oaa_langgraph_adapter.gate_client.GateDecision101
-
-list.__init__103
-
-super105
-
-ARG_content107
--
-&denied by Raucle Agent Trust gate: ï¿¿108
-
-ARG_0109
-4
--on_deny must be 'message' or 'raise', got ï¿¿110
-
-ARG_verification111
-
-signed112
-
-
-unverified113
-
-
-ARG_reason114
-
-gate failure: ï¿¿115J
-
-10
-
-1011 j‚
-!
-12
-12136 *
-10 (
-
-15
-15146
-
-17
-17166
-
-19
-19186
-
-21
-21206
-
-23
-23226
-
-25
-25246
-
-27
-27266
-
-29
-29286
-
-31
-31309
-
-33
-33326
-
-35
-35347 212
-
-37
-37368 235
-
-39
-39387
-
-41
-41407
-
-43
-43427 212R
-
-44
-
-46
-46457
-
-48
-48478 243
-
-50
-50497
-
-52
-52517 212R
-
-44
-
-54
-54539 212
-
-56
-56557
-
-58
-58579 212
-
-60
-60597 212
-
-62
-62618 260
-
-64
-64637
-
-66
-66658 260
-
-68
-68678 260
-
-70
-70698 260
-
-72
-72718 260
-
-74
-74737 212
-
-76
-76757
-
-78
-78778 274
-
-80
-80799
-
-82
-82819
-
-84
-84837
-
-86
-86859
-
-88
-88877
-
-90
-90899
-
-92
-92919
-
-94
-94937
-
-96
-96959
-
-98
-98979
-
-100
-100999
-
-102
-1021017
-
-104
-1041038
-
-106
-1061057rú
-
-12151*
-10 (#
-
-12171*
-10 (
-
-12191*
-10 (%
-
-12211*
-10 ()
-
-12231*
-10 (!
-
-12251*
-10 (&
-
-12271*
-10 (&
-
-12291*
-10 (7
-
-12311*
-10e- e(8
-
-12331*
-10e	 e(8
-
-37393*
-10%	 %(
-
-37414*
-10%	 %(
-
-43462*
-10+ +(
-
-48503*
-102	 2(
-
-54523*
-10C C(
-
-54564*
-10C C(
-
-58504*
-10\ \(
-
-58504*
-10\ \(
-
-58504*
-10\ \(
-
-62393*
-10o	 o(
-
-62504*
-10o	 o(
-
-62504*
-10o	 o(
-
-62644*
-10o	 o(
-
-62504*
-10o	 o(
-
-66564*
-10Š	 Š(
-
-68393*
-10¹	 ¹(
-
-68504*
-10¹	 ¹(
-
-68414*
-10¹	 ¹(
-
-68504*
-10¹	 ¹(
-
-70504*
-10Ê	 Ê(
-
-70414*
-10Ê	 Ê(
-
-70504*
-10Ê	 Ê(
-
-70524*
-10Ê	 Ê(
-
-72504*
-10Þ	 Þ(
-
-72504*
-10Þ	 Þ(
-
-72414*
-10Þ	 Þ(
-
-74762*
-10è è(
-
-78393*
-10é	 é(
-
-78354*
-10é	 é(
-
-12805*
-10= =(8
-
-54825*
-10N N(!
-
-54845*
-10Q S(
-
-54865*
-10R R( 
-
-54865*
-10RD R(Y
-
-54825*
-10V' V(=
-
-54865*
-10VC V(Z
-
-54825*
-10W W((
-
-54525*
-10X X(:
-
-54525*
-10Y Y(
-)
-58315*
-10g g(M2
-
-107
-108
-)
-62885*
-10| |(W2
-
-109
-110
-
-62745*
-10‡$ ‡(C
-
-66905*
-10‘ ‘(1
-
-66925*
-10“ “(&
-
-66705*
-10” ”(>
-
-66945*
-10• •(@
-
-66925*
-10• •(.
-
-66965*
-10¨ ¨(1
-+
-66685*
-10« «(U2
-
-111
-112
-+
-66685*
-10± ±(Y2
-
-111
-113
-
-66725*
-10· ·(:
-
-68985*
-10Ç	 Ç(;
-
-701005*
-10Ï Ö(
-
-70415*
-10Ñ Ñ( 
-,
-701025*
-10Ø Ü(2
-
-114
-115
-
-70505*
-10Û Û(
-
-72435*
-10ä ä(V
-
-72585*
-10å å(@
-
-781045*
-10ê	 ê(
-
-781065*
-10ê	 ê(

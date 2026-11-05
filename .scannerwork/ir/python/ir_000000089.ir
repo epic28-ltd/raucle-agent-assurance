@@ -1,80 +1,0 @@
-
-"name"str
-lc"Adversarial testing for the suite: attacks your own gate and ingests its findings into Assurance."str
-"Raucle Agent Red"str
-?6"Adversarial testing for the suite. Announcing later."str
-"status"str
-"red"str
-
-0int
-"id"str
-"connected"str
-"wave"str
-"blurb"str
-
-2intlist"É+
-)
-
-î
- ü(red"#new-object#Bdict"
- 
-
-ï ï("	#map-set#:"
- 
-
-ñ ñ(""	#map-set#:3
-1
-
-ó ó(	"!
-raucle_console.app_red_status"
- 
-
-ó ó(
-"	#map-set#:	"
- 
-
-ò ò("	#map-set#:3
-1
-
-ú ú("!
-raucle_console.app_red_status,
-*
-
-ú ú(+"
-#binop ==#2==:Bbool,"*
-
-ú ú(+ *
-ú ú(2
-ù ù("
-
-ö ù(G"
-
-ö ù(G"¯*"
- 
-
-ô û(	"	#map-set#:*
-(
-
-† †(2"?python-unknown?Blist)
-'
-
-†5 †(:"#unknown-value#Blist(
-&
-
-†5 †(:"
-#is-exact#:Bbool
-
-
-†5 †(:"
-#assume#::
-8
-
-†5 †(:"#set-field# __collection_size:Bint(
-&
-
-†5 †(:"#array-add-last#:$
-"
-
-† †(:"	#binop +#2+:
-
-† †(:*X/home/craigamcw/Projects/open-agent-assurance/services/console/src/raucle_console/app.py

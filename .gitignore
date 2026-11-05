@@ -24,3 +24,6 @@ demo/w3/runtime/
 .cache/
 nohup*.out
 /tmp/
+
+.sonar/tokens/
+.scannerwork/

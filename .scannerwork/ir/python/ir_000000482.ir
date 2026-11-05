@@ -1,20 +1,0 @@
-
-
-4int
-"="strsegY
- Y("*
-(
-Z2 Z(:"
-builtinslen*:Bint(
-&
-Z1 Z(:"#unaryop -#2-:Bint%
-#
-Z1 Z(>"	#binop %#*2%:%
-#
-Z* Z(?"	#binop *#*2*:"
- 
-Z$ Z(?"	#binop +#2+:5
-3
-Z Z(@	"
-base64urlsafe_b64decode:Bbytes
-Z Z(@	*D/home/craigamcw/Projects/open-agent-assurance/ops/audit-pack/pack.py

@@ -1,21 +1,0 @@
-
-
-"typ"str
-"kid"str
-"alg"str
- "provenance-receipt/v1"str
-"ES256"str
-ri"{b64u(json.dumps(header).encode())}.{b64u(json.dumps(payload).encode())}.{b64u(b'unit-test-signature')}"str
-ÚÐ"A structurally-valid compact JWS (signature NOT verified â€” unit-level
-    fixture only; real signature verification is covered by the raucle
-    integration test, which mints receipts with raucle itself)."strpayload (kid (3"¤,
-*
- (Iheader"#new-object#Bdict 
-
- ("	#map-set#: 
-
- ((	"	#map-set#: 
-
-* (H"	#map-set#:
-
- (u*N/home/craigamcw/Projects/open-agent-assurance/packages/ep-aec/tests/helpers.py

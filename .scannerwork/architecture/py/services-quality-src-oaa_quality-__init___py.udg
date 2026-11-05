@@ -1,58 +1,0 @@
-
-1.0PythonFrontend*py2.B“
-
-imports1
-
-extends2
-
-returns3
-
-	has param4
-
-
-calls5
-
-module6
-
-
-class7
-
-method8
-
-function9
-2
-,services/quality/src/oaa_quality/__init__.py11
-
-oaa_quality13
-
-oaa_quality.attach14
-
-oaa_quality.evaluator16
-
-oaa_quality.rubric18J
-
-10
-
-1011 j\
-!
-12
-12136 *
-10 (
-
-15
-15146
-
-17
-17166
-
-19
-19186rQ
-
-12151*
-10	 (
-
-12171*
-10 (
-
-12191*
-10 (
