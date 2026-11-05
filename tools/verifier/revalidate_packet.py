@@ -40,9 +40,8 @@ import base64
 import contextlib
 import hashlib
 import json
-import pathlib
+import os
 import re
-from typing import cast
 
 SHA256_PREFIX = "sha256:"
 PACKET_KIND = "agent_assurance_packet"
@@ -102,10 +101,11 @@ def _sorted_str_list(value: object, label: str) -> list[str]:
 def _load_json_file(path_str: str | None, label: str) -> object:
     if path_str is None:
         return None
-    p = pathlib.Path(path_str)
-    if not p.is_file():
-        raise _Fail(f"{label} file not found: {p}")
-    return json.loads(p.read_text(encoding="utf-8"))
+    try:
+        with open(path_str, encoding="utf-8") as fh:
+            return json.loads(fh.read())
+    except OSError as exc:
+        raise _Fail(f"{label} file not found ({exc})") from exc
 
 
 def _gate(payload: dict) -> dict | None:
@@ -155,31 +155,32 @@ def _validated_line(raw: str, label: str) -> tuple[str, dict]:
     return rh.strip().lower(), payload
 
 
-def rederive_packet_from_inputs(
-    evidence_store: pathlib.Path,
-    *,
-    capability_refs: list[str] | None = None,
-    policy_proof_refs: list[str] | None = None,
-    governance_mapping: dict[str, list[str]] | None = None,
-    risk_annotations: list[str] | None = None,
-) -> dict:
-    """Independent re-derivation of the full packet (OV-1 rules)."""
-    if not evidence_store.is_file():
-        raise _Fail(f"evidence store not found: {evidence_store}")
-    store_file_sha = SHA256_PREFIX + hashlib.sha256(evidence_store.read_bytes()).hexdigest()
-    raw_text = evidence_store.read_text(encoding="utf-8")
+def _store_records(evidence_store: str) -> tuple[str, list[dict], set[str]]:
+    """(file sha256, validated payloads, receipt hashes); fail-visible."""
+    try:
+        with open(evidence_store, "rb") as fh:
+            store_bytes = fh.read()
+    except OSError as exc:
+        raise _Fail(f"evidence store not found: {evidence_store} ({exc})") from exc
+    store_file_sha = SHA256_PREFIX + hashlib.sha256(store_bytes).hexdigest()
+    with open(evidence_store, encoding="utf-8") as fh:
+        raw_text = fh.read()
 
     receipt_hashes: set[str] = set()
     records: list[dict] = []
     for i, raw in enumerate(raw_text.splitlines(), start=1):
         if not raw.strip():
             continue
-        rh, payload = _validated_line(raw, f"{evidence_store.name} line {i}")
+        rh, payload = _validated_line(raw, f"{os.path.basename(evidence_store)} line {i}")
         receipt_hashes.add(rh)
         records.append(payload)
     if not records:
         raise _Fail(f"evidence store {evidence_store} has no receipt lines")
+    return store_file_sha, records, receipt_hashes
 
+
+def _aggregate(records: list[dict]) -> dict:
+    """Independent aggregation of identity, coverage and chain fields."""
     agents: set[str] = set()
     issuers: set[str] = set()
     operations: dict[str, int] = {}
@@ -200,10 +201,10 @@ def rederive_packet_from_inputs(
         rsh = payload.get("ruleset_hash")
         if isinstance(rsh, str) and rsh:
             ruleset_hashes.add(rsh)
-        if _gate(payload) is None:
+        gate = _gate(payload)
+        if gate is None:
             counts["without_gate"] += 1
             continue
-        gate = cast("dict", _gate(payload))
         pol = gate.get("policy", "")
         if pol:
             policies.add(str(pol))
@@ -212,10 +213,40 @@ def rederive_packet_from_inputs(
             rule_ids.add(str(rid))
         counts[_DECISION_LABELS.get(_decision(payload) or "", "other")] += 1
 
+    return {
+        "agents": agents,
+        "issuers": issuers,
+        "operations": operations,
+        "policies": policies,
+        "rule_ids": rule_ids,
+        "ruleset_hashes": ruleset_hashes,
+        "counts": counts,
+        "event_times": event_times,
+    }
+
+
+def _governance_slots(governance_mapping: dict[str, list[str]] | None) -> dict[str, list[str]]:
     gov: dict[str, list[str]] = {slot: [] for slot in _GOVERNANCE_SLOTS}
-    if governance_mapping is not None:
-        for name, ids in sorted(governance_mapping.items()):
-            gov[name] = _sorted_str_list(ids, f"governance/{name}")
+    if governance_mapping is None:
+        return gov
+    for name, ids in sorted(governance_mapping.items()):
+        gov[name] = _sorted_str_list(ids, f"governance/{name}")
+    return gov
+
+
+def rederive_packet_from_inputs(
+    evidence_store: str,
+    *,
+    capability_refs: list[str] | None = None,
+    policy_proof_refs: list[str] | None = None,
+    governance_mapping: dict[str, list[str]] | None = None,
+    risk_annotations: list[str] | None = None,
+) -> dict:
+    """Independent re-derivation of the full packet (OV-1 rules)."""
+    store_file_sha, records, receipt_hashes = _store_records(evidence_store)
+    agg = _aggregate(records)
+    gov = _governance_slots(governance_mapping)
+    event_times = agg["event_times"]
 
     packet = {
         "kind": PACKET_KIND,
@@ -224,25 +255,25 @@ def rederive_packet_from_inputs(
         "inputs": {"evidence_store_sha256": store_file_sha},
         "packet_content_sha256": "",
         "agent_identity": {
-            "agents": sorted(a for a in agents if a),
-            "issuers": sorted(x for x in issuers if x),
+            "agents": sorted(a for a in agg["agents"] if a),
+            "issuers": sorted(x for x in agg["issuers"] if x),
         },
         "receipt_chain": {
             "line_count": len(records),
             "receipt_hashes": sorted(receipt_hashes),
-            "operations": dict(sorted(operations.items())),
-            "ruleset_hashes": sorted(ruleset_hashes),
+            "operations": dict(sorted(agg["operations"].items())),
+            "ruleset_hashes": sorted(agg["ruleset_hashes"]),
             "first_event_time": min(event_times) if event_times else None,
             "last_event_time": max(event_times) if event_times else None,
         },
         "gate_coverage": {
-            "admitted": counts["admitted"],
-            "held": counts["held"],
-            "refused": counts["refused"],
-            "other": counts["other"],
-            "without_gate": counts["without_gate"],
-            "distinct_policies": sorted(policies),
-            "distinct_rule_ids": sorted(rule_ids),
+            "admitted": agg["counts"]["admitted"],
+            "held": agg["counts"]["held"],
+            "refused": agg["counts"]["refused"],
+            "other": agg["counts"]["other"],
+            "without_gate": agg["counts"]["without_gate"],
+            "distinct_policies": sorted(agg["policies"]),
+            "distinct_rule_ids": sorted(agg["rule_ids"]),
         },
         "capability_refs": sorted(set(capability_refs or [])),
         "policy_proof_refs": sorted(set(policy_proof_refs or [])),
@@ -288,10 +319,12 @@ def main(argv: list[str] | None = None) -> int:
         checks.append(("FAIL", message))
         return _report(checks)
 
-    packet_path = pathlib.Path(args.packet)
-    if not packet_path.is_file():
-        return fail(f"packet not found: {packet_path}")
-    packet = json.loads(packet_path.read_text(encoding="utf-8"))
+    try:
+        with open(args.packet, encoding="utf-8") as fh:
+            packet_text = fh.read()
+    except OSError:
+        return fail(f"packet not found: {args.packet}")
+    packet = json.loads(packet_text)
     missing = [f for f in _REQUIRED_FIELDS if f not in packet]
     if missing:
         return fail(f"packet is missing required fields: {', '.join(missing)}")
@@ -308,10 +341,12 @@ def main(argv: list[str] | None = None) -> int:
     checks.append(("PASS", "packet digest re-derives from the packet body"))
 
     # 2. trust anchor
-    store_path = pathlib.Path(args.evidence_store)
-    if not store_path.is_file():
-        return fail(f"evidence store not found: {store_path}")
-    want = SHA256_PREFIX + hashlib.sha256(store_path.read_bytes()).hexdigest()
+    try:
+        with open(args.evidence_store, "rb") as fh:
+            store_bytes = fh.read()
+    except OSError:
+        return fail(f"evidence store not found: {args.evidence_store}")
+    want = SHA256_PREFIX + hashlib.sha256(store_bytes).hexdigest()
     recorded = ""
     inputs = packet.get("inputs")
     if isinstance(inputs, dict):
@@ -328,7 +363,7 @@ def main(argv: list[str] | None = None) -> int:
         gov_in = _load_json_file(args.governance, "governance")
         gov = gov_in if isinstance(gov_in, dict) else None
         rederived = rederive_packet_from_inputs(
-            store_path,
+            args.evidence_store,
             capability_refs=_sorted_str_list(
                 _load_json_file(args.capability_refs, "capability-refs"), "capability-refs"
             ),

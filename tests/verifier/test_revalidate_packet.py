@@ -24,7 +24,8 @@ DEMO_STORE = REPO_ROOT / "services" / "investigation-ui" / "demo_data" / "eviden
 _spec = importlib.util.spec_from_file_location(
     "oaa_revalidate_packet", REPO_ROOT / "tools" / "verifier" / "revalidate_packet.py"
 )
-assert _spec is not None and _spec.loader is not None
+assert _spec is not None
+assert _spec.loader is not None
 rv = importlib.util.module_from_spec(_spec)
 sys.modules["oaa_revalidate_packet"] = rv
 _spec.loader.exec_module(rv)
@@ -60,7 +61,8 @@ def test_diff_names_swap_paths(tmp_path: pathlib.Path) -> None:
     a = _build_packet({})
     b = rv.rederive_packet_from_inputs(store)
     diffs = rv._diff(a, b)
-    assert diffs and any("receipt_chain" in d for d in diffs)
+    assert diffs
+    assert any("receipt_chain" in d for d in diffs)
 
 
 # ------------------------------------------------------------- tamper gate ---
