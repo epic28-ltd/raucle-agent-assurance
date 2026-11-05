@@ -36,6 +36,19 @@ Decision owner: **Craig** (epic28-ltd). Project:
   in the tool's own output, never a silent pass. Its traversal shorthands
   (`dir/../..`, `~`) die at that canonicalisation step, mirroring
   generate_report's `--out` hardening.
+- `tools/verifier/revalidate_packet.py` (OV-3): every CLI-supplied *input*
+  path (`--packet`, `--evidence-store`, `--capability-refs`,
+  `--policy-proof-refs`, `--governance`, `--risk-annotations`) is now
+  canonicalised through the same read helper (realpath via
+  `expanduser().resolve()`, must name an existing regular file) before any
+  read; the evidence store is read once from its canonical bytes. These
+  are read-only operations — no write in the tool is reachable from a
+  tainted path other than the already-canonicalised `--report` above — and
+  realpath-following means a symlink can only land where its real target
+  physically is, so there is no escape and no per-line suppression:
+  the operator-nameable-destination rationale below still records the
+  residual risk, and each site has a regression test in
+  `tests/verifier/test_revalidate_packet.py`.
 
 ### Accepted remaining flows
 
@@ -44,12 +57,6 @@ on `api_triage`, which traces the same env-configured demo data directory).
 
 **Flows:** CLI-supplied *input* paths in `ops/audit-pack/pack.py`
 (`--evidence-store`, `--trust-roots`, `--policy-receipts`, `--policies-dir`),
-`tools/verifier/revalidate_packet.py` (OV-3: `--packet`, `--evidence-store`,
-`--capability-refs`, `--policy-proof-refs`, `--governance`,
-`--risk-annotations`; the revalidator's entire contract is to re-derive a
-packet from exactly the offline artefacts the reviewer names, its reads are
-fail-visible with named errors, and it performs no writes from tainted
-paths),
 `ops/assurance/generate_report.py` (`--data-dir`, `--audit-events`),
 `packages/raucle-adapter/examples/run_evd.py` (output directory argument),
 `packages/raucle-adapter/src/oaa_raucle_adapter/fixture_gen.py`

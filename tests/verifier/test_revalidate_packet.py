@@ -368,3 +368,86 @@ def test_unreadable_packet_read_error_is_named(tmp_path: pathlib.Path, capsys) -
         assert "not readable" in capsys.readouterr().out
     finally:
         packet_path.chmod(0o644)
+
+
+# ------------------------------------------------- canonicalised CLI reads ---
+# regression: pythonsecurity:S8707 — every CLI-supplied input path
+# (--packet, --evidence-store, --capability-refs, --policy-proof-refs,
+# --governance, --risk-annotations) must be canonicalised and must name an
+# existing regular file before any read; traversal shorthands resolve, and
+# irregular/absent paths are named FAILs, never silent passes.
+
+
+def test_traversal_shorthand_via_symlink_still_reads_the_named_ref(
+    tmp_path: pathlib.Path, capsys
+) -> None:
+    """A symlinked `..`-laden ref path resolves to the real file and reads it."""
+    refs = tmp_path / "refs.json"
+    refs.write_text(json.dumps(["cap:symlinked"]))
+    deep = tmp_path / "a" / "b"
+    deep.mkdir(parents=True)
+    link = deep / "up" / ".." / ".." / "link.json"
+    link.parent.mkdir(parents=True, exist_ok=True)
+    os.symlink(refs, link)
+    packet = _build_packet({"capability_refs": ["cap:symlinked"]})
+    packet_path = tmp_path / "packet.json"
+    packet_path.write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n")
+    assert rv.main(
+        [
+            "--packet",
+            str(packet_path),
+            "--evidence-store",
+            str(DEMO_STORE),
+            "--capability-refs",
+            str(link),
+        ]
+    ) == 0
+    assert "REPRODUCED" in capsys.readouterr().out
+
+
+def test_directory_as_ref_input_is_a_named_fail(tmp_path: pathlib.Path, capsys) -> None:
+    """A non-regular ref path (a directory) is a named FAIL, not an OSError."""
+    packet = _build_packet({})
+    packet_path = tmp_path / "packet.json"
+    packet_path.write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n")
+    assert (
+        rv.main(
+            [
+                "--packet",
+                str(packet_path),
+                "--evidence-store",
+                str(DEMO_STORE),
+                "--governance",
+                str(tmp_path),
+            ]
+        )
+        == 1
+    )
+    assert "governance file not found" in capsys.readouterr().out
+
+
+def test_directory_as_evidence_store_is_a_named_fail(tmp_path: pathlib.Path, capsys) -> None:
+    """A non-regular store path (a directory) is a named FAIL."""
+    packet = _build_packet({})
+    packet_path = tmp_path / "packet.json"
+    packet_path.write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n")
+    assert (
+        rv.main(["--packet", str(packet_path), "--evidence-store", str(tmp_path)]) == 1
+    )
+    assert "evidence store file not found" in capsys.readouterr().out
+
+
+def test_store_via_symlink_traversal_still_reproduces(tmp_path: pathlib.Path, capsys) -> None:
+    """A symlinked `..`-laden store path resolves to the real store: green run."""
+    deep = tmp_path / "x" / "y"
+    deep.mkdir(parents=True)
+    link = deep / "up" / ".." / ".." / "store_link.jsonl"
+    link.parent.mkdir(parents=True, exist_ok=True)
+    os.symlink(DEMO_STORE, link)
+    packet = _build_packet({})
+    packet_path = tmp_path / "packet.json"
+    packet_path.write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n")
+    assert (
+        rv.main(["--packet", str(packet_path), "--evidence-store", str(link)]) == 0
+    )
+    assert "REPRODUCED" in capsys.readouterr().out

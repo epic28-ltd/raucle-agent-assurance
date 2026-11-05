@@ -111,11 +111,16 @@ def _sorted_str_list(value: object, label: str) -> list[str]:
 def _load_json_file(path_str: str | None, label: str) -> object:
     if path_str is None:
         return None
+    # The CLI path is tainted (pythonsecurity:S8707): canonicalise it and
+    # require an existing regular file through the same helper the packet
+    # and store reads use, before any content is read.
+    data, err = _load_bytes_fail(path_str, label)
+    if err is not None:
+        raise _Fail(err)
     try:
-        with open(path_str, encoding="utf-8") as fh:
-            return json.loads(fh.read())
-    except OSError as exc:
-        raise _Fail(f"{label} file not found ({exc})") from exc
+        return json.loads(data)
+    except json.JSONDecodeError as exc:
+        raise _Fail(f"{label}: not valid JSON ({exc})") from exc
 
 
 def _gate(payload: dict) -> dict | None:
@@ -167,14 +172,18 @@ def _validated_line(raw: str, label: str) -> tuple[str, dict]:
 
 def _store_records(evidence_store: str) -> tuple[str, list[dict], set[str]]:
     """(file sha256, validated payloads, receipt hashes); fail-visible."""
-    try:
-        with open(evidence_store, "rb") as fh:
-            store_bytes = fh.read()
-    except OSError as exc:
-        raise _Fail(f"evidence store not found: {evidence_store} ({exc})") from exc
+    # The CLI path is tainted (pythonsecurity:S8707): canonicalise it and
+    # require an existing regular file before any read, through the same
+    # helper the packet read uses. The store is read once, and both the
+    # byte digest and the receipt lines come from the same bytes.
+    store_bytes, err = _load_store_bytes_fail(evidence_store, "evidence store")
+    if err is not None:
+        raise _Fail(err)
     store_file_sha = SHA256_PREFIX + hashlib.sha256(store_bytes).hexdigest()
-    with open(evidence_store, encoding="utf-8") as fh:
-        raw_text = fh.read()
+    try:
+        raw_text = store_bytes.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise _Fail(f"evidence store is not valid UTF-8 ({exc})") from exc
 
     receipt_hashes: set[str] = set()
     records: list[dict] = []
