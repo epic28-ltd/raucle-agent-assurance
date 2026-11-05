@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentassurance.dev/schemas/agent_run_record.schema.json",
+  "title": "AgentRunRecord",
+  "description": "Privacy-filtered run record for one agent run (Sprint backlog OV-8). Carries receipts, capability references, policy proof ids, governance events and usage metrics only - never conversation content, prompts, responses, prompts-derived data, raw JWS bytes or credentials. Rule 3 of the architecture documents holds: `valid` and `unknown` remain distinct; no decision value is inferred from missing data. A run may describe real receipts or synthetic receipts (the committed demo index marks synthetic rows with synthetic=true); the record itself never claims a synthetic receipt is canonical evidence.",
+  "type": "object",
+  "x-privacy": {
+    "content_class": "metadata-only",
+    "forbidden": [
+      "prompt or completion text",
+      "raw JWS / signed receipt bytes",
+      "credentials of any kind",
+      "end-user identifiers"
+    ]
+  },
+  "required": [
+    "schema_version",
+    "record_id",
+    "agent",
+    "release",
+    "started",
+    "trace_ids",
+    "receipts",
+    "governance_events",
+    "usage_metrics"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "agent_run_record/v1"
+    },
+    "record_id": {
+      "type": "string",
+      "description": "Stable identifier for this run record.",
+      "minLength": 1
+    },
+    "agent": {
+      "type": "string",
+      "minLength": 1
+    },
+    "release": {
+      "type": "string",
+      "minLength": 1
+    },
+    "started": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finished": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "trace_ids": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true,
+      "minItems": 1,
+      "description": "Traces belonging to the run. Correlation is a hint (architecture rule 4); the signed x_gate.trace_id, where present, is authoritative."
+    },
+    "receipts": {
+      "type": "array",
+      "description": "Gate receipts observed during the run, metadata fields only.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["receipt_hash", "decision"],
+        "additionalProperties": false,
+        "properties": {
+          "receipt_hash": {
+            "type": "string",
+            "pattern": "^sha256:[a-z0-9]{61,64}$",
+            "description": "Hash of the canonical receipt bytes, not the bytes themselves."
+          },
+          "decision": {
+            "type": "string",
+            "description": "Gate decision attached to this receipt. The string 'unknown' is a valid first-class value: it is never inferred into allow or deny.",
+            "enum": ["allow", "deny", "unknown"]
+          },
+          "tool": { "type": "string" },
+          "tool_privileged": { "type": "boolean" },
+          "policy_ref": { "type": "string" },
+          "provenance": { "type": "string" },
+          "event_time": { "type": "string", "format": "date-time" },
+          "chain_parent": {
+            "type": "string",
+            "pattern": "^sha256:[a-z0-9]{61,64}$",
+            "description": "receipt_hash of the parent receipt if this record participates in a receipt chain."
+          },
+          "synthetic": {
+            "type": "boolean",
+            "description": "True when the receipt row is a hand-built synthetic index case, never canonical evidence."
+          }
+        }
+      }
+    },
+    "capability_refs": {
+      "type": "array",
+      "description": "Tools the run exercised; each reference is a name, not an endpoint, grant or credential.",
+      "items": {
+        "type": "object",
+        "required": ["tool"],
+        "additionalProperties": false,
+        "properties": {
+          "tool": { "type": "string", "minLength": 1 },
+          "privileged": { "type": "boolean" },
+          "via_receipt_hash": {
+            "type": "string",
+            "pattern": "^sha256:[a-z0-9]{61,64}$"
+          }
+        }
+      }
+    },
+    "policy_proof_ids": {
+      "type": "array",
+      "description": "Identifiers of policy/proof artefacts the receipts cite (e.g. policy_ref values, trust-policy versions). Ids only - never the policy text of a private policy.",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "governance_events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "decision"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "receipt-attached",
+              "receipt-missing",
+              "receipt-unverifiable",
+              "canary-denied"
+            ]
+          },
+          "decision": {
+            "type": "string",
+            "enum": ["allow", "deny", "unknown", "denied"]
+          },
+          "receipt_hash": {
+            "type": "string",
+            "pattern": "^sha256:[a-z0-9]{61,64}$"
+          },
+          "trace_id": { "type": "string" },
+          "note": { "type": "string", "maxLength": 200 }
+        }
+      }
+    },
+    "usage_metrics": {
+      "type": "object",
+      "description": "Counts only. No prompt/completion character or token text may be carried here.",
+      "required": ["receipts_total", "receipts_allow", "receipts_deny", "receipts_unknown", "privileged_tool_spans"],
+      "additionalProperties": false,
+      "properties": {
+        "receipts_total": { "type": "integer", "minimum": 0 },
+        "receipts_allow": { "type": "integer", "minimum": 0 },
+        "receipts_deny": { "type": "integer", "minimum": 0 },
+        "receipts_unknown": { "type": "integer", "minimum": 0 },
+        "privileged_tool_spans": { "type": "integer", "minimum": 0 },
+        "traces_total": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "description": "Statement of what was filtered; the generator (tools/run_records/generate_fixtures.py) always sets this.",
+      "required": ["content_class"],
+      "additionalProperties": false,
+      "properties": {
+        "content_class": {
+          "type": "string",
+          "const": "metadata-only"
+        },
+        "filtered_fields": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}
