@@ -1,0 +1,119 @@
+# OV-9 release compiler fixture: expectations for four declared controls
+# over synthetic (never canonical) receipt hashes. Same closed-set shape as
+# the OV-7 example; hashes are synthetic placeholders.
+
+schema_version: agent_process_expectations/v1
+
+case_set:
+  name: ov9-release-compiler-fixtures
+  description: Fixture case set exercising each release classification.
+  owner: open-agent-assurance
+  allowed_providers:
+    - claude
+  allowed_tools:
+    - file_write
+    - http_fetch
+    - shell
+
+cases:
+  - case_id: gate-allow-stable
+    expected_outcome:
+      gate_decisions:
+        - allow
+      on_unknown: fail
+    evidence_links:
+      - kind: receipt-hash
+        ref: sha256:aaaa0000000000000000000000000000000000000000000000000000000001
+      - kind: artefact-path
+        ref: services/investigation-ui/demo_data/synthetic_receipt_index.jsonl
+    boundaries:
+      providers:
+        - claude
+      tools:
+        - http_fetch
+      privacy:
+        content_class: metadata-only
+    budgets:
+      max_tool_calls: 10
+      max_provider_requests: 10
+
+  - case_id: gate-deny-evidence
+    expected_outcome:
+      gate_decisions:
+        - deny
+      on_unknown: escalate
+    evidence_links:
+      - kind: receipt-hash
+        ref: sha256:dddd0000000000000000000000000000000000000000000000000000000004
+    human_review:
+      - route_id: gate-deny-review
+        triggers:
+          - gate-deny
+        reviewer: on-call engineer
+    boundaries:
+      providers:
+        - claude
+      tools:
+        - file_write
+      privacy:
+        content_class: metadata-only
+    budgets:
+      max_tool_calls: 5
+      max_provider_requests: 5
+
+  - case_id: boundary-tool-scope
+    expected_outcome:
+      gate_decisions:
+        - allow
+      on_unknown: fail
+    evidence_links:
+      - kind: receipt-hash
+        ref: sha256:aaaa0000000000000000000000000000000000000000000000000000000002
+    boundaries:
+      providers:
+        - claude
+      tools:
+        - http_fetch
+      privacy:
+        content_class: metadata-only
+    budgets:
+      max_tool_calls: 5
+      max_provider_requests: 5
+
+  - case_id: recovered-unknown
+    expected_outcome:
+      gate_decisions:
+        - allow
+      on_unknown: fail
+    evidence_links:
+      - kind: receipt-hash
+        ref: sha256:bbbb0000000000000000000000000000000000000000000000000000000003
+    boundaries:
+      providers:
+        - claude
+      tools:
+        - http_fetch
+      privacy:
+        content_class: metadata-only
+    budgets:
+      max_tool_calls: 5
+      max_provider_requests: 5
+
+  - case_id: persistent-deny-case
+    expected_outcome:
+      gate_decisions:
+        - allow
+      on_unknown: fail
+    evidence_links:
+      - kind: receipt-hash
+        ref: sha256:eeee0000000000000000000000000000000000000000000000000000000005
+    boundaries:
+      providers:
+        - claude
+      tools:
+        - http_fetch
+      privacy:
+        content_class: metadata-only
+    budgets:
+      max_tool_calls: 5
+      max_provider_requests: 5
