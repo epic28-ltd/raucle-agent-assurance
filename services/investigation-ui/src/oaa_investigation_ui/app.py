@@ -458,11 +458,7 @@ class _Routes:
             return error
         return JSONResponse(
             packet,
-            headers={
-                "Content-Disposition": (
-                    'attachment; filename="agent_assurance_packet.json"'
-                )
-            },
+            headers={"Content-Disposition": ('attachment; filename="agent_assurance_packet.json"')},
         )
 
     def assurance_summary(self) -> Response:
