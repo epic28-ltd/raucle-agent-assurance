@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import argparse
 import copy
-import importlib.util
 import json
 import pathlib
 import sys
@@ -50,16 +49,6 @@ MUTATION_DETECTOR = {
     "review-route-bypass": "review-route-presence",
     "replay-duplicate": "replay-duplicate",
 }
-
-
-def _load_compiler():
-    spec = importlib.util.spec_from_file_location(
-        "release_compiler",
-        REPO_ROOT / "tools" / "release_compiler" / "compile.py",
-    )
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
 
 
 # ---------------------------------------------------------------- mutations
@@ -138,23 +127,74 @@ def mutate(doc, runset, kind):
 # ---------------------------------------------------------------- detectors
 
 
+def _case_findings(case, runset):
+    """Standalone per-case rule check (same rules as the OV-9 compiler).
+
+    Kept local so this tool does not depend on a sibling branch's file.
+    Returns reason strings; unknown gate decisions are never mapped into
+    pass (rule 3).
+    """
+    reasons = []
+    accepted = set(case["expected_outcome"]["gate_decisions"])
+    required_evidence = {
+        link["ref"] for link in case.get("evidence_links", []) if link.get("kind") == "receipt-hash"
+    }
+    allowed_tools = set((case.get("boundaries") or {}).get("tools") or [])
+
+    bindings = runset.get("case_bindings") or {}
+    record_ids = bindings.get(case["case_id"], [case["case_id"]])
+    by_id = {record["record_id"]: record for record in runset.get("records", [])}
+    records = [by_id[rid] for rid in record_ids if rid in by_id]
+    if not records:
+        return ["no-records-bound: no run record matches this case"]
+
+    seen_hashes = set()
+    for record in records:
+        rid = record["record_id"]
+        for receipt in record.get("receipts", []):
+            seen_hashes.add(receipt["receipt_hash"])
+            decision = receipt["decision"]
+            if decision == "unknown":
+                reasons.append(f"{rid}: gate decision unknown; never a pass")
+            elif decision not in accepted:
+                reasons.append(
+                    f"{rid}: gate decision {decision!r} outside expected "
+                    + "/".join(sorted(accepted))
+                )
+            tool = receipt.get("tool")
+            if tool and allowed_tools and tool not in allowed_tools:
+                reasons.append(
+                    f"{rid}: receipt tool {tool!r} outside case boundary tools "
+                    + ", ".join(sorted(allowed_tools))
+                )
+        for cap in record.get("capability_refs", []):
+            tool = cap.get("tool")
+            if tool and allowed_tools and tool not in allowed_tools:
+                reasons.append(
+                    f"{rid}: capability {tool!r} outside case boundary tools "
+                    + ", ".join(sorted(allowed_tools))
+                )
+    if sorted(required_evidence - seen_hashes):
+        reasons.append(
+            "required-evidence-missing: no bound record carries receipt(s) "
+            + ", ".join(sorted(required_evidence - seen_hashes))
+        )
+    return reasons
+
+
 def detect_evidence_integrity(doc, runset):
-    compiler = _load_compiler()
     findings = []
     for case in doc.get("cases", []):
-        result = compiler.evaluate_case(case, runset)
-        for reason in result["reasons"]:
+        for reason in _case_findings(case, runset):
             if "required-evidence-missing" in reason:
                 findings.append(f"evidence-integrity/{case['case_id']}: {reason}")
     return findings
 
 
 def detect_boundary_scope(doc, runset):
-    compiler = _load_compiler()
     findings = []
     for case in doc.get("cases", []):
-        result = compiler.evaluate_case(case, runset)
-        for reason in result["reasons"]:
+        for reason in _case_findings(case, runset):
             if "outside case boundary tools" in reason:
                 findings.append(f"boundary-scope/{case['case_id']}: {reason}")
     return findings
