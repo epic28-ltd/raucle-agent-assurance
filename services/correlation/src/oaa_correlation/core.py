@@ -208,6 +208,146 @@ def _in_window_with_grace(
     return (window_start - grace) <= event_time <= (window_end + grace)
 
 
+def _index_records(
+    collapsed: list[_CollapsedReceipt], traces: list[TraceRecord]
+) -> tuple[
+    dict[str, list[_CollapsedReceipt]], list[_CollapsedReceipt], dict[str, list[TraceRecord]]
+]:
+    """Group receipts by trace_id; keep trace-less receipts and trace records."""
+    by_receipt_trace: dict[str, list[_CollapsedReceipt]] = {}
+    for c in collapsed:
+        if c.trace_id:
+            by_receipt_trace.setdefault(c.trace_id, []).append(c)
+    no_trace_receipts = [c for c in collapsed if not c.trace_id]
+
+    traces_by_id: dict[str, list[TraceRecord]] = {}
+    for tr in traces:
+        traces_by_id.setdefault(tr.trace_id, []).append(tr)
+    return by_receipt_trace, no_trace_receipts, traces_by_id
+
+
+def _closed_fn(now: dt.datetime | None, grace: dt.timedelta):
+    def closed(since: dt.datetime, direction: str) -> bool:
+        """True when the grace window for `direction` has elapsed past `since`."""
+        return now is None or (since + grace) < now
+
+    return closed
+
+
+def _trace_missing_records(
+    recs: list[_CollapsedReceipt], trace_id: str | None, closed
+) -> tuple[list[CorrelationRecord], int]:
+    """Trace-side absent: open until grace passes, then trace_missing."""
+    records: list[CorrelationRecord] = []
+    pending = 0
+    for c in recs:
+        if closed(c.event_time, "trace"):
+            note = (
+                "receipt index row carries no signed x_gate trace_id"
+                if trace_id is None
+                else "no trace-side record within grace"
+            )
+            records.append(
+                CorrelationRecord(
+                    state="trace_missing",
+                    trace_id=trace_id,
+                    receipt_hashes=(c.receipt_hash,),
+                    receipt_event_times=(c.event_time,),
+                    decision=c.decision,
+                    notes=note,
+                    provenance=c.provenance,
+                )
+            )
+        else:
+            pending += 1
+    return records, pending
+
+
+def _receipt_missing_records(
+    trace_id: str, ts: list[TraceRecord], closed
+) -> tuple[list[CorrelationRecord], int]:
+    """Trace side only: receipt side never arrived (open until grace passes)."""
+    t0 = min(t.observed_at for t in ts)
+    if closed(t0, "receipt"):
+        return (
+            [
+                CorrelationRecord(
+                    state="receipt_missing",
+                    trace_id=trace_id,
+                    trace_side_count=len(ts),
+                    trace_observed_at=t0,
+                    notes=(
+                        "no receipt within grace"
+                        + (" (multiple trace-side records)" if len(ts) > 1 else "")
+                    ),
+                )
+            ],
+            0,
+        )
+    return [], 1
+
+
+def _both_sides_records(
+    trace_id: str, recs: list[_CollapsedReceipt], ts: list[TraceRecord], grace: dt.timedelta
+) -> list[CorrelationRecord]:
+    """Ambiguity on multiple distinct hashes; else duplicate/matched/late."""
+    distinct_hashes = {c.receipt_hash for c in recs}
+    total_deliveries = sum(c.deliveries for c in recs)
+    if len(distinct_hashes) > 1:
+        return [
+            CorrelationRecord(
+                state="ambiguous",
+                trace_id=trace_id,
+                receipt_hashes=tuple(c.receipt_hash for c in recs),
+                receipt_event_times=tuple(c.event_time for c in recs),
+                trace_side_count=len(ts),
+                trace_observed_at=ts[0].observed_at,
+                notes=(
+                    f"{len(distinct_hashes)} distinct receipts map to "
+                    f"{len(ts)} trace-side record(s); needs human/ingest review"
+                ),
+                provenance=tuple(pr for c in recs for pr in c.provenance),
+            )
+        ]
+
+    one = recs[0]
+    t: TraceRecord = ts[0]
+    if one.deliveries > 1:
+        state, note = (
+            "duplicate",
+            (
+                f"collapsed {one.deliveries} deliveries of one receipt_hash "
+                "to one logical record; provenance preserved"
+            ),
+        )
+    elif not _in_window_with_grace(one.event_time, t.window_start, t.window_end, grace):
+        state, note = (
+            "late_arrival",
+            (
+                "receipt event_time outside trace event window + grace "
+                f"(window {t.window_start.isoformat()}..{t.window_end.isoformat()}, "
+                f"grace {grace.total_seconds()}s)"
+            ),
+        )
+    else:
+        state, note = "matched", ""
+        if not total_deliveries:  # pragma: no cover — structural invariant
+            raise AssertionError("collapsed receipts must carry at least one delivery")
+    return [
+        CorrelationRecord(
+            state=state,
+            trace_id=trace_id,
+            receipt_hashes=(one.receipt_hash,),
+            receipt_event_times=(one.event_time,),
+            trace_side_count=len(ts),
+            trace_observed_at=t.observed_at,
+            decision=one.decision,
+            notes=note,
+            provenance=one.provenance if one.deliveries > 1 else (),
+        )
+    ]
+
+
 def reconcile(
     receipts: list[ReceiptRecord],
     traces: list[TraceRecord],
@@ -218,42 +358,19 @@ def reconcile(
     cfg = config or CorrelationConfig()
     grace = dt.timedelta(seconds=cfg.grace_seconds)
     now = _as_utc(at) if at is not None else None
+    closed = _closed_fn(now, grace)
 
     collapsed = _collapse_receipts(receipts)
-    by_receipt_trace: dict[str, list[_CollapsedReceipt]] = {}
-    for c in collapsed:
-        if c.trace_id:
-            by_receipt_trace.setdefault(c.trace_id, []).append(c)
-    no_trace_receipts = [c for c in collapsed if not c.trace_id]
-
-    traces_by_id: dict[str, list[TraceRecord]] = {}
-    for t in traces:
-        traces_by_id.setdefault(t.trace_id, []).append(t)
+    by_receipt_trace, no_trace_receipts, traces_by_id = _index_records(collapsed, traces)
 
     records: list[CorrelationRecord] = []
     pending = 0
 
-    def closed(since: dt.datetime, direction: str) -> bool:
-        """True when the grace window for `direction` has elapsed past `since`."""
-        return now is None or (since + grace) < now
-
     # Receipts with no trace_id at all: nothing to correlate against — open
     # until grace passes, then trace_missing on the receipt side.
-    for c in no_trace_receipts:
-        if closed(c.event_time, "trace"):
-            records.append(
-                CorrelationRecord(
-                    state="trace_missing",
-                    trace_id=None,
-                    receipt_hashes=(c.receipt_hash,),
-                    receipt_event_times=(c.event_time,),
-                    decision=c.decision,
-                    notes="receipt index row carries no signed x_gate trace_id",
-                    provenance=c.provenance,
-                )
-            )
-        else:
-            pending += 1
+    no_trace, no_trace_pending = _trace_missing_records(no_trace_receipts, None, closed)
+    records.extend(no_trace)
+    pending += no_trace_pending
 
     # Receipts whose trace_id has no trace-side record.
     seen_trace_ids: set[str] = set()
@@ -263,99 +380,21 @@ def reconcile(
         ts = traces_by_id.get(trace_id, [])
 
         if not ts:
-            for c in recs:
-                if closed(c.event_time, "trace"):
-                    records.append(
-                        CorrelationRecord(
-                            state="trace_missing",
-                            trace_id=trace_id,
-                            receipt_hashes=(c.receipt_hash,),
-                            receipt_event_times=(c.event_time,),
-                            decision=c.decision,
-                            notes="no trace-side record within grace",
-                            provenance=c.provenance,
-                        )
-                    )
-                else:
-                    pending += 1
+            trace_missing, trace_missing_pending = _trace_missing_records(recs, trace_id, closed)
+            records.extend(trace_missing)
+            pending += trace_missing_pending
             continue
 
         if not recs:
-            t0 = min(t.observed_at for t in ts)
-            if closed(t0, "receipt"):
-                records.append(
-                    CorrelationRecord(
-                        state="receipt_missing",
-                        trace_id=trace_id,
-                        trace_side_count=len(ts),
-                        trace_observed_at=t0,
-                        notes=(
-                            "no receipt within grace"
-                            + (" (multiple trace-side records)" if len(ts) > 1 else "")
-                        ),
-                    )
-                )
-            else:
-                pending += 1
+            receipt_missing, receipt_missing_pending = _receipt_missing_records(
+                trace_id, ts, closed
+            )
+            records.extend(receipt_missing)
+            pending += receipt_missing_pending
             continue
 
-        # Both sides present for this trace_id.
-        distinct_hashes = {c.receipt_hash for c in recs}
-        total_deliveries = sum(c.deliveries for c in recs)
-        if len(distinct_hashes) > 1:
-            records.append(
-                CorrelationRecord(
-                    state="ambiguous",
-                    trace_id=trace_id,
-                    receipt_hashes=tuple(c.receipt_hash for c in recs),
-                    receipt_event_times=tuple(c.event_time for c in recs),
-                    trace_side_count=len(ts),
-                    trace_observed_at=ts[0].observed_at,
-                    notes=(
-                        f"{len(distinct_hashes)} distinct receipts map to "
-                        f"{len(ts)} trace-side record(s); needs human/ingest review"
-                    ),
-                    provenance=tuple(p for c in recs for p in c.provenance),
-                )
-            )
-            continue
+        records.extend(_both_sides_records(trace_id, recs, ts, grace))
 
-        one = recs[0]
-        t = ts[0]
-        if len(distinct_hashes) == 1 and one.deliveries > 1:
-            state, note = (
-                "duplicate",
-                (
-                    f"collapsed {one.deliveries} deliveries of one receipt_hash "
-                    "to one logical record; provenance preserved"
-                ),
-            )
-        elif not _in_window_with_grace(one.event_time, t.window_start, t.window_end, grace):
-            state, note = (
-                "late_arrival",
-                (
-                    "receipt event_time outside trace event window + grace "
-                    f"(window {t.window_start.isoformat()}..{t.window_end.isoformat()}, "
-                    f"grace {grace.total_seconds()}s)"
-                ),
-            )
-        else:
-            state, note = "matched", ""
-        records.append(
-            CorrelationRecord(
-                state=state,
-                trace_id=trace_id,
-                receipt_hashes=(one.receipt_hash,),
-                receipt_event_times=(one.event_time,),
-                trace_side_count=len(ts),
-                trace_observed_at=t.observed_at,
-                decision=one.decision,
-                notes=note,
-                provenance=one.provenance if one.deliveries > 1 else (),
-            )
-        )
-        if not total_deliveries:  # pragma: no cover — structural invariant
-            raise AssertionError("collapsed receipts must carry at least one delivery")
     assert seen_trace_ids  # every trace_id encountered was processed
     return CorrelationResult(records=records, pending=pending)
 
