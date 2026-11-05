@@ -153,10 +153,13 @@ def load_pack(target: pathlib.Path) -> tuple[pathlib.Path, bool]:
         with zipfile.ZipFile(target) as zf:
             _extract_zip_safely(zf, tmp)
         subdirs = [d for d in tmp.iterdir() if d.is_dir()]
-        pack_path = subdirs[0] if len(subdirs) == 1 else tmp
-        # never hand out pack==tmp: the caller cleanup rmtree(pack.parent)
-        # would otherwise delete the extraction root's parent
-        if len(subdirs) != 1:
+        # A shipped pack zip always carries one top-level audit-pack/ dir.
+        # For wrapper-less zips (single subdir that is not itself a pack, or
+        # plain members), normalise ALL members under one audit-pack/ root
+        # instead of misreading a lone subdirectory as the pack root.
+        if len(subdirs) == 1 and (subdirs[0] / MANIFEST_NAME).is_file():
+            pack_path = subdirs[0]
+        else:
             inner = tmp / "audit-pack"
             inner.mkdir(exist_ok=True)
             for p in tmp.iterdir():
