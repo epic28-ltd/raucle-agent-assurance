@@ -268,7 +268,6 @@ const chipState = (cell, f) => {
 // of model/tool/index content is rendered with textContent (never innerHTML
 // or document.write), no external fetches, no auto-link resolution, and the
 // JWS body is never rendered — only offered as a download link.
-"use strict";
 const app = document.getElementById("app");
 const tabOverview = document.getElementById("tab-overview");
 const tabRuns = document.getElementById("tab-runs");
@@ -1330,6 +1329,17 @@ function showBoard() {
       top.appendChild(nameBox);
       card.appendChild(top);
 
+
+      const pick = () => {
+        boardSelection.set(f.id, !boardSelection.get(f.id));
+        drawBoard();
+      };
+      card.onclick = pick;
+      card.onkeydown = ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); pick(); } };
+      return card;
+    }
+
+    function _cardTokens(f) {
       const tokens = el("div", "card-tokens");
       const sev = el("span", "tok tok-sev-" + f.severity, f.severity);
       tokens.appendChild(sev);
@@ -1346,89 +1356,84 @@ function showBoard() {
         tokens.appendChild(el("span", "tok tok-run", "run: " + short));
       }
       tokens.appendChild(el("span", "tok tok-state", f.state));
-      card.appendChild(tokens);
+      return tokens;
+    }
 
-      // selected card elevates and reveals the inline amber finding note:
-      // finding sentence + suggested action + evidence ref, all textContent
-      if (boardSelection.get(f.id)) {
-        const g = (G.rules || {})[f.rule_id];
-        const note = el("div", "finding-note");
-        note.setAttribute("role", "note");
-        note.appendChild(el("span", "note-icon", "⚠"));
-        const body = el("div", "note-body");
-        if (g) {
-          body.appendChild(el("div", null, g.what));
-          if (g.actions && g.actions.length) {
-            body.appendChild(el("div", null, "Suggested action: " + g.actions[0]));
-          }
+    // Selected card elevates and reveals the inline amber finding note:
+    // finding sentence + suggested action + evidence ref, all textContent.
+    function _selectionPanels(card, f) {
+      const g = (G.rules || {})[f.rule_id];
+      const note = el("div", "finding-note");
+      note.setAttribute("role", "note");
+      note.appendChild(el("span", "note-icon", "⚠"));
+      const body = el("div", "note-body");
+      if (g) {
+        body.appendChild(el("div", null, g.what));
+        if (g.actions && g.actions.length) {
+          body.appendChild(el("div", null, "Suggested action: " + g.actions[0]));
         }
-        body.appendChild(el("div", null, "Evidence ref: " + (f.primary_ref || "(none)")));
-        if (f.suppressed && f.suppression_reason) {
-          body.appendChild(el("div", null, "Retention: " + f.suppression_reason));
-        }
-        if (f.run_id) {
-          const link = el("a", null, "Open full guidance in the drilldown — " + f.run_id);
-          link.href = "#run/" + encodeURIComponent(f.run_id);
-          body.appendChild(link);
-        } else {
-          const more = el("button", "btn-outline", "Open full guidance");
-          more.onclick = (ev) => {
-            ev.stopPropagation();
-            const existing = card.querySelector(".panel.guide");
-            if (existing) { existing.remove(); return; }
-            card.appendChild(guidancePanel("rules", f.rule_id));
-          };
-          body.appendChild(more);
-        }
-        note.appendChild(body);
-        card.appendChild(note);
-
-        // context action row: real endpoint when wired, honest stub otherwise
-        const actions = el("div", "card-actions");
-        const act = RULE_ACTION[f.rule_id] || {label: "Investigate", kind: "outline"};
-        const btn = el("button", act.kind === "dark" ? "btn-dark"
-          : act.kind === "primary" ? "btn-primary" : "btn-outline", act.label);
-        btn.onclick = (ev) => {
-          ev.stopPropagation();
-          if (act.endpoint === "verify" && /^sha256:/.test(f.primary_ref || "")) {
-            btn.disabled = true;
-            toast("running offline verify over canonical bytes…");
-            api("/api/receipts/" + encodeURIComponent(f.primary_ref) + "/verify", {method: "POST"})
-              .then(r => { toast("offline verify: " + (r.verification_status || r.error)); btn.disabled = false; })
-              .catch(() => { toast("action stub: alpha (verify could not run)"); btn.disabled = false; });
-          } else {
-            toast("action stub: alpha");   // honest: endpoint not present yet
-          }
-        };
-        actions.appendChild(btn);
-        const stateBtn = f.state === "suppressed"
-          ? el("button", "btn-dark", "Restore")
-          : el("button", "btn-outline", "Move state (" + f.state + " → next)");
-        stateBtn.onclick = (ev) => {
-          ev.stopPropagation();
-          const nextMap = {new: "investigating", investigating: "resolved", resolved: "closed", closed: "new", suppressed: "new"};
-          const next = nextMap[f.state] || "new";
-          fetch("/api/findings/" + encodeURIComponent(f.id) + "/triage", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({state: next}),
-          }).then(r => r.json()).then(r => {
-            if (r.error) { toast("action stub: alpha — " + r.error); return; }
-            toast(f.rule_id + " moved to " + next);
-            f.state = r.state;
-            drawBoard();
-          }).catch(() => toast("action stub: alpha (triage endpoint offline)"));
-        };
-        actions.appendChild(stateBtn);
-        card.appendChild(actions);
       }
-      const pick = () => {
-        boardSelection.set(f.id, !boardSelection.get(f.id));
-        drawBoard();
+      body.appendChild(el("div", null, "Evidence ref: " + (f.primary_ref || "(none)")));
+      if (f.suppressed && f.suppression_reason) {
+        body.appendChild(el("div", null, "Retention: " + f.suppression_reason));
+      }
+      if (f.run_id) {
+        const link = el("a", null, "Open full guidance in the drilldown — " + f.run_id);
+        link.href = "#run/" + encodeURIComponent(f.run_id);
+        body.appendChild(link);
+      } else {
+        const more = el("button", "btn-outline", "Open full guidance");
+        more.onclick = (ev) => {
+          ev.stopPropagation();
+          const existing = card.querySelector(".panel.guide");
+          if (existing) { existing.remove(); return; }
+          card.appendChild(guidancePanel("rules", f.rule_id));
+        };
+        body.appendChild(more);
+      }
+      note.appendChild(body);
+      card.appendChild(note);
+
+      // context action row: real endpoint when wired, honest stub otherwise
+      const actions = el("div", "card-actions");
+      const act = RULE_ACTION[f.rule_id] || {label: "Investigate", kind: "outline"};
+      let btnKind = "btn-outline";
+      if (act.kind === "dark") btnKind = "btn-dark";
+      else if (act.kind === "primary") btnKind = "btn-primary";
+      const btn = el("button", btnKind, act.label);
+      btn.onclick = (ev) => {
+        ev.stopPropagation();
+        if (act.endpoint === "verify" && /^sha256:/.test(f.primary_ref || "")) {
+          btn.disabled = true;
+          toast("running offline verify over canonical bytes…");
+          api("/api/receipts/" + encodeURIComponent(f.primary_ref) + "/verify", {method: "POST"})
+            .then(r => { toast("offline verify: " + (r.verification_status || r.error)); btn.disabled = false; })
+            .catch(() => { toast("action stub: alpha (verify could not run)"); btn.disabled = false; });
+        } else {
+          toast("action stub: alpha");   // honest: endpoint not present yet
+        }
       };
-      card.onclick = pick;
-      card.onkeydown = ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); pick(); } };
-      return card;
+      actions.appendChild(btn);
+      const stateBtn = f.state === "suppressed"
+        ? el("button", "btn-dark", "Restore")
+        : el("button", "btn-outline", "Move state (" + f.state + " → next)");
+      stateBtn.onclick = (ev) => {
+        ev.stopPropagation();
+        const nextMap = {new: "investigating", investigating: "resolved", resolved: "closed", closed: "new", suppressed: "new"};
+        const next = nextMap[f.state] || "new";
+        fetch("/api/findings/" + encodeURIComponent(f.id) + "/triage", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({state: next}),
+        }).then(r => r.json()).then(r => {
+          if (r.error) { toast("action stub: alpha — " + r.error); return; }
+          toast(f.rule_id + " moved to " + next);
+          f.state = r.state;
+          drawBoard();
+        }).catch(() => toast("action stub: alpha (triage endpoint offline)"));
+      };
+      actions.appendChild(stateBtn);
+      card.appendChild(actions);
     }
 
     // Board outcome card: open + closed + suppressed == total (partition),
