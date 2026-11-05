@@ -42,7 +42,7 @@ class TestVerdicts:
     def test_precedence_and_binds_tighter(self):
         # a AND missing-b OR c must read (a AND b) OR c
         v, _ = evaluate_requirement("policy-permit AND missing-b OR custody-audit", PRESENT)
-        assert v == SATISFIED
+        assert SATISFIED == v
 
     def test_reason_codes_deterministic_and_sorted(self):
         _, codes = evaluate_requirement("zzz AND aaa AND mmm", [])
@@ -51,18 +51,18 @@ class TestVerdicts:
             "EVAL_UNSATISFIED_ATOM:mmm",
             "EVAL_UNSATISFIED_ATOM:zzz",
         ]
-        assert codes[-1] == "EVAL_UNSATISFIED"
+        assert "EVAL_UNSATISFIED" == codes[-1]
 
     def test_satisfied_reason_code(self):
         _, codes = evaluate_requirement("policy-permit", PRESENT)
-        assert codes == ["EVAL_SATISFIED"]
+        assert ["EVAL_SATISFIED"] == codes
 
     def test_missing_atoms_capped(self):
         req = " AND ".join(f"m{i:03d}" for i in range(30))
         v, codes = evaluate_requirement(req, [])
-        assert v == UNSATISFIED
+        assert UNSATISFIED == v
         atom_codes = [c for c in codes if c.startswith("EVAL_UNSATISFIED_ATOM:")]
-        assert len(atom_codes) == 16
+        assert 16 == len(atom_codes)
         assert "EVAL_UNSATISFIED_ATOMS_TRUNCATED" in codes
 
 
@@ -86,7 +86,7 @@ class TestLimits:
         # depth 32 accepted, depth 33 rejected.
         ok = "(" * MAX_PAREN_DEPTH + "policy-permit" + ")" * MAX_PAREN_DEPTH
         v, _ = evaluate_requirement(ok, PRESENT)
-        assert v == SATISFIED
+        assert SATISFIED == v
         bad = "(" + ok
         with pytest.raises(RequirementRejected) as e:
             evaluate_requirement(bad + (""), PRESENT)  # 33 levels
