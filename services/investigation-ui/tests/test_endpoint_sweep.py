@@ -1,0 +1,325 @@
+# SPDX-License-Identifier: Apache-2.0
+"""Investigation-UI endpoint sweep: every route, happy plus 4xx failure paths.
+
+Auditor story: the investigation board never hides failure — unknown runs,
+receipts, findings and malformed ids all get explicit 4xx or escaped
+'unknown' pages, triage validation is charset/enum-gated, offline verify
+states an explicit unavailable verdict instead of fabricating one, and the
+optional Langfuse source degrades honestly in every state.
+"""
+
+from __future__ import annotations
+
+import json
+import pathlib
+import shutil
+import sys
+
+import pytest
+from fastapi.testclient import TestClient
+
+UI = pathlib.Path(__file__).resolve().parents[1]
+REPO_ROOT = UI.parents[1]
+
+for _src in (
+    REPO_ROOT / "packages" / "raucle-adapter" / "src",
+    REPO_ROOT / "services" / "correlation" / "src",
+    REPO_ROOT / "services" / "rules" / "src",
+    UI / "src",
+):
+    sys.path.insert(0, str(_src))
+
+from oaa_investigation_ui.app import (  # noqa: E402
+    _findings_age_seconds,
+    _triage_state_path,
+    create_app,
+)
+
+DATA_DIR = UI / "demo_data"
+ALLOW_HASH = "sha256:a3e29df11123ffc4c65fd50a5841d356b191a0fa85ff5b04fe970ed6f74379d5"
+SYNTH_HASH = "sha256:" + "cd" * 32
+
+
+@pytest.fixture(scope="module")
+def data_dir(tmp_path_factory: pytest.TempPathFactory) -> pathlib.Path:
+    d = tmp_path_factory.mktemp("ui-data")
+    shutil.copytree(DATA_DIR, d, dirs_exist_ok=True)
+    return d
+
+
+@pytest.fixture(scope="module")
+def client(data_dir: pathlib.Path) -> TestClient:
+    return TestClient(create_app(data_dir))
+
+
+def _first_finding_id(client: TestClient) -> str:
+    board = client.get("/api/findings/board").json()
+    return board["findings"][0]["id"]
+
+
+def _first_run_id(client: TestClient) -> str:
+    return client.get("/api/runs").json()[0]["run_id"]
+
+
+# ------------------------------------------------------------------- runs ----
+
+
+def test_unknown_run_id_is_404(client: TestClient) -> None:
+    r = client.get("/api/runs/no-such-run")
+    assert r.status_code == 404
+    assert r.json() == {"error": "unknown run_id"}
+
+
+def test_view_run_unknown_renders_escaped_not_blank(client: TestClient) -> None:
+    r = client.get("/view/run/no-such-run<script>")
+    assert r.status_code == 200
+    assert "unknown run_id (escaped)" in r.text
+    assert "<script>" not in r.text
+
+
+def test_view_run_happy_renders_traces_and_findings(client: TestClient) -> None:
+    r = client.get(f"/view/run/{_first_run_id(client)}")
+    assert r.status_code == 200
+    assert "&larr; runs" in r.text
+    assert "findings" in r.text
+
+
+def test_view_runs_lists_every_run(client: TestClient) -> None:
+    r = client.get("/view/runs")
+    assert r.status_code == 200
+    assert f"/view/run/{_first_run_id(client)}" in r.text
+
+
+# -------------------------------------------------------------- evidence ----
+
+
+def test_unknown_receipt_is_404_json(client: TestClient) -> None:
+    r = client.get(f"/api/receipts/{SYNTH_HASH}")
+    assert r.status_code == 404
+    assert r.json() == {"error": "unknown receipt"}
+
+
+def test_jws_unknown_receipt_is_404_without_fabrication(client: TestClient) -> None:
+    r = client.get(f"/api/receipts/{SYNTH_HASH}/jws")
+    assert r.status_code == 404
+    assert "no canonical envelope" in r.json()["error"]
+
+
+def test_jws_happy_serves_the_verbatim_jws(client: TestClient) -> None:
+    r = client.get(f"/api/receipts/{ALLOW_HASH}/jws")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("application/jwt")
+    store_line = (
+        (DATA_DIR / "evidence_store.jsonl")
+        .read_text()
+        .splitlines()[
+            next(
+                i
+                for i, ln in enumerate((DATA_DIR / "evidence_store.jsonl").read_text().splitlines())
+                if ALLOW_HASH in ln
+            )
+        ]
+    )
+    assert r.text == json.loads(store_line)["jws"]
+
+
+def test_view_receipt_unknown_is_escaped(client: TestClient) -> None:
+    r = client.get("/view/receipt/no-such<span>")
+    assert r.status_code == 200
+    assert "unknown receipt (escaped)" in r.text
+    assert "<span>" not in r.text
+
+
+def test_view_receipt_happy_shows_verify_button_not_jws_value(client: TestClient) -> None:
+    r = client.get(f"/view/receipt/{ALLOW_HASH}")
+    assert r.status_code == 200
+    assert "Verify offline" in r.text
+    assert "available for download" in r.text
+
+
+def test_verify_receipt_unknown_states_unavailable_not_faked(client: TestClient) -> None:
+    """A synthetic index row has no canonical envelope: the API returns 404
+    with the explicit unavailable verdict, never a crypto verdict."""
+    r = client.post(f"/api/receipts/{SYNTH_HASH}/verify")
+    assert r.status_code == 404
+    body = r.json()
+    assert body["verification_status"] == "unavailable"
+    assert body["checks_performed"] == []
+    assert "no canonical envelope" in body["detail"]
+
+
+def test_verify_receipt_happy_runs_real_verify(client: TestClient) -> None:
+    r = client.post(f"/api/receipts/{ALLOW_HASH}/verify")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["receipt_hash"] == ALLOW_HASH
+    assert body["verification_status"] in ("valid", "invalid", "unknown_key")
+
+
+def test_view_verify_unknown_is_explicit_not_blank(client: TestClient) -> None:
+    r = client.post("/view/receipt/no-such/verify")
+    assert r.status_code == 200
+    assert "no canonical envelope" in r.text
+    assert "offline classify not applicable" in r.text
+
+
+def test_view_verify_happy_prints_verifier_summary(client: TestClient) -> None:
+    r = client.post(f"/view/receipt/{ALLOW_HASH}/verify")
+    assert r.status_code == 200
+    assert "verifier output summary" in r.text
+    assert ALLOW_HASH in r.text
+
+
+# ---------------------------------------------------------------- triage ----
+
+
+def test_triage_rejects_malformed_finding_ids(client: TestClient, data_dir: pathlib.Path) -> None:
+    for bad in ("..escape", ".dotstart", "a" * 200, "$bad"):
+        r = client.post(f"/api/findings/{bad}/triage", json={"state": "new"})
+        assert r.status_code == 422, r.text
+        assert r.json()["error"] == "malformed finding id"
+
+
+def test_triage_unknown_finding_is_404(client: TestClient) -> None:
+    r = client.post("/api/findings/not-a-real-finding/triage", json={"state": "new"})
+    assert r.status_code == 404
+    assert r.json() == {"error": "unknown finding id"}
+
+
+def test_triage_rejects_states_outside_the_board_enum(client: TestClient) -> None:
+    fid = _first_finding_id(client)
+    r = client.post(f"/api/findings/{fid}/triage", json={"state": "done"})
+    assert r.status_code == 422
+    assert "state must be one of" in r.json()["error"]
+
+
+def test_triage_happy_persists_sidecar_and_board_reflects_it(
+    client: TestClient, data_dir: pathlib.Path
+) -> None:
+    fid = _first_finding_id(client)
+    r = client.post(f"/api/findings/{fid}/triage", json={"state": "investigating"})
+    assert r.status_code == 200
+    assert r.json() == {"id": fid, "state": "investigating"}
+    sidecar = json.loads((data_dir / "triage_state.json").read_text())
+    assert sidecar[fid] == "investigating"
+    board = client.get("/api/findings/board").json()
+    assert board["findings"][0]["state"] == "investigating"
+    # the canonical evidence store stays byte-identical (invariant 1)
+    assert (data_dir / "evidence_store.jsonl").read_bytes() == (
+        DATA_DIR / "evidence_store.jsonl"
+    ).read_bytes()
+
+
+# ---------------------------------------------------------------- ingest ----
+
+
+def test_ingest_rejects_empty_and_invalid_bodies(client: TestClient) -> None:
+    r = client.post("/api/findings/ingest", json=[])
+    assert r.status_code == 422
+    r = client.post(
+        "/api/findings/ingest",
+        content=b"not json",
+        headers={"content-type": "application/json"},
+    )
+    assert r.status_code == 422
+    r = client.post("/api/findings/ingest", json={"findings": [{"severity": 42}]})
+    assert r.status_code == 422
+    r = client.post("/api/findings/ingest")
+    assert r.status_code == 422  # no body at all
+
+
+def test_ingest_happy_is_idempotent(client: TestClient) -> None:
+    finding = json.loads((DATA_DIR / "red_findings.json").read_text())["findings"][0]
+    first = client.post("/api/findings/ingest", json=[finding])
+    assert first.status_code == 200, first.text
+    assert first.json()["ingested"] is True
+    again = client.post("/api/findings/ingest", json=[finding])
+    assert again.status_code == 200
+    # re-posting a run changes nothing (idempotent merge)
+    assert again.json().get("added", first.json().get("added")) in (0, None)
+    reds = client.get("/api/findings/red").json()
+    assert reds["findings"] and reds["source"]
+
+
+# ----------------------------------------------------------- live traces ----
+
+
+def test_live_traces_without_env_degrades_honestly(client: TestClient) -> None:
+    r = client.get("/api/live/traces")
+    body = r.json()
+    assert body["available"] is False
+    assert "skippable source" in body["reason"]
+
+
+def test_live_traces_with_failing_source_names_the_error(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OAA_LANGFUSE_BASE_URL", "http://127.0.0.1:1")
+    monkeypatch.setenv("OAA_LANGFUSE_PUBLIC_KEY", "pk")
+    monkeypatch.setenv("OAA_LANGFUSE_SECRET_KEY", "sk")
+
+    def _boom(*a, **k):
+        raise httpx.ConnectError("refused")
+
+    import httpx  # noqa: PLC0415
+
+    monkeypatch.setattr(httpx, "get", _boom)
+    body = client.get("/api/live/traces").json()
+    assert body["available"] is False
+    assert "langfuse unavailable" in body["reason"]
+
+
+def test_live_traces_success_projects_index_plane_only(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OAA_LANGFUSE_BASE_URL", "http://127.0.0.1:1")
+    monkeypatch.setenv("OAA_LANGFUSE_PUBLIC_KEY", "pk")
+    monkeypatch.setenv("OAA_LANGFUSE_SECRET_KEY", "sk")
+
+    class _Resp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            # the projection reads the traces key the service actually expects
+            return {
+                "self.data": [
+                    {
+                        "traceId": "trace-1",
+                        "name": "run",
+                        "timestamp": "2026-11-05T12:00:00Z",
+                    }
+                ]
+                * 30
+            }
+
+    import httpx  # noqa: PLC0415
+
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: _Resp())
+    body = client.get("/api/live/traces").json()
+    assert body["available"] is True
+    traces = body["traces"]
+    assert len(traces) == 20  # capped at 20
+    assert set(traces[0]) == {"trace_id", "name", "timestamp"}
+
+
+# ------------------------------------------------------------ unit helpers ----
+
+
+def test_triage_state_path_refuses_escape(tmp_path: pathlib.Path, monkeypatch) -> None:
+    """The sidecar path is confined to the data dir; a symlink escaping it
+    raises rather than reading/writing outside."""
+    outside = tmp_path / "outside.json"
+    outside.write_text("{}")
+    base = tmp_path / "data"
+    base.mkdir()
+    (base / "triage_state.json").symlink_to(outside)
+    with pytest.raises(ValueError, match="escapes the demo data dir"):
+        _triage_state_path(base)
+
+
+def test_findings_age_seconds_none_without_detected_at(monkeypatch) -> None:
+    assert _findings_age_seconds({"id": "x"}) is None
+    monkeypatch.setenv("TZ", "UTC")
+    val = _findings_age_seconds({"id": "x", "detected_at": "2026-11-05T00:00:00+00:00"})
+    assert val is not None and val >= 0
