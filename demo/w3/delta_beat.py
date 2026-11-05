@@ -15,7 +15,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from raucle.delta_report import diff_policy_rules, build_delta_report
+from raucle.delta_report import build_delta_report, diff_policy_rules
 from raucle.policy import PolicyFile
 from raucle.provenance import AgentIdentity, ProvenanceLogger
 from raucle.replay import InputStore

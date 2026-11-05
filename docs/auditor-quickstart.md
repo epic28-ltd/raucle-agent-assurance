@@ -71,3 +71,25 @@ end to end: the demo pack builds, the standalone verifier runs green
 (tests in `tests/audit-pack/test_audit_pack.py` prove the offline path at
 runtime, not just by assertion). A human dry run is still owed before the
 auditor demo.
+
+## Second-laptop role-play (P1.7V)
+
+The verification story is automated and repeatable:
+
+    python scripts/second_laptop_roleplay.py --work-dir /tmp/p1-7v
+
+It builds a fresh real pack, copies only the pack and `verify_pack.py`
+into a throwaway directory standing in for the auditor's laptop, proves
+that the network namespace it creates genuinely denies network (a live
+socket connect must fail inside the namespace before anything else runs),
+verifies the pack GREEN there, byte-tampers a copy and proves the RED
+deliberate-tamper path offline, re-renders the claim sheet with the
+no-claim guard re-checked and signs the verified sheet with a fresh
+ephemeral key held on the laptop. It leaves `role-play-notes.md` in the
+directory stating honestly what the simulation is not: same kernel, same
+machine, one directory; not a second device. Where the host cannot give a
+denied namespace (macOS, user namespaces disabled), the run completes and
+says plainly that network denial was not namespace-proven. The same flow
+runs as a pytest in `tests/audit-pack/test_second_laptop_roleplay.py`,
+skipping with a clear reason when no network namespace is available.
+

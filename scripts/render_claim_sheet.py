@@ -20,6 +20,8 @@ Nothing leaves the machine; the temporary pack is deleted on exit.
 
 from __future__ import annotations
 
+import argparse
+import datetime as dt
 import importlib.util
 import pathlib
 import sys
@@ -38,8 +40,6 @@ _spec.loader.exec_module(pack)
 
 
 def main(argv: list[str] | None = None) -> int:
-    import argparse
-
     ap = argparse.ArgumentParser(
         description="Render the claim sheet of a real AUD-01 pack build (P1.7c)"
     )
@@ -58,7 +58,6 @@ def main(argv: list[str] | None = None) -> int:
             return None
         d = pack._parse_utc(s) if hasattr(pack, "_parse_utc") else None
         if d is None:  # pragma: no cover - defensive
-            import datetime as dt
             d = dt.datetime.fromisoformat(s)
             d = d.replace(tzinfo=dt.UTC) if d.tzinfo is None else d.astimezone(dt.UTC)
         return d

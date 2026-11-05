@@ -31,6 +31,18 @@ from completed 4-Nov-2026 spike work (EPIC K, Open Agent Assurance companion).
 - OBS-01 reference agent and probe scripts (`examples/reference-agent/`) with
   round-trip fidelity, score attachment and OTLP-outage reports.
 - Langfuse v4.74.0 self-host compose stack (`deploy/compose/`).
+- P1.7V verification story: the second-laptop auditor role-play
+  (`ops/audit-pack/second_laptop.py`, `scripts/second_laptop_roleplay.py`).
+  It builds a fresh real pack, hands only the pack and `verify_pack.py` to a
+  throwaway "second laptop" directory, proves the network namespace truly
+  denies network before trusting it, verifies GREEN in that namespace,
+  proves the deliberate-tamper RED path offline, re-renders the claim sheet
+  through `scripts/render_claim_sheet.py` with the no-claim guard
+  re-asserted, and signs the verified sheet with a fresh ephemeral Ed25519
+  key held on the laptop. Where no denied namespace exists (macOS, rootless
+  restrictions), the run completes and states plainly that network denial
+  was not namespace-proven. Honest limits: same kernel, same machine, one
+  directory; not a second device.
 - Repo scaffolding: Apache-2.0 LICENSE, NOTICE, SECURITY.md, CONTRIBUTING.md,
   README, ruff/pytest configuration, GitHub Actions workflow (ruff + pytest,
   Python 3.11/3.12; local file only — nothing pushed).

@@ -6,7 +6,8 @@ import json
 import sys
 
 path = sys.argv[1]
-rec = [json.loads(l) for l in open(path)][-1]
+with open(path) as fh:
+    rec = [json.loads(line) for line in fh][-1]
 c = rec["check_counts"]
 print(
     f"board: run={rec['run_id']} trigger={rec['trigger']} "

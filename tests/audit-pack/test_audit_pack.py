@@ -20,6 +20,7 @@ import os
 import pathlib
 import shutil
 import socket
+import subprocess
 import sys
 import urllib.request
 
@@ -441,8 +442,6 @@ def test_signature_bundle_tamper_fails_named(built: dict, tmp_path: pathlib.Path
 
 def test_render_claim_sheet_cli_matches_pack(built: dict, tmp_path: pathlib.Path) -> None:
     """The renderer CLI is thin wiring, not a second claim-sheet code path."""
-    import subprocess
-
     repo = REPO_ROOT
     cmd = [
         sys.executable,
