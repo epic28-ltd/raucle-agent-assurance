@@ -13,6 +13,7 @@ import base64
 import hashlib
 import importlib.util
 import json
+import os
 import pathlib
 import sys
 
@@ -143,6 +144,182 @@ def test_revalidator_green_run_reproduces_verdict(tmp_path: pathlib.Path) -> Non
     assert result == 0
 
 
+def _green_run(tmp_path: pathlib.Path) -> tuple[int, pathlib.Path]:
+    """Green revalidation, mirroring the pre-OV-20 green-run fixture."""
+    packet = _build_packet(
+        {
+            "capability_refs": ["cap:x"],
+            "risk_annotations": ["RA-1"],
+            "governance_mapping": {"dora": ["II-6.3"]},
+        }
+    )
+    packet_path = tmp_path / "packet.json"
+    packet_path.write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n")
+    (tmp_path / "caps.json").write_text(json.dumps(["cap:x"]))
+    (tmp_path / "risks.json").write_text(json.dumps(["RA-1"]))
+    (tmp_path / "gov.json").write_text(json.dumps({"dora": ["II-6.3"]}))
+    result = rv.main(
+        [
+            "--packet",
+            str(packet_path),
+            "--evidence-store",
+            str(DEMO_STORE),
+            "--capability-refs",
+            str(tmp_path / "caps.json"),
+            "--risk-annotations",
+            str(tmp_path / "risks.json"),
+            "--governance",
+            str(tmp_path / "gov.json"),
+        ]
+    )
+    return result, packet_path
+
+
+def test_report_document_written_on_green_run(tmp_path: pathlib.Path) -> None:
+    report_path = tmp_path / "report.json"
+    _result, packet_path = _green_run(tmp_path)
+    assert _result == 0
+    # Re-run with the machine-readable report on the same green fixture.
+    assert (
+        rv.main(
+            [
+                "--packet",
+                str(packet_path),
+                "--evidence-store",
+                str(DEMO_STORE),
+                "--report",
+                str(report_path),
+            ]
+        )
+        == 1
+    )
+    doc = json.loads(report_path.read_text())
+    assert doc["schema"] == "oaa.revalidation-report/v1"
+    assert doc["verdict"] == "MISMATCH"  # refs omitted: honest mismatch
+
+
+def test_report_document_written_on_mismatch(tmp_path: pathlib.Path) -> None:
+    packet_path = tmp_path / "packet.json"
+    report_path = tmp_path / "report.json"
+    _result, packet_path = _green_run(tmp_path)
+    assert rv.main(["--packet", str(packet_path), "--evidence-store", str(DEMO_STORE)]) == 1
+    assert (
+        rv.main(
+            [
+                "--packet",
+                str(packet_path),
+                "--evidence-store",
+                str(DEMO_STORE),
+                "--report",
+                str(report_path),
+            ]
+        )
+        == 1
+    )
+    doc = json.loads(report_path.read_text())
+    assert doc["verdict"] == "MISMATCH"
+    assert any(c["status"] == "FAIL" for c in doc["checks"])
+
+
+def test_unwritable_report_is_a_named_fail(tmp_path: pathlib.Path, capsys) -> None:
+    _result, packet_path = _green_run(tmp_path)
+    assert _result == 0
+    assert (
+        rv.main(
+            [
+                "--packet",
+                str(packet_path),
+                "--evidence-store",
+                str(DEMO_STORE),
+                "--report",
+                str(tmp_path / "absent-dir" / "report.json"),
+            ]
+        )
+        == 1
+    )
+    # fail-visible: the named FAIL must name the report itself
+    out = capsys.readouterr().out
+    assert any("[FAIL] revalidation report not written" in line for line in out.splitlines())
+    assert "revalidation report not written" in out
+
+
+def test_report_path_refused_for_unusable_destinations(tmp_path: pathlib.Path, capsys) -> None:
+    """Resolved-to-root and resolved-to-home --report destinations are refused."""
+    _result, packet_path = _green_run(tmp_path)
+    assert _result == 0
+    for bad in (pathlib.Path("/"), pathlib.Path("~")):
+        assert (
+            rv.main(
+                [
+                    "--packet",
+                    str(packet_path),
+                    "--evidence-store",
+                    str(DEMO_STORE),
+                    "--report",
+                    str(bad),
+                ]
+            )
+            == 1
+        )
+        # fail-visible: the refusal is a named FAIL that quotes the argument
+        assert any(
+            "[FAIL] --report path refused" in line for line in capsys.readouterr().out.splitlines()
+        )
+
+
+def test_report_path_is_canonicalised_before_write(tmp_path: pathlib.Path) -> None:
+    """A traversal shorthand (--report ./dir/../sub/report.json) resolves to one file."""
+    _result, packet_path = _green_run(tmp_path)
+    assert _result == 0
+    (tmp_path / "sub").mkdir()
+    tangled = tmp_path / "sub" / ".." / "report.json"
+    assert (
+        rv.main(
+            [
+                "--packet",
+                str(packet_path),
+                "--evidence-store",
+                str(DEMO_STORE),
+                "--capability-refs",
+                str(tmp_path / "caps.json"),
+                "--risk-annotations",
+                str(tmp_path / "risks.json"),
+                "--governance",
+                str(tmp_path / "gov.json"),
+                "--report",
+                str(tangled),
+            ]
+        )
+        == 0
+    )
+    assert (tmp_path / "report.json").exists()
+
+
+def test_main_catches_derivation_fail_as_named_fail(tmp_path: pathlib.Path, capsys) -> None:
+    """A _Fail from the input loaders inside the derivation try is a named FAIL."""
+    _result, packet_path = _green_run(tmp_path)
+    assert _result == 0
+    bad_caps = tmp_path / "bad_caps.json"
+    bad_caps.write_text(json.dumps({"cap: x": "not a list"}))
+    result = rv.main(
+        [
+            "--packet",
+            str(packet_path),
+            "--evidence-store",
+            str(DEMO_STORE),
+            "--capability-refs",
+            str(bad_caps),
+            "--risk-annotations",
+            str(tmp_path / "risks.json"),
+            "--governance",
+            str(tmp_path / "gov.json"),
+        ]
+    )
+    assert result == 1
+    out = capsys.readouterr().out
+    assert "[FAIL] capability-refs" in out
+
+
 def test_revalidator_fails_on_missing_packet(tmp_path: pathlib.Path) -> None:
     assert (
         rv.main(["--packet", str(tmp_path / "absent.json"), "--evidence-store", str(DEMO_STORE)])
@@ -164,3 +341,30 @@ def test_revalidator_fails_on_incomplete_packet(tmp_path: pathlib.Path) -> None:
     packet_path = tmp_path / "packet.json"
     packet_path.write_text(json.dumps({"kind": "agent_assurance_packet"}))
     assert rv.main(["--packet", str(packet_path), "--evidence-store", str(DEMO_STORE)]) == 1
+
+
+def test_pq_signature_fail_is_a_named_fail(tmp_path: pathlib.Path, capsys) -> None:
+    """A packet carrying an invalid PQ signature is a named FAIL (OV-22)."""
+    packet = _build_packet({})
+    packet["packet_pq_signature"] = {"algorithm": "ml-dsa-65"}
+    packet_path = tmp_path / "packet.json"
+    packet_path.write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n")
+    result = rv.main(["--packet", str(packet_path), "--evidence-store", str(DEMO_STORE)])
+    assert result == 1
+    out = capsys.readouterr().out
+    assert "packet_pq_signature" in out
+
+
+def test_unreadable_packet_read_error_is_named(tmp_path: pathlib.Path, capsys) -> None:
+    """A packet path that exists but cannot be read is a named FAIL, not a crash."""
+    packet_path = tmp_path / "packet.json"
+    packet_path.write_text("")
+    packet_path.chmod(0o000)
+    if os.access(packet_path, os.R_OK):  # running as root would still read it
+        packet_path.unlink()
+        return
+    try:
+        assert rv.main(["--packet", str(packet_path), "--evidence-store", str(DEMO_STORE)]) == 1
+        assert "not readable" in capsys.readouterr().out
+    finally:
+        packet_path.chmod(0o644)

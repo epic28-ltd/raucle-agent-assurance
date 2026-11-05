@@ -29,6 +29,13 @@ Decision owner: **Craig** (epic28-ltd). Project:
 - `services/investigation-ui/src/oaa_investigation_ui/data.py`: the
   synthetic index path (derived from an env-sourced data directory) is
   checked for confinement to that directory before any read.
+- `tools/verifier/revalidate_packet.py` (OV-20): the `--report` write
+  destination is a tainted CLI path, so it is canonicalised
+  (`expanduser().resolve()`) before any write and refused when it resolves
+  to a filesystem root or the home directory; the refusal is a named FAIL
+  in the tool's own output, never a silent pass. Its traversal shorthands
+  (`dir/../..`, `~`) die at that canonicalisation step, mirroring
+  generate_report's `--out` hardening.
 
 ### Accepted remaining flows
 
