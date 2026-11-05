@@ -80,7 +80,8 @@ def _ensure_raucle_importable() -> tuple[Any, Any, Any]:
         importlib.import_module("raucle.gateway")
     except ImportError:
         if DEFAULT_RAUCLE_WORKTREE.is_dir():
-            import sys  # noqa: PLC0415 (lazy, only when the worktree fallback runs)
+            # lazy: only when the worktree fallback runs
+            import sys  # noqa: PLC0415
 
             worktree = str(DEFAULT_RAUCLE_WORKTREE)
             if worktree not in sys.path:

@@ -225,13 +225,13 @@ def evaluate(
     """
     if not isinstance(at, dt.datetime):
         raise TypeError("injected clock `at` must be a datetime")
-    common: dict[str, Any] = dict(
-        rubric_id=rubric.rubric_id,
-        rubric_version=rubric.rubric_version,
-        reviewer_status=REVIEWER_STATUS_UNREVIEWED,
-        evaluated_ref=case.evaluated_ref,
-        evaluated_at=at,
-    )
+    common: dict[str, Any] = {
+        "rubric_id": rubric.rubric_id,
+        "rubric_version": rubric.rubric_version,
+        "reviewer_status": REVIEWER_STATUS_UNREVIEWED,
+        "evaluated_ref": case.evaluated_ref,
+        "evaluated_at": at,
+    }
 
     abstained = _check_applicability(rubric, case)
     if abstained is not None:

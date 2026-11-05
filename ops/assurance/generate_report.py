@@ -127,14 +127,14 @@ def _counts_table(label: str, states: tuple[str, ...], counts: dict[str, int]) -
 
 
 def _verification_counts(data: DemoData) -> dict[str, int]:
-    counts = {s: 0 for s in VERIFICATION_STATES}
+    counts = dict.fromkeys(VERIFICATION_STATES, 0)
     for row in data._verif.values():
         counts[row["status"]] = counts.get(row["status"], 0) + 1
     return counts
 
 
 def _correlation_counts(data: DemoData) -> tuple[dict[str, int], int]:
-    counts = {s: 0 for s in CORRELATION_STATES}
+    counts = dict.fromkeys(CORRELATION_STATES, 0)
     seen: set[str] = set()
     for payload in data.correlation_by_trace.values():
         if payload["trace_id"] in seen:

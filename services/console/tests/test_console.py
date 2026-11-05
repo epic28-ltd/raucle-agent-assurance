@@ -153,7 +153,7 @@ def test_spa_textcontent_discipline():
     for src in re.findall(r'<script[^>]*src=["\']([^"\']+)', html):
         assert src.startswith("http://127.0.0.1"), src
     for href in re.findall(r'<link[^>]*href=["\']([^"\']+)', html):
-        assert href.startswith("http://127.0.0.1") or href.startswith("/"), href
+        assert href.startswith(("http://127.0.0.1", "/")), href
     # the allowed cross-origin fetch targets are the pinned loopback add-in
     # origin and the documented public trust-gateway demo origin
     # (demo.raucle.com, the TRUST_GATEWAY_URL default from app.py)

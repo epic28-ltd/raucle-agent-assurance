@@ -543,12 +543,12 @@ def create_app() -> fastapi.FastAPI:
         finding_id, so a re-post of the same run is a no-op."""
         body = await request.body()
         try:
-            r = httpx.post(
-                _assurance_url().rstrip("/") + "/api/findings/ingest",
-                content=body,
-                headers={"content-type": "application/json"},
-                timeout=5.0,
-            )
+            async with httpx.AsyncClient(timeout=5.0) as http:
+                r = await http.post(
+                    _assurance_url().rstrip("/") + "/api/findings/ingest",
+                    content=body,
+                    headers={"content-type": "application/json"},
+                )
             r.raise_for_status()
             return JSONResponse(r.json())
         except httpx.HTTPStatusError as exc:

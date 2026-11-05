@@ -111,7 +111,9 @@ def test_corpus_drift_rules_fire_on_shifted_classes() -> None:
 
 
 def test_corpus_fp_measurement_is_deterministic() -> None:
-    assert measured() == measured()
+    first = measured()
+    second = measured()
+    assert first == second
 
 
 def test_corpus_measurement_shape() -> None:

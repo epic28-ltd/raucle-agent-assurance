@@ -211,7 +211,7 @@ def _tally_tool_events(d: dict[str, Any], evs: list[Event], hours: list[int]) ->
     """Accumulate one run's tool events into the (agent, release, tool) bucket."""
     evs = sorted(evs, key=lambda e: (e.at, e.ref or ""))
     d["call_counts"].append(float(len(evs)))
-    d["steps_per_run"].append(float(len(set(e.trace_id or e.ref or "" for e in evs))))
+    d["steps_per_run"].append(float(len({e.trace_id or e.ref or "" for e in evs})))
     d["calls"] += len(evs)
     d["denies"] += sum(1 for e in evs if e.decision == "deny")
     d["hours"].extend(hours)
@@ -334,7 +334,7 @@ def window_stats(runs: Sequence[LabelledRun]) -> WindowStats:
         events = [e for e in run.events if e.kind == "tool_audit" and e.tool]
         if not events:
             continue
-        release = sorted({e.release_id or "" for e in events})[0]
+        release = min({e.release_id or "" for e in events})
         by_tool: dict[str, list[Event]] = {}
         for e in events:
             by_tool.setdefault(e.tool or "", []).append(e)
@@ -434,7 +434,7 @@ class BEHAVolumeStepChange:
                 ]
                 if evs:
                     observed_steps = max(observed_steps, float(len(evs)))
-            if observed_steps == 0.0:
+            if observed_steps <= 0.0:  # integral-valued floats; no tolerance needed
                 continue
             hit, why = _steps_exceeds(t.steps_per_run, observed_steps)
             if hit:

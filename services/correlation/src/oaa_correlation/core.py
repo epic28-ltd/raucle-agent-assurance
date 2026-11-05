@@ -227,8 +227,8 @@ def _index_records(
 
 
 def _closed_fn(now: dt.datetime | None, grace: dt.timedelta):
-    def closed(since: dt.datetime, direction: str) -> bool:
-        """True when the grace window for `direction` has elapsed past `since`."""
+    def closed(since: dt.datetime) -> bool:
+        """True when the grace window has elapsed past `since`."""
         return now is None or (since + grace) < now
 
     return closed
@@ -241,7 +241,7 @@ def _trace_missing_records(
     records: list[CorrelationRecord] = []
     pending = 0
     for c in recs:
-        if closed(c.event_time, "trace"):
+        if closed(c.event_time):
             note = (
                 "receipt index row carries no signed x_gate trace_id"
                 if trace_id is None
@@ -268,7 +268,7 @@ def _receipt_missing_records(
 ) -> tuple[list[CorrelationRecord], int]:
     """Trace side only: receipt side never arrived (open until grace passes)."""
     t0 = min(t.observed_at for t in ts)
-    if closed(t0, "receipt"):
+    if closed(t0):
         return (
             [
                 CorrelationRecord(
@@ -432,7 +432,7 @@ def load_receipt_index(
     else:  # pragma: no cover - read_only=False is not used by the service
         with p.open("r", encoding="utf-8") as fh:
             lines = fh.readlines()
-        before = after = sha256_file(p)
+        before = sha256_file(p)
     records = []
     for line in lines:
         if not line.strip():

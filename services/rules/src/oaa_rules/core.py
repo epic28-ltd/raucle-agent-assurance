@@ -579,7 +579,7 @@ class _BypassSuspected:
     version = "1.0.0"
     description = "Privileged tool-side execution with no gate receipt (bypass suspected)"
 
-    def evaluate(self, events: Sequence[Event], config: RulesConfig) -> list[Finding]:
+    def evaluate(self, events: Sequence[Event], _config: RulesConfig) -> list[Finding]:
         findings: list[Finding] = []
         corroborated = _corroborated_receipt_traces(events)
         for e in _sort(events):
@@ -747,7 +747,8 @@ def run_rules(
 
 def load_config(path: str | Path) -> RulesConfig:
     """Load versioned rules-config YAML (schema v1). Requires PyYAML."""
-    import yaml  # noqa: PLC0415 — optional, config-loading convenience only
+    # optional, config-loading convenience only — imported lazily
+    import yaml  # noqa: PLC0415
 
     with open(path, encoding="utf-8") as fh:
         raw = yaml.safe_load(fh)

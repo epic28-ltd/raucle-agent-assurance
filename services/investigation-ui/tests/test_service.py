@@ -273,7 +273,7 @@ def test_index_no_innerHTML_no_external_fetch(client: TestClient):
 
 def test_index_legend_present(client: TestClient):
     html = INDEX_HTML.read_text()
-    legend = client.get("/").text if False else html
+    legend = html
     for token in (
         "legend",
         "tok-good",
