@@ -37,4 +37,8 @@ ignore = [
 # PLC0415 is deliberate here: raucle and oaa-raucle-adapter are OPTIONAL
 # dependencies imported lazily so raucle-free environments still import.
 "src/oaa_epaec/*.py" = ["PLC0415"]
-"tests/*.py" = ["PLC0415"]
+# test_evaluator.py standardises on expected-first (Sonar python:S3415);
+# SIM300 yoda-checks are scoped out for that one file by the same decision.
+"tests/test_evaluator.py" = ["PLC0415", "SIM300"]
+"tests/test_raucle_integration.py" = ["PLC0415"]
+"tests/test_objects.py" = ["PLC0415"]

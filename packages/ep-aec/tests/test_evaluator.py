@@ -37,32 +37,32 @@ class TestVerdicts:
     )
     def test_cases(self, req, want):
         v, _ = evaluate_requirement(req, PRESENT)
-        assert want == v
+        assert v == want
 
     def test_precedence_and_binds_tighter(self):
         # a AND missing-b OR c must read (a AND b) OR c
         v, _ = evaluate_requirement("policy-permit AND missing-b OR custody-audit", PRESENT)
-        assert v == SATISFIED
+        assert SATISFIED == v
 
     def test_reason_codes_deterministic_and_sorted(self):
         _, codes = evaluate_requirement("zzz AND aaa AND mmm", [])
-        assert codes[:3] == [
+        assert [
             "EVAL_UNSATISFIED_ATOM:aaa",
             "EVAL_UNSATISFIED_ATOM:mmm",
             "EVAL_UNSATISFIED_ATOM:zzz",
-        ]
-        assert codes[-1] == "EVAL_UNSATISFIED"
+        ] == codes[:3]
+        assert "EVAL_UNSATISFIED" == codes[-1]
 
     def test_satisfied_reason_code(self):
         _, codes = evaluate_requirement("policy-permit", PRESENT)
-        assert codes == ["EVAL_SATISFIED"]
+        assert ["EVAL_SATISFIED"] == codes
 
     def test_missing_atoms_capped(self):
         req = " AND ".join(f"m{i:03d}" for i in range(30))
         v, codes = evaluate_requirement(req, [])
-        assert v == UNSATISFIED
+        assert UNSATISFIED == v
         atom_codes = [c for c in codes if c.startswith("EVAL_UNSATISFIED_ATOM:")]
-        assert len(atom_codes) == 16
+        assert 16 == len(atom_codes)
         assert "EVAL_UNSATISFIED_ATOMS_TRUNCATED" in codes
 
 
@@ -72,7 +72,7 @@ class TestLimits:
         evaluate_requirement(ok, [])  # at the limit: accepted by the size gate
         with pytest.raises(RequirementRejected) as e:
             evaluate_requirement(ok + "a", [])
-        assert e.value.reason_code == "EVAL_LIMIT_BYTES"
+        assert "EVAL_LIMIT_BYTES" == e.value.reason_code
 
     def test_token_limit(self):
         exactly = " a" + " AND a" * 127  # 255 tokens, ~1KB: inside both limits
@@ -80,23 +80,23 @@ class TestLimits:
         assert v in (SATISFIED, UNSATISFIED)
         with pytest.raises(RequirementRejected) as e:
             evaluate_requirement(exactly + " OR a", [])  # 257 tokens
-        assert e.value.reason_code == "EVAL_LIMIT_TOKENS"
+        assert "EVAL_LIMIT_TOKENS" == e.value.reason_code
 
     def test_paren_nesting_limit(self):
         # depth 32 accepted, depth 33 rejected.
         ok = "(" * MAX_PAREN_DEPTH + "policy-permit" + ")" * MAX_PAREN_DEPTH
         v, _ = evaluate_requirement(ok, PRESENT)
-        assert v == SATISFIED
+        assert SATISFIED == v
         bad = "(" + ok
         with pytest.raises(RequirementRejected) as e:
             evaluate_requirement(bad + (""), PRESENT)  # 33 levels
-        assert e.value.reason_code == "EVAL_LIMIT_NESTING"
+        assert "EVAL_LIMIT_NESTING" == e.value.reason_code
 
     def test_multibyte_bytes_counted_not_chars(self):
         # 4096 * 'é' = 8192 bytes in UTF-8 but only 4096 chars.
         with pytest.raises(RequirementRejected) as e:
             evaluate_requirement("é" * MAX_REQUIREMENT_BYTES, [])
-        assert e.value.reason_code == "EVAL_LIMIT_BYTES"
+        assert "EVAL_LIMIT_BYTES" == e.value.reason_code
 
 
 class TestParseErrors:
@@ -131,4 +131,4 @@ class TestParseErrors:
         try:
             evaluate_requirement("(" * 50 + "a", [])
         except RequirementRejected as e:
-            assert (e.reason_code, e.detail) == r1
+            assert r1 == (e.reason_code, e.detail)
