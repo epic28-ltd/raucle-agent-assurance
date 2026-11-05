@@ -33,8 +33,8 @@ import uuid
 
 import pytest
 
-UI = pathlib.Path("/home/craigamcw/Projects/open-agent-assurance/services/investigation-ui")
-REPO_ROOT = UI.parents[1]
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
+UI = REPO_ROOT / "services" / "investigation-ui"
 CONSOLE_HTML = REPO_ROOT / "services" / "console" / "static" / "index.html"
 
 for _p in (str(UI / "src"),):
