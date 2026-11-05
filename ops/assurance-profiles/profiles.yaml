@@ -1,0 +1,70 @@
+# OV-4 governance profiles: basic vs regulated.
+# Each profile declares REQUIRED control coverage (crosswalk ids) and the
+# outcome semantics (whether a gap is a release blocker or a warned finding).
+# Crosswalk rows live in crosswalk.json; every control id named here must be a
+# crosswalk row (verified by the validator module self-check).
+version: 1
+
+defaults:
+  # A packet must at minimum declare schema_version and kind; anything beyond
+  # is validated per profile. Missing evidence fields degrade to PARTIAL, never
+  # silently PASS (fail-visible).
+
+profiles:
+  basic:
+    description: >-
+      Sandboxed or low-consequence agent deployments. Evidence gaps are
+      surfaced as warnings rather than release blockers; only tampered or
+      invalid receipts hard-fail.
+    outcome_semantics:
+      # How the validator maps gap types to check outcomes.
+      # "fail" -> check FAIL (release blocker); "warn" -> check PARTIAL.
+      invalid_receipt: fail        # evidence-plane integrity is never waived
+      tampered_claim: fail         # packet overstates coverage vs crosswalk
+      unverified_tool: warn
+      missing_framework: warn
+      unsupported_control: warn
+      partial_control: warn
+      evidence_missing: warn
+    required_frameworks:
+      # Governance mapping slots the packet must declare (may be empty
+      # sections); absence produces a warning under basic semantics.
+      - DORA
+      - EU AI Act
+    required_controls:
+      # "framework:control" ids into crosswalk.json (subset: the small set
+      # basic deployments should still evidence).
+      - "EU AI Act:Art 12(1) logging"
+      - "OWASP LLM Top 10:LLM03 Inadequate Sandboxing"
+
+  regulated:
+    description: >-
+      Financial or services deployments in scope of DORA and the EU AI Act.
+      Any missing or unsupported required control blocks the release; the
+      validator returns FAIL and the diff names the gap.
+    outcome_semantics:
+      invalid_receipt: fail
+      tampered_claim: fail
+      unverified_tool: fail
+      missing_framework: fail
+      unsupported_control: fail
+      partial_control: warn
+      evidence_missing: warn
+    required_frameworks:
+      - DORA
+      - EU AI Act
+      - ISO 42001
+      - SOC 2
+      - NIST AI RMF
+      - OWASP LLM Top 10
+    required_controls:
+      - "DORA:Art 5(1) ICT risk framework"
+      - "DORA:Art 28(1)-28(3) transaction logging"
+      - "EU AI Act:Art 12(1) logging"
+      - "EU AI Act:Art 15(1) robustness and accuracy"
+      - "ISO 42001:A.7.2 AI system impact assessment"
+      - "SOC 2:CC7.1 configuration monitoring"
+      - "NIST AI RMF:MEASURE 2.5 monitoring efficacy"
+      - "OWASP LLM Top 10:LLM01 Prompt Injection"
+      - "OWASP LLM Top 10:LLM03 Inadequate Sandboxing"
+      - "OWASP LLM Top 10:LLM08 Excessive Agency"
