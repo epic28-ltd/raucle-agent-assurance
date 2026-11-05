@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+"""OV-1 operator CLI: build a deterministic agent assurance packet.
+
+Loaded by file path (same pattern as scripts/build_audit_pack.py): the
+module is imported by location, never through a package identifier.
+
+    rauckle-assurance-packet \\
+      --evidence-store services/investigation-ui/demo_data/evidence_store.jsonl \\
+      --out-dir /tmp/assurance-packet-out
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import pathlib
+import sys
+
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
+_module_spec = importlib.util.spec_from_file_location(
+    "oaa_assurance_packet", REPO_ROOT / "services" / "assurance_packet" / "packet.py"
+)
+assert _module_spec is not None and _module_spec.loader is not None
+_module = importlib.util.module_from_spec(_module_spec)
+sys.modules["oaa_assurance_packet"] = _module
+_module_spec.loader.exec_module(_module)
+
+raise SystemExit(_module.main())
