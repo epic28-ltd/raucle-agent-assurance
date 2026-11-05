@@ -25,7 +25,8 @@ SCRIPT = REPO_ROOT / "scripts" / "rauckle-assurance-packet"
 _spec = importlib.util.spec_from_file_location(
     "oaa_assurance_packet", REPO_ROOT / "services" / "assurance_packet" / "packet.py"
 )
-assert _spec is not None and _spec.loader is not None
+assert _spec is not None
+assert _spec.loader is not None
 ap_mod = importlib.util.module_from_spec(_spec)
 sys.modules["oaa_assurance_packet"] = ap_mod
 _spec.loader.exec_module(ap_mod)
