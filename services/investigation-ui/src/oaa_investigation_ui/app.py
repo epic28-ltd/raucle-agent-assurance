@@ -131,6 +131,55 @@ def _findings_age_seconds(f: dict) -> float | None:
     return (dt.datetime.now(dt.UTC) - dt.datetime.fromisoformat(detected)).total_seconds()
 
 
+def _trace_header_html(data: DemoData, trace: dict) -> list[str]:
+    """Trace heading + correlation badge + the span-table header row."""
+    corr = data.correlation_by_trace.get(trace["trace_id"])
+    corr_state = corr["state"] if corr else "pending"
+    cls = (
+        "badge badge-unknown"
+        if corr_state in ("receipt_missing", "trace_missing", "ambiguous", "pending")
+        else "badge badge-ok"
+    )
+    return [
+        f"<h3>trace {esc(trace['trace_id'])} <span class='{cls}'>",
+        esc(corr_state) + "</span> — " + esc(trace["label"]) + "</h3>",
+        (
+            "<table><tr><th>span</th><th>tool</th><th>priv</th>"
+            "<th>receipt_hash</th><th>verification</th><th>correlation</th></tr>"
+        ),
+    ]
+
+
+def _span_row_html(data: DemoData, span: dict, trace_id: str) -> str:
+    """One span row (plus its hostile-text note row) for the trace table."""
+    v = data.verification_for(span["receipt_hash"])
+    c = data.correlation_for_span(span, trace_id)
+    vc = "badge-unknown" if v["explicit_unknown"] else "badge-ok"
+    cc = (
+        "badge-unknown"
+        if c["state"]
+        in (
+            "receipt_missing",
+            "trace_missing",
+            "ambiguous",
+            "duplicate",
+            "late_arrival",
+            "pending",
+        )
+        else "badge-ok"
+    )
+    note = esc(span["attrs"].get("oaa.note", "")) if span["attrs"] else ""
+    return (
+        "<tr>"
+        f"<td>{esc(span['name'])}</td><td>{esc(span['tool'] or '')}</td>"
+        f"<td>{'yes' if span['privileged'] else 'no'}</td>"
+        f"<td>{esc(span['receipt_hash'] or '— no receipt —')}</td>"
+        f"<td><span class='badge {vc}'>{esc(v['status'])}</span></td>"
+        f"<td><span class='badge {cc}'>{esc(c['state'])}</span></td>"
+        f"</tr><tr class='note'><td colspan='6'>note: {note}</td></tr>"
+    )
+
+
 def index() -> FileResponse:
     return FileResponse(_static_dir / "index.html")  # UI-02 SPA
 
@@ -461,50 +510,9 @@ class _Routes:
             return _page("Runs", "<p>unknown run_id (escaped): " + esc(run_id) + "</p>")
         parts = []
         for trace in run["traces"]:
-            corr = self.data.correlation_by_trace.get(trace["trace_id"])
-            corr_state = corr["state"] if corr else "pending"
-            cls = (
-                "badge badge-unknown"
-                if corr_state in ("receipt_missing", "trace_missing", "ambiguous", "pending")
-                else "badge badge-ok"
-            )
-            parts.extend(
-                (
-                    f"<h3>trace {esc(trace['trace_id'])} <span class='{cls}'>",
-                    esc(corr_state) + "</span> — " + esc(trace["label"]) + "</h3>",
-                    (
-                        "<table><tr><th>span</th><th>tool</th><th>priv</th>"
-                        "<th>receipt_hash</th><th>verification</th><th>correlation</th></tr>"
-                    ),
-                )
-            )
+            parts.extend(_trace_header_html(self.data, trace))
             for span in trace["spans"]:
-                v = self.data.verification_for(span["receipt_hash"])
-                c = self.data.correlation_for_span(span, trace["trace_id"])
-                vc = "badge-unknown" if v["explicit_unknown"] else "badge-ok"
-                cc = (
-                    "badge-unknown"
-                    if c["state"]
-                    in (
-                        "receipt_missing",
-                        "trace_missing",
-                        "ambiguous",
-                        "duplicate",
-                        "late_arrival",
-                        "pending",
-                    )
-                    else "badge-ok"
-                )
-                note = esc(span["attrs"].get("oaa.note", "")) if span["attrs"] else ""
-                parts.append(
-                    "<tr>"
-                    f"<td>{esc(span['name'])}</td><td>{esc(span['tool'] or '')}</td>"
-                    f"<td>{'yes' if span['privileged'] else 'no'}</td>"
-                    f"<td>{esc(span['receipt_hash'] or '— no receipt —')}</td>"
-                    f"<td><span class='badge {vc}'>{esc(v['status'])}</span></td>"
-                    f"<td><span class='badge {cc}'>{esc(c['state'])}</span></td>"
-                    f"</tr><tr class='note'><td colspan='6'>note: {note}</td></tr>"
-                )
+                parts.append(_span_row_html(self.data, span, trace["trace_id"]))
             parts.append(TABLE_CLOSE)
         findings = "".join(
             "<tr>"
@@ -580,9 +588,6 @@ class _Routes:
             f"<p><a href='/view/receipt/{esc(receipt_hash)}'>&larr; evidence</a></p>"
         )
         return _page("Verify offline", body)
-
-    def index() -> FileResponse:
-        return FileResponse(_static_dir / "index.html")  # UI-02 SPA
 
     def legacy() -> FileResponse:
         return FileResponse(_static_dir / "legacy.html")  # UI-01 SPA, kept reachable

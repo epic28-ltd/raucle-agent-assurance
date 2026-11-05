@@ -266,8 +266,9 @@ def test_injected_clock_is_respected(rubric_v1: Any) -> None:
 
 
 def test_injected_clock_rejects_wrong_type(rubric_v1: Any) -> None:
+    case = make_case()
     with pytest.raises(TypeError):
-        evaluate(rubric_v1, make_case(), at="tomorrow")  # type: ignore[arg-type]
+        evaluate(rubric_v1, case, at="tomorrow")  # type: ignore[arg-type]
 
 
 def test_pct_truncates_not_rounds() -> None:
