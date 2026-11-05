@@ -65,6 +65,7 @@ def esc(value) -> str:
     """Hostile-text rendering: escape EVERYTHING; no link resolution."""
     return html.escape(str(value), quote=True)
 
+
 # shared view-lens helpers (pure in `data`)
 
 
@@ -101,6 +102,7 @@ def _run_findings(data: DemoData, run: dict) -> list[dict]:
             out.append(f)
     return out
 
+
 # ------------------------------------------------------------ API (JSON)
 
 
@@ -135,7 +137,6 @@ def index() -> FileResponse:
 
 def legacy() -> FileResponse:
     return FileResponse(_static_dir / "legacy.html")  # UI-01 SPA, kept reachable
-
 
 
 class _Routes:
@@ -279,7 +280,6 @@ class _Routes:
         fixture-suppressed findings sit in the Suppressed column, everything
         else is untriaged (New)."""
         return load_triage_states(self.data.dir)
-
 
     def _board_findings(self) -> tuple[list[dict], dict]:
         states = self._load_triage_states()
@@ -618,6 +618,7 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
     app.get("/", include_in_schema=False)(index)
     app.get("/legacy.html", include_in_schema=False)(legacy)
     return app
+
 
 def _page(title: str, body: str) -> str:
     return (
