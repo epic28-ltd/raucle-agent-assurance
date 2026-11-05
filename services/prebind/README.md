@@ -13,14 +13,21 @@ spans, and red findings.
 - `unresolved`: documented extension — no decision recorded, legacy schema,
   duplicate receipt hash, ambiguous trace, or missing receipt for an observed
   privileged decision. Never promoted to a fabricated consequence state.
-- `held`, `narrowed`, `escalated`, `quarantined`, `no_bind`: reported as an
-  explicit honest zero until the gate itself writes that vocabulary into
-  receipts. The zero is annotated, not silent.
+- `held`, `narrowed`, `escalated`, `quarantined`, `no_bind`: receipt-only
+  derivation cannot populate these; `narrowed` and `no_bind` are instead
+  evidence-backed from committed red findings (red_evidence), while `held`,
+  `escalated` and `quarantined` remain an explicit honest zero until the
+  gate itself writes that vocabulary into receipts. The zero is annotated,
+  not silent.
 
 Red findings that evidence enforcement weaknesses (RED-011, RED-013, RED-017)
 are surfaced as `enforcement_weaknesses`; verified PASS findings
 (RED-004, RED-009, RED-015, RED-019) are labelled boundary-held evidence in
-annotations without inflating any state counter.
+annotations without inflating any state counter. Round 2 (OV-16) additionally
+maps RED-004's verified matched_degraded attenuation to `narrowed` and
+RED-019's unconfigured-tool no-bind denials to `no_bind`: each increment
+carries the finding id in `red_evidence`, so no counter is ever populated
+without committed evidence behind it.
 
 All derivation is deterministic and offline-verifiable from committed
 fixtures (`services/investigation-ui/demo_data/`). Tests live in
