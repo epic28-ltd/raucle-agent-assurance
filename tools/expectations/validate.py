@@ -101,10 +101,7 @@ def validate_document(doc, expected_case_count=None):
                         (
                             f"cases/{index}/boundaries/{field}",
                             f"error: case {case_id!r} widens the {field} "
-                            "boundary: "
-                            + ", ".join(widened)
-                            + " not in case_set.allowed_"
-                            + field,
+                            "boundary: " + ", ".join(widened) + " not in case_set.allowed_" + field,
                         )
                     )
 
@@ -143,9 +140,7 @@ def validate_document(doc, expected_case_count=None):
 
             budgets = case.get("budgets") or {}
             privileges = budgets.get("max_privileged_tool_calls")
-            if (privileges is not None and privileges > 0) and not bool(
-                case.get("human_review")
-            ):
+            if (privileges is not None and privileges > 0) and not bool(case.get("human_review")):
                 problems.append(
                     (
                         f"cases/{index}",
