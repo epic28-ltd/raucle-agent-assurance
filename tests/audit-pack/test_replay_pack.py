@@ -66,6 +66,10 @@ def _replay(pack_dir: pathlib.Path) -> dict:
     return replay.replay_receipt_from_pack(pack_dir, _first_receipt_hash(pack_dir))
 
 
+@pytest.mark.skipif(
+    not RAUCLE_OSS_HOME.is_dir(),
+    reason="chain-graph resolver unavailable without the OSS raucle tree (pack degrades to the pending slot)",
+)
 def test_replay_renders_the_decision_and_the_chain(pack_dirs) -> None:
     body = _replay(pack_dirs["resolved"])
     receipt_hash = _first_receipt_hash(pack_dirs["resolved"])
