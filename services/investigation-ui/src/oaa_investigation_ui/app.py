@@ -34,6 +34,7 @@ import re
 import fastapi
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 
+from . import assurance  # OV-2: packet/summary routes delegate to this module
 from .counting import (  # noqa: F401
     BOARD_STATES,
     count_evidence,
@@ -446,6 +447,51 @@ class _Routes:
             )
         return {"receipt_hash": receipt_hash, **verify_offline(line, self.data.trust_roots())}
 
+    # ------------------------------------------------- OV-2 assurance packet
+    def assurance_packet(self, body: dict | None = None):
+        try:
+            refs = assurance.body_refs(body)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+        packet, error = self._build_packet_or_error(refs)
+        if error is not None:
+            return error
+        return JSONResponse(
+            packet,
+            headers={"Content-Disposition": ('attachment; filename="agent_assurance_packet.json"')},
+        )
+
+    def assurance_summary(self) -> Response:
+        _packet, error = self._build_packet_or_error()
+        if error is not None:
+            return error
+        return HTMLResponse(assurance.html_for(self.data_dir))
+
+    def _build_packet_or_error(self, refs: dict | None = None):
+        # Named missing-store check before delegating: DemoData guarantees a
+        # store at load, so a store that has vanished since (or a test-built
+        # dir without one) must surface as the CLI's own named 404-class
+        # error, never a fabricated packet.
+        store = self.data_dir.resolve() / assurance.STORE_FILE
+        if not store.is_file():
+            return None, JSONResponse(
+                {"error": f"evidence store not found: {store}"}, status_code=404
+            )
+        try:
+            refs = refs if refs is not None else {}
+            return assurance.build_from_store(self.data_dir, refs), None
+        except ValueError as exc:
+            return None, self._packet_error(exc)
+
+    @staticmethod
+    def _packet_error(exc: ValueError) -> Response:
+        """CLI fail-visible semantics as HTTP: missing store is 404-class,
+        every other named error (tampered, malformed, bad refs) is 422."""
+        text = str(exc)
+        if "not found" in text:
+            return JSONResponse({"error": text}, status_code=404)
+        return JSONResponse({"error": text}, status_code=422)
+
     # ------------------------------------------------- optional live Langfuse
     def live_traces(self) -> dict:
         base = os.environ.get("OAA_LANGFUSE_BASE_URL")
@@ -612,6 +658,9 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
     app.post("/api/receipts/{receipt_hash}/verify")(api.verify_receipt)
     # ------------------------------------------------- optional live Langfuse
     app.get("/api/live/traces")(api.live_traces)
+    # ---------------------------------------------------- OV-2 assurance packet
+    app.post("/assurance/packet")(api.assurance_packet)
+    app.get("/assurance/summary", response_class=HTMLResponse)(api.assurance_summary)
     # --------------------------------------------- server-rendered (no-JS) views
     app.get("/view/runs", response_class=HTMLResponse)(api.view_runs)
     app.get("/view/run/{run_id}", response_class=HTMLResponse)(api.view_run)
