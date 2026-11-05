@@ -225,9 +225,9 @@ def bare_config(url, **kw):
     return WebhookConfig(url=url, org_id="org-0000", **kw)
 
 
-def test_retry_then_success(server, config_factory):
+def test_retry_then_success(server, config_factory, monkeypatch):
     env = make_envelope()
-    _Handler.fail_next = [2]
+    monkeypatch.setattr(_Handler, "fail_next", [2])
     outcome = _deliver(env, bare_config(server), config_factory)
     assert outcome.status == "sent"
     assert outcome.attempts == 3
@@ -235,7 +235,7 @@ def test_retry_then_success(server, config_factory):
     assert all(r["event_id"] == env["event_id"] for r in _Handler.received)
 
 
-def test_dead_letter_after_exhaustion(server, config_factory, tmp_path):
+def test_dead_letter_after_exhaustion(server, config_factory, tmp_path, monkeypatch):
     env = make_envelope(
         fields=json.loads(
             json.dumps(
@@ -251,7 +251,7 @@ def test_dead_letter_after_exhaustion(server, config_factory, tmp_path):
             )
         )
     )
-    _Handler.status_all = 500
+    monkeypatch.setattr(_Handler, "status_all", 500)
     outcome = _deliver(env, bare_config(server, max_attempts=4), config_factory)
     assert outcome.status == "dead_lettered"
     assert outcome.attempts == 4
@@ -263,14 +263,14 @@ def test_dead_letter_after_exhaustion(server, config_factory, tmp_path):
     assert "HTTP 500" in rows[0]["error"]
     # a dead-lettered event is NOT marked sent: a later config can retry it
     cfg3, dedup_path, _ = config_factory(server)
-    _Handler.status_all = 200
+    monkeypatch.setattr(_Handler, "status_all", 200)
     outcome2 = deliver(env, cfg3, dedup=DedupStore(dedup_path), sleep=lambda s: None)
     assert outcome2.status == "sent"
 
 
-def test_4xx_dead_letters_without_retry(server, config_factory):
+def test_4xx_dead_letters_without_retry(server, config_factory, monkeypatch):
     env = make_envelope()
-    _Handler.status_all = 400
+    monkeypatch.setattr(_Handler, "status_all", 400)
     outcome = _deliver(env, bare_config(server), config_factory)
     assert outcome.status == "dead_lettered"
     assert outcome.attempts == 1
@@ -317,10 +317,10 @@ def test_receiver_idempotent_merge(server, config_factory):
     assert len(collector.events) == 2
 
 
-def test_receiver_path_over_transport(server, config_factory):
+def test_receiver_path_over_transport(server, config_factory, monkeypatch):
     """End-to-end: retry storm + redelivery, receiver still merges to one event."""
     env = make_envelope()
-    _Handler.fail_next = [3]
+    monkeypatch.setattr(_Handler, "fail_next", [3])
     outcome = _deliver(env, bare_config(server), config_factory)
     assert outcome.status == "sent"
     # transport redelivers one duplicate (at-least-once)

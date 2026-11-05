@@ -62,8 +62,8 @@ def test_http_allow_with_receipt(gate_server):
     assert _GateHandler.seen["distribution_pin"] == RAUCLE_DISTRIBUTION_PIN
 
 
-def test_http_deny_decision_normalised(gate_server):
-    _GateHandler.decisions = {"decision": "deny", "reason": "no policy"}
+def test_http_deny_decision_normalised(gate_server, monkeypatch):
+    monkeypatch.setattr(_GateHandler, "decisions", {"decision": "deny", "reason": "no policy"})
     client = HttpGateClient(gate_server, timeout_s=2.0)
     d = client.check_tool_call(
         tool="t", args={}, call_id="c2", trace_id="tr", agent_id="", source=""

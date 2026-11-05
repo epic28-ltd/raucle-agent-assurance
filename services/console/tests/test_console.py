@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import datetime
 import json
-import os
 import pathlib
 import re
 import sys
@@ -98,14 +97,11 @@ def test_api_health(client: TestClient):
     assert client.get("/api/health").json()["status"] == "ok"
 
 
-def test_iframe_configurable_assurance_url():
-    os.environ["RAUCLE_ASSURANCE_URL"] = "http://127.0.0.1:9911/"
-    try:
-        c = TestClient(create_app())
-        body = c.get("/api/config").json()
-        assert body["assurance_url"] == "http://127.0.0.1:9911/"
-    finally:
-        del os.environ["RAUCLE_ASSURANCE_URL"]
+def test_iframe_configurable_assurance_url(monkeypatch):
+    monkeypatch.setenv("RAUCLE_ASSURANCE_URL", "http://127.0.0.1:9911/")
+    c = TestClient(create_app())
+    body = c.get("/api/config").json()
+    assert body["assurance_url"] == "http://127.0.0.1:9911/"
 
 
 def test_iframe_config_default(client: TestClient):
@@ -130,15 +126,12 @@ def test_assurance_dashboard_proxy_live(client: TestClient):
         assert r.json()["error"] == "add-in offline"
 
 
-def test_assurance_dashboard_proxy_offline(monkeypatch):
-    os.environ["RAUCLE_ASSURANCE_URL"] = "http://127.0.0.1:9"
-    try:
-        c = TestClient(create_app())
-        r = c.get("/api/assurance/dashboard")
-        assert r.status_code == 503
-        assert r.json()["error"] == "add-in offline"
-    finally:
-        del os.environ["RAUCLE_ASSURANCE_URL"]
+def test_assurance_dashboard_proxy_offline(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("RAUCLE_ASSURANCE_URL", "http://127.0.0.1:9")
+    c = TestClient(create_app())
+    r = c.get("/api/assurance/dashboard")
+    assert r.status_code == 503
+    assert r.json()["error"] == "add-in offline"
 
 
 def test_api_overview_never_echoes_env(client: TestClient):

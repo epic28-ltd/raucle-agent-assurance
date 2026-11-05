@@ -106,11 +106,11 @@ def test_counts_with_reused_demo_data():
     assert a["findings"] == b["findings"]
 
 
-def test_cross_surface_console_overview_matches_counts():
+def test_cross_surface_console_overview_matches_counts(monkeypatch):
     """The console's server-side figures (its overview trust block) read the
     same counting module output, so the surfaces can never drift."""
     console_src = UI.parents[1] / "services" / "console" / "src"
-    sys.path.insert(0, str(console_src))
+    monkeypatch.syspath_prepend(str(console_src))
     from fastapi.testclient import TestClient  # noqa: PLC0415
     from raucle_console.app import create_app  # noqa: PLC0415
 
