@@ -575,6 +575,7 @@ def _proxy_red(method: str, path: str, *, body=None):
             status_code=503,
         )
 
+
 def create_app() -> fastapi.FastAPI:
     """Build the FastAPI app; each route binds to a shared _Routes view."""
     app = fastapi.FastAPI(title="Raucle Console (EPIC-N)", version="0.1.0")
