@@ -322,27 +322,37 @@ def deliver(
     attempts = 0
     for attempt in range(1, config.max_attempts + 1):
         attempts = attempt
-        try:
-            with opener(request, timeout=config.timeout_seconds) as response:
-                response.read()
-                status = getattr(response, "status", 200)
-            if 200 <= status < 300:
-                dedup.mark_sent(event_id)
-                return DeliveryOutcome("sent", event_id, attempts)
-            raise urllib.error.URLError(f"unexpected status {status}")
-        except urllib.error.HTTPError as exc:
-            last_error = f"HTTP {exc.code}"
-            if 400 <= exc.code < 500 and exc.code != 429:
-                break  # non-retryable
-            if attempt < config.max_attempts:
-                sleep(config.backoff_base_seconds * (2 ** (attempt - 1)))
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            last_error = str(exc) or type(exc).__name__
-            if attempt < config.max_attempts:
-                sleep(config.backoff_base_seconds * (2 ** (attempt - 1)))
+        outcome, last_error, retryable = _attempt_delivery(
+            opener, request, config, dedup, event_id, attempt
+        )
+        if outcome is not None:
+            return outcome
+        if not retryable:
+            break  # non-retryable
+        if attempt < config.max_attempts:
+            sleep(config.backoff_base_seconds * (2 ** (attempt - 1)))
     if dead_letter is not None:
         dead_letter.write(envelope, last_error, attempts)
     return DeliveryOutcome("dead_lettered", event_id, attempts, last_error)
+
+
+def _attempt_delivery(
+    opener, request, config: WebhookConfig, dedup: DedupStore, event_id: str, attempt: int
+) -> tuple[DeliveryOutcome | None, str, bool]:
+    """One POST attempt. Returns (sent-outcome-or-None, last_error, retryable)."""
+    try:
+        with opener(request, timeout=config.timeout_seconds) as response:
+            response.read()
+            status = getattr(response, "status", 200)
+        if 200 <= status < 300:
+            dedup.mark_sent(event_id)
+            return DeliveryOutcome("sent", event_id, attempt), "", False
+        raise urllib.error.URLError(f"unexpected status {status}")
+    except urllib.error.HTTPError as exc:
+        code = exc.code
+        return None, f"HTTP {code}", not (400 <= code < 500 and code != 429)
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        return None, str(exc) or type(exc).__name__, True
 
 
 # ------------------------------------------------------------ config loading -

@@ -327,6 +327,40 @@ def check_signature_bundle(pack: pathlib.Path, report: Report, keys: dict[str, d
         )
 
 
+def _check_one_receipt(line: str, label: str, keys: dict[str, dict]) -> str | None:
+    """Re-derive, key-snapshot-resolve and verify one receipt. Returns the
+    failure text, or None when the receipt passes."""
+    try:
+        rec = json.loads(line)
+        header, payload_b64, _sig = rec["jws"].split(".")
+        header_d = json.loads(_b64d(header))
+        payload = json.loads(_b64d(payload_b64))
+    except Exception as exc:
+        return f"{label}: unreadable envelope ({exc})"
+    try:
+        want = "sha256:" + hashlib.sha256(rec["jws"].encode()).hexdigest()
+        if rec["receipt_hash"] != want:
+            return f"{label}: receipt_hash does not re-derive from the receipt bytes (tampered)"
+    except (KeyError, TypeError, AttributeError) as exc:
+        return f"{label}: malformed envelope, missing envelope fields ({exc})"
+    kid = header_d.get("kid")
+    if kid not in keys:
+        return f"{label}: signing key {kid!r} is not in the key snapshot — the pack cannot vouch for it"
+    root = keys[kid]
+    iat = int(payload.get("iat", 0))
+    event_time = dt.datetime.fromtimestamp(iat, tz=dt.UTC)
+    start = dt.datetime.fromisoformat(root["valid_from"])
+    end = dt.datetime.fromisoformat(root["valid_until"]) if root.get("valid_until") else None
+    if event_time < start or (end and event_time >= end):
+        return (
+            f"{label}: event at {event_time.isoformat()} falls outside key {kid!r} validity window"
+        )
+    reason = _check_signature(rec["jws"], root["public_key_pem"])
+    if reason:
+        return f"{label}: {reason}"
+    return None
+
+
 def check_receipts(
     pack: pathlib.Path, report: Report, keys: dict[str, dict], key_problems: list[str]
 ) -> None:
@@ -348,46 +382,9 @@ def check_receipts(
     failures = []
     ok_count = 0
     for i, line in enumerate(lines, 1):
-        label = f"receipt {i}"
-        try:
-            rec = json.loads(line)
-            header, payload_b64, _sig = rec["jws"].split(".")
-            header_d = json.loads(_b64d(header))
-            payload = json.loads(_b64d(payload_b64))
-        except Exception as exc:
-            failures.append(f"{label}: unreadable envelope ({exc})")
-            continue
-        try:
-            want = "sha256:" + hashlib.sha256(rec["jws"].encode()).hexdigest()
-            if rec["receipt_hash"] != want:
-                failures.append(
-                    f"{label}: receipt_hash does not re-derive from the receipt bytes (tampered)"
-                )
-                continue
-        except (KeyError, TypeError, AttributeError) as exc:
-            failures.append(f"{label}: malformed envelope, missing envelope fields ({exc})")
-            continue
-        kid = header_d.get("kid")
-        if kid not in keys:
-            failures.append(
-                f"{label}: signing key {kid!r} is not in the key snapshot — the pack cannot vouch for it"
-            )
-            continue
-        root = keys[kid]
-        iat = int(payload.get("iat", 0))
-        event_time = dt.datetime.fromtimestamp(iat, tz=dt.UTC)
-        start = dt.datetime.fromisoformat(root["valid_from"])
-        end = dt.datetime.fromisoformat(root["valid_until"]) if root.get("valid_until") else None
-        if event_time < start or (end and event_time >= end):
-            failures.append(
-                f"{label}: event at {event_time.isoformat()} falls outside key {kid!r} validity window"
-            )
-            continue
-        reason = _check_signature(rec["jws"], root["public_key_pem"])
-        if reason:
-            failures.append(f"{label}: {reason}")
-            continue
-        ok_count += 1
+        failure = _check_one_receipt(line, f"receipt {i}", keys)
+        failures.extend([failure] if failure else [])
+        ok_count += 0 if failure else 1
     status, msg = (
         (
             "FAIL",

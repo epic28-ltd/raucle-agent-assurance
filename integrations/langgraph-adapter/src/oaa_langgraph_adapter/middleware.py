@@ -64,6 +64,22 @@ class GateTraceContext:
 TraceContextGetter = Callable[[ToolCallRequest], GateTraceContext]
 
 
+def _trace_candidates(ctx) -> tuple:
+    """Candidate trace carriers from one runtime/state object."""
+    if isinstance(ctx, dict):
+        return (ctx,)
+    return tuple(getattr(ctx, k) for k in ("config", "metadata") if getattr(ctx, k, None))
+
+
+def _trace_id_from(cand) -> str | None:
+    """First trace-ish key present on one candidate carrier, else None."""
+    for tk in ("trace_id", "trace-id", "oaa_trace_id", "thread_id"):
+        val = cand.get(tk) if isinstance(cand, dict) else getattr(cand, tk, None)
+        if isinstance(val, str) and val:
+            return val
+    return None
+
+
 def _default_trace_context(request: ToolCallRequest) -> GateTraceContext:
     """Pull trace correlation out of the request/context if the runtime puts it there.
 
@@ -75,17 +91,10 @@ def _default_trace_context(request: ToolCallRequest) -> GateTraceContext:
         ctx = request.get(key)
         if not ctx:
             continue
-        if isinstance(ctx, dict):
-            candidates = (ctx,)
-        else:
-            candidates = tuple(
-                getattr(ctx, k) for k in ("config", "metadata") if getattr(ctx, k, None)
-            )
-        for cand in candidates:
-            for tk in ("trace_id", "trace-id", "oaa_trace_id", "thread_id"):
-                val = cand.get(tk) if isinstance(cand, dict) else getattr(cand, tk, None)
-                if isinstance(val, str) and val:
-                    return GateTraceContext(trace_id=val)
+        for cand in _trace_candidates(ctx):
+            trace_id = _trace_id_from(cand)
+            if trace_id is not None:
+                return GateTraceContext(trace_id=trace_id)
     return GateTraceContext()
 
 
