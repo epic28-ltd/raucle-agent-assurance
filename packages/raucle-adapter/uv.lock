@@ -1,0 +1,11 @@
+version = 1
+revision = 3
+requires-python = ">=3.11"
+
+[[package]]
+name = "oaa-raucle-adapter"
+version = "0.0.1.dev0"
+source = { editable = "." }
+
+[package.metadata]
+provides-extras = ["raucle"]

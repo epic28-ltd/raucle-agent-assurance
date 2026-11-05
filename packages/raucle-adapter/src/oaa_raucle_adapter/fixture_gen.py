@@ -94,6 +94,11 @@ def b64e(raw: bytes) -> str:
 def generate(workspace: pathlib.Path) -> FixtureCorpus:
     """Build the fixture corpus in *workspace* and write corpus.jsonl."""
     workspace = pathlib.Path(workspace)
+    workspace = workspace.expanduser().resolve()
+    if workspace == pathlib.Path(workspace.root) or workspace == pathlib.Path.home():
+        raise SystemExit(
+            f"refusing fixture workspace {str(workspace)!s}: not a writable, confined directory"
+        )
     RaucleGateway = _raucle().gateway.RaucleGateway  # ensure lazy import path is valid
     assert RaucleGateway is not None
     workspace.mkdir(parents=True, exist_ok=True)

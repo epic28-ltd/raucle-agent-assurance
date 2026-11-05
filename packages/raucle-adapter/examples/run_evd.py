@@ -17,7 +17,20 @@ import pathlib
 import shutil
 import sys
 
-OUT = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else pathlib.Path("fixtures")
+
+def _out_dir(argv: list[str]) -> pathlib.Path:
+    """Resolve the CLI-supplied output directory and refuse unusable targets.
+
+    Guards the harness against traversal shorthands and paths that would clobber
+    system locations (filesystem root, the user's home directory).
+    """
+    out = pathlib.Path(argv[1] if len(argv) > 1 else "fixtures").expanduser().resolve()
+    if out == pathlib.Path(out.root) or out == pathlib.Path.home():
+        raise SystemExit(f"refusing output directory {str(out)!s}: not a usable fixture target")
+    return out
+
+
+OUT = _out_dir(sys.argv)
 
 import oaa_raucle_adapter.evidence_plane as ep
 from oaa_raucle_adapter import fixture_gen as fg

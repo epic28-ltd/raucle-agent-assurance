@@ -99,6 +99,11 @@ def load_coverage(path: pathlib.Path = COVERAGE_CONFIG_PATH) -> dict[str, str]:
 
 def load_tool_audit(path: pathlib.Path) -> list[dict]:
     """Load tool-side audit index rows (JSONL, ``#`` comments allowed)."""
+    # The path can arrive from a CLI argument, so resolve it and require an
+    # existing regular file before reading: traversal shorthands die here.
+    path = pathlib.Path(path).expanduser().resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"audit events file not found: {str(path)!s}")
     rows: list[dict] = []
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
@@ -349,9 +354,11 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     clock = dt.datetime.fromisoformat(args.clock).astimezone(dt.UTC) if args.clock else None
     report = generate_report(
-        pathlib.Path(args.data_dir),
+        pathlib.Path(args.data_dir).expanduser().resolve(),
         clock=clock,
-        audit_events_path=pathlib.Path(args.audit_events) if args.audit_events else None,
+        audit_events_path=(
+            pathlib.Path(args.audit_events).expanduser().resolve() if args.audit_events else None
+        ),
     )
     out = pathlib.Path(args.out).expanduser().resolve()
     if out == pathlib.Path(out.root) or out == pathlib.Path.home():

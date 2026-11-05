@@ -235,7 +235,19 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
 
     # ------------------------------------------------- UI-02.4 findings board
     def _triage_state_path(data_dir: pathlib.Path) -> pathlib.Path:
-        return pathlib.Path(data_dir) / "triage_state.json"
+        """Sidecar path, resolved and confined to the demo data directory.
+
+        The data directory can come from the environment, so the resolved
+        sidecar path must stay inside it before anything is read or written.
+        """
+        base = pathlib.Path(data_dir).resolve()
+        path = (base / "triage_state.json").resolve()
+        if not path.is_relative_to(base):
+            raise ValueError(
+                f"triage state path {str(path)!s} escapes the demo data dir "
+                f"{str(base)!s}; refusing to use it"
+            )
+        return path
 
     def _load_triage_states() -> dict:
         """Board triage overrides, persisted as a UI-sidecar index (never the

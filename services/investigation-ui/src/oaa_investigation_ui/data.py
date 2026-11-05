@@ -160,7 +160,7 @@ class DemoData:
         # that directory before anything is read from it.
         base_r = pathlib.Path(self.dir).resolve()
         path_r = pathlib.Path(synthetic_path).resolve()
-        if base_r not in path_r.parents:
+        if not path_r.is_relative_to(base_r):
             raise ValueError(
                 f"synthetic index {str(path_r)!s} is outside the demo data dir "
                 f"{str(base_r)!s}; refusing to read it"
@@ -177,8 +177,9 @@ class DemoData:
                     gate_id=meta.get("gate_id") or "gateway",
                 )
             )
-        # Synthetic index rows (explicit markers).
-        for line in synthetic_path.read_text().splitlines():
+        # Synthetic index rows (explicit markers). Read via the resolved,
+        # confined path rather than the raw caller-supplied one.
+        for line in path_r.read_text().splitlines():
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
