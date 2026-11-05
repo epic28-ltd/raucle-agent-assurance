@@ -39,11 +39,11 @@ def test_phase5_beat_resolves_chain_graph_from_repo_checkout() -> None:
         "import importlib.util, pathlib, sys\n"
         "sys.argv = ['phase5_beat.py']\n"
         "_spec = importlib.util.spec_from_file_location(\n"
-        "    'w3_phase5_beat', pathlib.Path(r'%s'))\n"
+        f"    'w3_phase5_beat', pathlib.Path(r'{BEAT}'))\n"
         "_mod = importlib.util.module_from_spec(_spec)\n"
         "_spec.loader.exec_module(_mod)\n"
         "import raucle.chain_graph as cg\n"
-        "print(cg.__file__)\n" % BEAT
+        "print(cg.__file__)\n"
     )
     result = subprocess.run(
         [str(CLOUD_VENV_PY), "-c", script], capture_output=True, text=True
