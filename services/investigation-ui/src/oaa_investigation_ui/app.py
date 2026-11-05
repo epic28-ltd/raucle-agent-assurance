@@ -259,9 +259,15 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
     def _default_board_state(f: dict) -> str:
         return default_board_state(f)  # shared with the counting module
 
-    def _board_findings() -> tuple[list[dict], dict]:
+    def _findings_age_seconds(f: dict) -> float | None:
         import datetime as dt  # noqa: PLC0415
 
+        detected = f.get("detected_at")
+        if not detected:
+            return None
+        return (dt.datetime.now(dt.UTC) - dt.datetime.fromisoformat(detected)).total_seconds()
+
+    def _board_findings() -> tuple[list[dict], dict]:
         states = _load_triage_states()
         red_rows = [red_board_finding(r) for r in load_red_findings(data.dir)]
         red_ids = {f["id"] for f in red_rows}
@@ -270,41 +276,7 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
             st = states.get(f["id"]) or _default_board_state(f)
             if st not in BOARD_STATES:
                 st = _default_board_state(f)
-            detected = f.get("detected_at")
-            age = (
-                (dt.datetime.now(dt.UTC) - dt.datetime.fromisoformat(detected)).total_seconds()
-                if detected
-                else None
-            )
-            findings.append(
-                {
-                    "id": f["id"],
-                    "rule_id": f["rule_id"],
-                    "severity": f["severity"],
-                    "confidence": f["confidence"],
-                    "explanation": f["explanation"],
-                    "subject": f["subject"],
-                    "evidence_refs": f["evidence_refs"],
-                    "primary_ref": f["evidence_refs"][0] if f["evidence_refs"] else "",
-                    "suppressed": f["suppressed"],
-                    "suppression_reason": f["suppression_reason"],
-                    "detected_at": detected,
-                    "age_seconds": round(age) if age is not None else None,
-                    "run_id": f.get("run_id"),
-                    "state": st,
-                    "lens": (
-                        RED_LENS_BY_SEVERITY[f["severity"]]
-                        if f["id"] in red_ids
-                        else finding_lens(f)  # shared taxonomy (counting module)
-                    ),
-                    # RED-INTEGRATION: source chip ('assurance' vs 'red-mvp')
-                    # and per-rule guidance text — red rules are unknown to
-                    # the static G map, so red rows carry a guidance string
-                    # from red_intake directly (generic fallback included).
-                    "source": RED_SOURCE if f["id"] in red_ids else "assurance",
-                    "guidance": f.get("guidance") if f["id"] in red_ids else None,
-                }
-            )
+            findings.append(_board_row(f, st, red_ids, _findings_age_seconds(f)))
         # KPI values are the counting module's finding-lens counts, so every
         # KPI number equals its own chip count and column/member count:
         # verified stays an explicit index-plane metric (valid bucket).
@@ -626,3 +598,36 @@ def _page(title: str, body: str) -> str:
 
 
 app = create_app()
+
+
+def _board_row(f: dict, st: str, red_ids: set[str], age_seconds: float | None) -> dict:
+    """Board row assembly for one finding or RED intake row (pure)."""
+    is_red = f["id"] in red_ids
+    detected = f.get("detected_at")
+    return {
+        "id": f["id"],
+        "rule_id": f["rule_id"],
+        "severity": f["severity"],
+        "confidence": f["confidence"],
+        "explanation": f["explanation"],
+        "subject": f["subject"],
+        "evidence_refs": f["evidence_refs"],
+        "primary_ref": f["evidence_refs"][0] if f["evidence_refs"] else "",
+        "suppressed": f["suppressed"],
+        "suppression_reason": f["suppression_reason"],
+        "detected_at": detected,
+        "age_seconds": round(age_seconds) if age_seconds is not None else None,
+        "run_id": f.get("run_id"),
+        "state": st,
+        "lens": (
+            RED_LENS_BY_SEVERITY[f["severity"]]
+            if is_red
+            else finding_lens(f)  # shared taxonomy (counting module)
+        ),
+        # RED-INTEGRATION: source chip ('assurance' vs 'red-mvp')
+        # and per-rule guidance text — red rules are unknown to the static G
+        # map, so red rows carry a guidance string from red_intake directly
+        # (generic fallback included).
+        "source": RED_SOURCE if is_red else "assurance",
+        "guidance": f.get("guidance") if is_red else None,
+    }
