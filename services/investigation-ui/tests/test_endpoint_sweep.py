@@ -52,6 +52,10 @@ def client(data_dir: pathlib.Path) -> TestClient:
     return TestClient(create_app(data_dir))
 
 
+def _fresh_client(data_dir: pathlib.Path) -> TestClient:
+    return TestClient(create_app(data_dir))
+
+
 def _first_finding_id(client: TestClient) -> str:
     board = client.get("/api/findings/board").json()
     return board["findings"][0]["id"]
@@ -302,6 +306,116 @@ def test_live_traces_success_projects_index_plane_only(
     traces = body["traces"]
     assert len(traces) == 20  # capped at 20
     assert set(traces[0]) == {"trace_id", "name", "timestamp"}
+
+
+# ---------------------------------------------------- OV-2 assurance packet ----
+
+
+def _packet_module():
+    """The generator's real code, imported by path exactly as the CLI does."""
+    import importlib.util  # noqa: PLC0415
+
+    path = REPO_ROOT / "services" / "assurance_packet" / "packet.py"
+    spec = importlib.util.spec_from_file_location("oaa_assurance_packet", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_assurance_packet_happy_is_the_generator_packet(
+    tmp_path: pathlib.Path,
+) -> None:
+    module = _packet_module()
+    d = tmp_path / "ui-data"
+    shutil.copytree(DATA_DIR, d, dirs_exist_ok=True)
+    r = _fresh_client(d).post("/assurance/packet")
+    assert r.status_code == 200
+    packet = r.json()
+    assert packet == module.build_packet(d / "evidence_store.jsonl")
+    assert packet["kind"] == "agent_assurance_packet"
+    assert "does not establish legal or regulatory" in packet["guard"]
+
+
+def test_assurance_packet_is_deterministic_across_calls(client: TestClient) -> None:
+    a = client.post("/assurance/packet")
+    b = client.post("/assurance/packet")
+    assert a.status_code == b.status_code == 200
+    assert a.content == b.content
+
+
+def test_assurance_packet_declared_refs_change_the_packet(client: TestClient) -> None:
+    plain = client.post("/assurance/packet").json()
+    declared = client.post(
+        "/assurance/packet",
+        json={"capability_refs": ["cap:mcp/fs-write"], "governance_mapping": {"dora": ["DORA-1"]}},
+    )
+    assert declared.status_code == 200
+    assert declared.json()["capability_refs"] == ["cap:mcp/fs-write"]
+    assert declared.json()["governance_mapping"]["dora"] == ["DORA-1"]
+    assert declared.json()["packet_content_sha256"] != plain["packet_content_sha256"]
+
+
+def test_assurance_packet_bad_declared_refs_is_422_named(client: TestClient) -> None:
+    r = client.post("/assurance/packet", json={"capability_refs": "not-a-list"})
+    assert r.status_code == 422
+    assert r.json()["error"] == "capability_refs must be a list of strings"
+
+
+def test_assurance_packet_unknown_body_field_is_422_named(client: TestClient) -> None:
+    r = client.post("/assurance/packet", json={"nonsense": []})
+    assert r.status_code == 422
+    assert "unknown declared-ref field(s): nonsense" in r.json()["error"]
+
+
+def _client_minus_store(tmp_path: pathlib.Path) -> TestClient:
+    """App built over a data dir whose evidence store then vanishes: the
+    packet layer must see and name the absence, never fabricate."""
+    d = tmp_path / "ui-data"
+    shutil.copytree(DATA_DIR, d, dirs_exist_ok=True)
+    tc = _fresh_client(d)
+    (d / "evidence_store.jsonl").unlink()
+    return tc
+
+
+def test_assurance_packet_missing_store_is_404_named(tmp_path: pathlib.Path) -> None:
+    client = _client_minus_store(tmp_path)
+    r = client.post("/assurance/packet")
+    assert r.status_code == 404
+    assert "evidence store not found" in r.json()["error"]
+
+
+def test_assurance_packet_tampered_store_is_422_named(
+    tmp_path: pathlib.Path,
+) -> None:
+    d = tmp_path / "ui-data"
+    shutil.copytree(DATA_DIR, d, dirs_exist_ok=True)
+    store = d / "evidence_store.jsonl"
+    lines = store.read_text().splitlines()
+    rec = json.loads(lines[0])
+    rec["jws"] = rec["jws"][:-2] + "xx"
+    lines[0] = json.dumps(rec)
+    store.write_text("\n".join(lines) + "\n")
+    r = _fresh_client(d).post("/assurance/packet")
+    assert r.status_code == 422
+    assert "tampered" in r.json()["error"]
+
+
+def test_assurance_summary_happy_is_textcontent_html(client: TestClient) -> None:
+    r = client.get("/assurance/summary")
+    assert r.status_code == 200
+    body = r.text
+    assert body.startswith("<!doctype html>")
+    assert "does not establish legal or regulatory" in body
+    assert "<script" not in body
+    assert "onclick" not in body
+
+
+def test_assurance_summary_missing_store_is_404(tmp_path: pathlib.Path) -> None:
+    r = _client_minus_store(tmp_path).get("/assurance/summary")
+    assert r.status_code == 404
+    assert "evidence store not found" in r.json()["error"]
 
 
 # ------------------------------------------------------------ unit helpers ----
