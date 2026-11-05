@@ -205,3 +205,156 @@ def test_html_summary_writes_from_cli(built, tmp_path: pathlib.Path) -> None:
     packet = json.loads(built[1])
     assert ap_mod.GUARD_SENTENCE in html
     assert str(packet["receipt_chain"]["line_count"]) in html
+
+
+def test_cli_accepts_reference_files(tmp_path: pathlib.Path) -> None:
+    (tmp_path / "caps.json").write_text(json.dumps(["cap:fs.write@1"]))
+    (tmp_path / "proofs.json").write_text(json.dumps(["pp:policy-bundle-a"]))
+    (tmp_path / "gov.json").write_text(json.dumps({"dora": ["II-6.3"]}))
+    (tmp_path / "risks.json").write_text(json.dumps(["RA-1 outbound egress allowlisted"]))
+    out = tmp_path / "o"
+    rc = ap_mod.main(
+        [
+            "--evidence-store",
+            str(DEMO_STORE),
+            "--capability-refs",
+            str(tmp_path / "caps.json"),
+            "--policy-proof-refs",
+            str(tmp_path / "proofs.json"),
+            "--governance",
+            str(tmp_path / "gov.json"),
+            "--risk-annotations",
+            str(tmp_path / "risks.json"),
+            "--out-dir",
+            str(out),
+        ]
+    )
+    assert rc == 0
+    packet = json.loads((out / "agent_assurance_packet.json").read_text())
+    assert packet["capability_refs"] == ["cap:fs.write@1"]
+    assert packet["policy_proof_refs"] == ["pp:policy-bundle-a"]
+    assert packet["governance_mapping"]["dora"] == ["II-6.3"]
+    assert packet["risk_annotations"][0].startswith("RA-1")
+
+
+def test_cli_names_missing_reference_file(tmp_path: pathlib.Path) -> None:
+    rc = ap_mod.main(
+        [
+            "--evidence-store",
+            str(DEMO_STORE),
+            "--capability-refs",
+            str(tmp_path / "absent.json"),
+            "--out-dir",
+            str(tmp_path / "o"),
+        ]
+    )
+    assert rc == 1
+
+
+def _store_from(line_text: str, tmp_path: pathlib.Path) -> pathlib.Path:
+    store = tmp_path / "store.jsonl"
+    store.write_text(line_text)
+    return store
+
+
+def test_blank_store_line_fails_visible() -> None:
+    with pytest.raises(ValueError, match="blank store line"):
+        ap_mod._validated_line("\n\n", "store line 1")
+
+
+def test_all_blank_store_reports_no_lines(tmp_path: pathlib.Path) -> None:
+    with pytest.raises(ValueError, match="has no receipt lines"):
+        ap_mod.read_store(_store_from("\n\n", tmp_path))
+
+
+def test_non_json_store_line_fails(tmp_path: pathlib.Path) -> None:
+    with pytest.raises(ValueError, match="not a JSON object line"):
+        ap_mod.read_store(_store_from("not json\n", tmp_path))
+
+
+def test_non_object_store_line_fails(tmp_path: pathlib.Path) -> None:
+    with pytest.raises(ValueError, match="not an object"):
+        ap_mod.read_store(_store_from("[1, 2]\n", tmp_path))
+
+
+def test_bad_receipt_hash_form_fails(tmp_path: pathlib.Path) -> None:
+    line = json.loads(DEMO_STORE.read_text().splitlines()[0])
+    line["receipt_hash"] = "not-canonical"
+    with pytest.raises(ValueError, match="not canonical sha256"):
+        ap_mod.read_store(_store_from(json.dumps(line) + "\n", tmp_path))
+
+
+def test_broken_jws_envelope_fails(tmp_path: pathlib.Path) -> None:
+    line = json.loads(DEMO_STORE.read_text().splitlines()[0])
+    line["jws"] = "ey.no-dots"
+    with pytest.raises(ValueError, match="not a compact JWS"):
+        ap_mod.read_store(_store_from(json.dumps(line) + "\n", tmp_path))
+
+
+def test_unreadable_envelope_payload_fails(tmp_path: pathlib.Path) -> None:
+    line = json.loads(DEMO_STORE.read_text().splitlines()[0])
+    parts = line["jws"].split(".")
+    line["jws"] = f"{parts[0]}.@@@not-base64@@@.{parts[2]}"
+    line["receipt_hash"] = "sha256:" + hashlib.sha256(line["jws"].encode()).hexdigest()
+    with pytest.raises(ValueError, match="unreadable envelope payload"):
+        ap_mod.read_store(_store_from(json.dumps(line) + "\n", tmp_path))
+
+
+def _relit(line: dict, mutate) -> str:
+    """Rewrite a store line with a mutated payload; re-stamps the digest."""
+    parts = line["jws"].split(".")
+    payload = json.loads(base64.urlsafe_b64decode(parts[1] + "=="))
+    mutate(payload)
+    seg = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b"=").decode()
+    jws = ".".join([parts[0], seg, parts[2]])
+    return json.dumps(
+        {"receipt_hash": "sha256:" + hashlib.sha256(jws.encode()).hexdigest(), "jws": jws}
+    )
+
+
+def test_non_gate_receipt_counts_as_without_gate(tmp_path: pathlib.Path) -> None:
+    def strip_gate(payload: dict) -> None:
+        payload.pop("x_gate", None)
+
+    store = tmp_path / "store.jsonl"
+    store.write_text(_relit(json.loads(DEMO_STORE.read_text().splitlines()[0]), strip_gate) + "\n")
+    packet = ap_mod.build_packet(store)
+    assert packet["gate_coverage"]["without_gate"] == 1
+
+
+def test_other_decision_counts_honestly(tmp_path: pathlib.Path) -> None:
+    def quarantine(payload: dict) -> None:
+        if isinstance(payload.get("x_gate"), dict):
+            payload["x_gate"]["decision"] = "quarantined"
+
+    store = tmp_path / "store.jsonl"
+    store.write_text(_relit(json.loads(DEMO_STORE.read_text().splitlines()[0]), quarantine) + "\n")
+    packet = ap_mod.build_packet(store)
+    assert packet["gate_coverage"]["other"] == 1
+    assert packet["gate_coverage"]["admitted"] == 0
+
+
+def test_unknown_governance_names_are_kept(tmp_path: pathlib.Path) -> None:
+    packet = ap_mod.build_packet(DEMO_STORE, governance_mapping={"NCSC CAF": ["E-2"]})
+    assert packet["governance_mapping"]["NCSC CAF"] == ["E-2"]
+
+
+def test_bad_governance_payload_fails(tmp_path: pathlib.Path) -> None:
+    gov = tmp_path / "gov.json"
+    gov.write_text("[1]")
+    rc = ap_mod.main(
+        [
+            "--evidence-store",
+            str(DEMO_STORE),
+            "--governance",
+            str(gov),
+            "--out-dir",
+            str(tmp_path / "o"),
+        ]
+    )
+    assert rc == 1
+
+
+def test_bad_refs_payload_fails(tmp_path: pathlib.Path) -> None:
+    with pytest.raises(ValueError, match="capability-refs must be a list of strings"):
+        ap_mod._optional_json_list(str(_store_from("[1]", tmp_path)), "capability-refs")
