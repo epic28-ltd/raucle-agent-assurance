@@ -403,11 +403,8 @@ def check_receipts(
     report.checks.append(Check("receipt-signatures", status, msg))
 
 
-def check_timestamps(pack: pathlib.Path, report: Report) -> None:
-    ts_dir = pack / "timestamps"
-    lines = [
-        ln for ln in (pack / RECEIPTS_JSONL).read_text(encoding="utf-8").splitlines() if ln.strip()
-    ]
+def _claimed_timestamp_tokens(lines: list[str]) -> list[tuple[str, bytes]]:
+    """(receipt_hash, token bytes) pairs claimed via x_timestamp."""
     claimed: list[tuple[str, bytes]] = []
     for line in lines:
         try:
@@ -422,6 +419,11 @@ def check_timestamps(pack: pathlib.Path, report: Report) -> None:
                 claimed.append((rec["receipt_hash"], _b64d(str(x_ts["token"]))))
         except Exception:
             continue
+    return claimed
+
+
+def _timestamp_token_failures(claimed: list[tuple[str, bytes]], ts_dir: pathlib.Path) -> list[str]:
+    """Receipts whose claimed anchor has no matching token file (tampered)."""
     failures: list[str] = []
     for rh, token in claimed:
         p = ts_dir / f"{rh.replace(':', '-')}.token"
@@ -433,6 +435,16 @@ def check_timestamps(pack: pathlib.Path, report: Report) -> None:
             failures.append(
                 f"receipt {rh[:24]}…: token file does not match the token embedded in the receipt (tampered)"
             )
+    return failures
+
+
+def check_timestamps(pack: pathlib.Path, report: Report) -> None:
+    ts_dir = pack / "timestamps"
+    lines = [
+        ln for ln in (pack / RECEIPTS_JSONL).read_text(encoding="utf-8").splitlines() if ln.strip()
+    ]
+    claimed = _claimed_timestamp_tokens(lines)
+    failures = _timestamp_token_failures(claimed, ts_dir)
     if failures:
         report.checks.append(Check("timestamp-tokens", "FAIL", "; ".join(failures)))
     elif claimed:
@@ -494,6 +506,48 @@ def check_claim_sheet(pack: pathlib.Path, report: Report) -> None:
         )
 
 
+def _shipped_receipt_hashes(pack: pathlib.Path, report: Report) -> set[str] | None:
+    """Every receipt_hash shipped in the pack's envelope files.
+
+    Returns None (with a FAIL check recorded) on an undecodable envelope.
+    """
+    shipped: set[str] = set()
+    for path in _envelope_files(pack):
+        if not path.is_file():
+            continue
+        for ln in path.read_text(encoding="utf-8").splitlines():
+            if not ln.strip():
+                continue
+            try:
+                shipped.add(json.loads(ln)["receipt_hash"])
+            except Exception as exc:
+                report.checks.append(
+                    Check(
+                        "chain-graph-slot",
+                        "FAIL",
+                        f"undecodable envelope in {path.name}: {exc}",
+                    )
+                )
+                return None
+    return shipped
+
+
+def _chain_graph_holes(data: dict, shipped: set[str]) -> list[str]:
+    """Receipts a graph depends on that the pack does not ship."""
+    holes: list[str] = []
+    for rh, g in data.get("graphs", {}).items():
+        if isinstance(g, dict) and g.get("status") == "unresolved":
+            continue
+        for node in (g or {}).get("nodes", []):
+            if isinstance(node, dict) and node.get("kind") == "receipt":
+                rid = node.get("id", "")
+                if rid.startswith(SHA256_PREFIX) and rid not in shipped:
+                    holes.append(
+                        f"{rh[:24]}… depends on {rid[:24]}… which is not shipped in the pack"
+                    )
+    return holes
+
+
 def check_chain_graph(pack: pathlib.Path, report: Report) -> None:
     p = pack / "chain_graph.json"
     if not p.is_file():
@@ -520,33 +574,10 @@ def check_chain_graph(pack: pathlib.Path, report: Report) -> None:
     # P1.1c self-containment: every receipt a RESOLVED graph depends on
     # must be shipped inside the pack (receipts.jsonl or signatures/).
     if status == CHAIN_GRAPH_RESOLVED:
-        shipped: set[str] = set()
-        for path in _envelope_files(pack):
-            if path.is_file():
-                for ln in path.read_text(encoding="utf-8").splitlines():
-                    if ln.strip():
-                        try:
-                            shipped.add(json.loads(ln)["receipt_hash"])
-                        except Exception as exc:
-                            report.checks.append(
-                                Check(
-                                    "chain-graph-slot",
-                                    "FAIL",
-                                    f"undecodable envelope in {path.name}: {exc}",
-                                )
-                            )
-                            return
-        holes: list[str] = []
-        for rh, g in data.get("graphs", {}).items():
-            if isinstance(g, dict) and g.get("status") == "unresolved":
-                continue
-            for node in (g or {}).get("nodes", []):
-                if isinstance(node, dict) and node.get("kind") == "receipt":
-                    rid = node.get("id", "")
-                    if rid.startswith(SHA256_PREFIX) and rid not in shipped:
-                        holes.append(
-                            f"{rh[:24]}… depends on {rid[:24]}… which is not shipped in the pack"
-                        )
+        shipped = _shipped_receipt_hashes(pack, report)
+        if shipped is None:
+            return
+        holes = _chain_graph_holes(data, shipped)
         if holes:
             report.checks.append(Check("chain-graph-slot", "FAIL", "; ".join(holes[:5])))
             return
