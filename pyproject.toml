@@ -4,6 +4,26 @@ addopts = "-q"
 # raucle is an optional dependency; its absence must surface as a SKIP reason
 # (see tests/conformance/test_fixture_conformance.py), not an error.
 
+[tool.coverage.run]
+# Files excluded from coverage measurement, each with its reason (see
+# docs/spikes/SONAR-ACCEPTANCE.md, "Detector-bait and cross-repo exclusions"):
+#
+# - tests/security fixtures and the PRIV-01 live probe are DETECTOR BAIT:
+#   they exist to carry seeded secrets / contract-violating content so the
+#   detectors can be proven to fire, and to fail the suite exactly when a
+#   leak path opens. Their behaviour is asserted by the guard tests, not by
+#   line coverage of the bait itself.
+# - the conformance fixture test is the conformance bait harness.
+omit = [
+  "tests/security/fixtures/*",
+  "tests/security/test_priv01_live.py",
+  "tests/conformance/test_fixture_conformance.py",
+  # The pinned raucle worktree (checked out under oaa-spike-4nov and imported
+  # through the local pin) is CROSS-REPO code that belongs to raucle's own
+  # coverage campaign - counting it here would double-report.
+  "**/raucle-63edacd/**",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
