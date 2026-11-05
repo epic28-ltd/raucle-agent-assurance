@@ -589,9 +589,6 @@ class _Routes:
         )
         return _page("Verify offline", body)
 
-    def legacy() -> FileResponse:
-        return FileResponse(_static_dir / "legacy.html")  # UI-01 SPA, kept reachable
-
 
 def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
     """Build the FastAPI app; each route binds to a shared _Routes view."""
