@@ -13,6 +13,7 @@ import base64
 import hashlib
 import importlib.util
 import json
+import os
 import pathlib
 import sys
 
@@ -352,3 +353,18 @@ def test_pq_signature_fail_is_a_named_fail(tmp_path: pathlib.Path, capsys) -> No
     assert result == 1
     out = capsys.readouterr().out
     assert "packet_pq_signature" in out
+
+
+def test_unreadable_packet_read_error_is_named(tmp_path: pathlib.Path, capsys) -> None:
+    """A packet path that exists but cannot be read is a named FAIL, not a crash."""
+    packet_path = tmp_path / "packet.json"
+    packet_path.write_text("")
+    packet_path.chmod(0o000)
+    if os.access(packet_path, os.R_OK):  # running as root would still read it
+        packet_path.unlink()
+        return
+    try:
+        assert rv.main(["--packet", str(packet_path), "--evidence-store", str(DEMO_STORE)]) == 1
+        assert "not readable" in capsys.readouterr().out
+    finally:
+        packet_path.chmod(0o644)

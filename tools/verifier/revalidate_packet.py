@@ -436,21 +436,31 @@ def _packet_pq_fail(packet: dict, checks: list[tuple[str, str]]) -> str | None:
     return None
 
 
-def _load_bytes_fail(path: str, label: str) -> tuple[str, str | None]:
-    """Read a whole file; an OSError is a named FAIL, never a silent pass."""
+def _safe_read(path: str, mode: str, label: str, fail_sentinel: str | bytes):
+    """Read a CLI-supplied path after canonicalising it and checking it exists.
+
+    The path argument is attacker-adjacent, so it is resolved to an absolute
+    canonical form and must name an existing regular file before any read;
+    anything else is a named FAIL, never a silent pass.
+    """
+    resolved = pathlib.Path(path).expanduser().resolve()
+    if not resolved.is_file():
+        return fail_sentinel, f"{label} file not found: {resolved}"
     try:
-        with open(path, encoding="utf-8") as fh:
+        with open(resolved, mode) as fh:
             return fh.read(), None
     except OSError as exc:
-        return "", f"{label} not found: {path} ({exc})"
+        return fail_sentinel, f"{label} file not readable: {resolved} ({exc})"
+
+
+def _load_bytes_fail(path: str, label: str) -> tuple[str, str | None]:
+    data, err = _safe_read(path, "r", label, "")
+    return str(data), err
 
 
 def _load_store_bytes_fail(path: str, label: str) -> tuple[bytes, str | None]:
-    try:
-        with open(path, "rb") as fh:
-            return fh.read(), None
-    except OSError as exc:
-        return b"", f"{label} not found: {path} ({exc})"
+    data, err = _safe_read(path, "rb", label, b"")
+    return data if isinstance(data, bytes) else b"", err
 
 
 def _evidence_store_fail(store_path: str, packet: dict, checks: list) -> str | None:
