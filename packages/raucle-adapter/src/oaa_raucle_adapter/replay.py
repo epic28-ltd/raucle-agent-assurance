@@ -114,9 +114,18 @@ def _graph_doc(pack_dir: pathlib.Path) -> dict[str, Any]:
 
 
 def _payload_of(envelope_line: str) -> dict[str, Any]:
-    jws = json.loads(envelope_line)["jws"]
-    seg = jws.split(".")[1]
-    return json.loads(base64.urlsafe_b64decode(seg + "=" * (-len(seg) % 4)))
+    """The signed payload of an envelope; {} when the bytes are unreadable.
+
+    A structurally damaged envelope is never a crash in the replay: the
+    decision section renders only what the envelope actually proves
+    (nothing) and the verify section names the honest invalid state.
+    """
+    try:
+        jws = json.loads(envelope_line)["jws"]
+        seg = jws.split(".")[1]
+        return json.loads(base64.urlsafe_b64decode(seg + "=" * (-len(seg) % 4)))
+    except (ValueError, KeyError, IndexError, TypeError, AttributeError):
+        return {}
 
 
 # -- sections -----------------------------------------------------------------
