@@ -311,13 +311,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--policy-proof-refs")
     ap.add_argument("--governance")
     ap.add_argument("--risk-annotations")
+    ap.add_argument(
+        "--report",
+        help="write the machine-readable revalidation report (oaa.revalidation-report/v1)",
+    )
     args = ap.parse_args(argv)
 
     checks: list[tuple[str, str]] = []
 
     def fail(message: str) -> int:
         checks.append(("FAIL", message))
-        return _report(checks)
+        return _report(checks, args.report)
 
     try:
         with open(args.packet, encoding="utf-8") as fh:
@@ -389,12 +393,33 @@ def main(argv: list[str] | None = None) -> int:
     if diffs:
         for d in diffs:
             checks.append(("FAIL", f"re-derived packet differs at {d}"))
-        return _report(checks)
+        return _report(checks, args.report)
     checks.append(("PASS", "packet body reproduces exactly from the supplied evidence"))
-    return _report(checks)
+    return _report(checks, args.report)
 
 
-def _report(checks: list[tuple[str, str]]) -> int:
+REPORT_SCHEMA = "oaa.revalidation-report/v1"
+
+
+def _report_document(checks: list[tuple[str, str]]) -> dict:
+    """OV-20: the machine-readable output document for an independent review."""
+    failed = any(status == "FAIL" for status, _ in checks)
+    return {
+        "schema": REPORT_SCHEMA,
+        "verdict": "MISMATCH" if failed else "REPRODUCED",
+        "checks": [{"status": status, "message": message} for status, message in checks],
+    }
+
+
+def _report(checks: list[tuple[str, str]], report_path: str | None = None) -> int:
+    if report_path is not None:
+        try:
+            with open(report_path, "w", encoding="utf-8") as fh:
+                fh.write(json.dumps(_report_document(checks), indent=2, sort_keys=True) + "\n")
+        except OSError as exc:
+            # fail-visible: a report that cannot be written is a named FAIL,
+            # never a silent green run without its document.
+            checks.append(("FAIL", f"revalidation report not written: {exc}"))
     failed = any(s == "FAIL" for s, _ in checks)
     print("OV-3 packet re-validation —", "MISMATCH" if failed else "REPRODUCED")
     for status, message in checks:

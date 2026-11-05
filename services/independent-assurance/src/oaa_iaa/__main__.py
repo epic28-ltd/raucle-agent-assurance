@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Independent Assurance Agent (OV-13) — reference implementation skeleton.
+"""Independent Assurance Agent (OV-13, report review OV-20) — reference skeleton.
 
 The IAA consumes a published evidence document (assurance packet, prebind
 indicators, run records) from stdin and emits an independent review opinion
@@ -20,10 +20,95 @@ import json
 import sys
 
 OPINION_SCHEMA = "oaa.independent-review-opinion/v1"
+REVALIDATION_REPORT_SCHEMA = "oaa.revalidation-report/v1"
+
+REPRODUCED = "REPRODUCED"
+MISMATCH = "MISMATCH"
 
 PASS = "pass"
 CONCERN = "concern"
 FAIL = "fail"
+
+
+def _review_revalidation_report(evidence: dict) -> dict | None:
+    """OV-20: review opinion over a packet revalidation report document.
+
+    The agent only cites what the document carries: an honest REPRODUCED
+    verdict is corroborated (with the PASS check count cited); a MISMATCH
+    or an unreadable verdict is a fail-visible concern. Returns ``None``
+    when the document is not a revalidation report.
+    """
+    if evidence.get("schema") != REVALIDATION_REPORT_SCHEMA:
+        return None
+    verdict = evidence.get("verdict")
+    checks_raw = evidence.get("checks")
+    checks = [c for c in checks_raw if isinstance(c, dict)] if isinstance(checks_raw, list) else []
+    positives: list[dict] = []
+    concerns: list[dict] = []
+
+    if not isinstance(verdict, str):
+        return {
+            "schema": OPINION_SCHEMA,
+            "evidence_schema": evidence.get("schema"),
+            "verdict": FAIL,
+            "positives": [],
+            "concerns": [
+                {
+                    "code": "REVALIDATION_VERDICT_UNREADABLE",
+                    "count": 1,
+                    "citation": "verdict missing or not a string",
+                }
+            ],
+        }
+    if verdict == REPRODUCED:
+        passed = [c["message"] for c in checks if c.get("status") == "PASS"]
+        positives.append(
+            {
+                "code": "REVALIDATION_REPRODUCED",
+                "citation": "verdict == REPRODUCED",
+                "checks_cited": len(passed),
+            }
+        )
+        failed = [c.get("message", "") for c in checks if c.get("status") == "FAIL"]
+        for message in failed:
+            concerns.append(
+                {
+                    "code": "FAILING_CHECK_UNDER_REPRODUCED_VERDICT",
+                    "count": 1,
+                    "citation": str(message),
+                }
+            )
+        opinion_verdict = FAIL if failed else PASS
+    elif verdict == MISMATCH:
+        failed = [c for c in checks if c.get("status") == "FAIL"]
+        concerns.append(
+            {
+                "code": "REVALIDATION_MISMATCH",
+                "count": len(failed),
+                "citation": "verdict == MISMATCH",
+            }
+        )
+        opinion_verdict = FAIL
+    else:
+        concerns.append(
+            {
+                "code": "REVALIDATION_VERDICT_UNRECOGNISED",
+                "count": 1,
+                "citation": f"verdict == {verdict!r}",
+            }
+        )
+        opinion_verdict = FAIL
+    return {
+        "schema": OPINION_SCHEMA,
+        "evidence_schema": evidence.get("schema"),
+        "verdict": opinion_verdict,
+        "positives": positives,
+        "concerns": concerns,
+        "isolation_note": (
+            "opinion built in an isolate process with stdlib imports only; "
+            "no builder module, fixture or gate state was reachable"
+        ),
+    }
 
 
 def review(evidence: dict) -> dict:
@@ -36,6 +121,9 @@ def review(evidence: dict) -> dict:
     schema = evidence.get("schema")
     concerns: list[dict] = []
     positives: list[dict] = []
+
+    if schema == REVALIDATION_REPORT_SCHEMA:
+        return _review_revalidation_report(evidence) or {}
 
     indicators = evidence.get("counts") or evidence.get("indicators", {}).get("counts")
     if isinstance(indicators, dict):
