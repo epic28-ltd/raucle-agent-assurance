@@ -195,6 +195,13 @@ def test_missing_raucle_raises_with_install_guidance(
                 raise ImportError("raucle blocked for this test")
             return None
 
+    # raucle is import-cached once present; force the missing path so the
+    # blocker is exercised even on environments where raucle IS installed
+    monkeypatch.setattr(
+        sys,
+        "modules",
+        {k: v for k, v in sys.modules.items() if not k.startswith("raucle")},
+    )
     monkeypatch.setattr(sys, "meta_path", [_Blocker()])
     with pytest.raises(ImportError, match="raucle is required"):
         evidence_plane._raucle()
