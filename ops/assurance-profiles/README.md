@@ -55,4 +55,24 @@ coverage against documented evidence.
 # exit code: 0 PASS / 1 PARTIAL / 2 FAIL / 3 profile-data defect (see stdout JSON)
 ```
 
+## CI gate action (OV-5)
+
+`.github/actions/assurance-gate` is a composite GitHub action wrapping the
+validator (local-first: plain python + pyyaml, no paid deps), with a
+reusable workflow at `.github/workflows/assurance-gate.yml`:
+
+```yaml
+- uses: ./.github/actions/assurance-gate
+  with:
+    packet: ops/assurance-profiles/fixtures/green.json
+    profile: regulated
+    fail-on-partial: false   # PARTIAL warns and continues; FAIL fails the job
+```
+
+Outputs `verdict` and writes a step summary. `.github/workflows/
+assurance-gate-fixtures.yml` exercises the action end to end against
+committed fixture packets in `ops/assurance-profiles/fixtures/`:
+`green.json` (passes), `partial.json` (warns, job continues),
+`failing.json` (invalid receipts and an unverified tool, job fails).
+
 Tests: `tests/assurance/test_profiles_crosswalk.py`.

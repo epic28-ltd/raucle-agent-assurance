@@ -221,6 +221,32 @@ def test_diff_is_machine_readable() -> None:
         assert entry["status"] in ("PARTIAL", "FAIL")
 
 
+# ------------------------------------------------------------------- fixtures
+
+FIXTURES = REPO_ROOT / "ops" / "assurance-profiles" / "fixtures"
+
+
+def test_ci_gate_fixture_exit_codes() -> None:
+    """The committed fixture packets behave exactly as the CI gate expects:
+    green.json exits 0 (PASS), partial.json exits 1 (warn), failing.json
+    exits 2 (gates broken: invalid receipts and an unverified tool)."""
+    assert FIXTURES.joinpath("green.json").exists()
+    result = validator.validate(json.loads((FIXTURES / "green.json").read_text()), BASIC)
+    assert result["verdict"] == validator.PASS
+    result = validator.validate(json.loads((FIXTURES / "partial.json").read_text()), BASIC)
+    assert result["verdict"] == validator.PARTIAL
+    assert any(c["check_id"] == "governance:framework:DORA" for c in validator.diff(result))
+    result = validator.validate(json.loads((FIXTURES / "failing.json").read_text()), BASIC)
+    assert result["verdict"] == validator.FAIL
+
+
+def test_ci_gate_fixture_files_are_offline_readable_json() -> None:
+    for name in ("green.json", "partial.json", "failing.json"):
+        packet = json.loads((FIXTURES / name).read_text())
+        assert packet["kind"] == "agent_assurance_packet"
+        assert packet["schema_version"] == 1
+
+
 def test_unknown_profile_raises() -> None:
     with pytest.raises(ValueError, match="unknown profile"):
         _run(_fixture_packet(), "unregulated")

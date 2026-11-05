@@ -1,0 +1,54 @@
+name: "Assurance gate"
+description: >-
+  Validate an agent assurance packet against a governance profile
+  (ops/assurance-profiles: OV-4). Local-first: plain python, no paid deps.
+  Exit codes: 0 PASS / 1 PARTIAL (warn, job continues) / 2 FAIL / 3 profile-data defect.
+inputs:
+  packet:
+    description: Path to agent_assurance_packet.json
+    required: true
+  profile:
+    description: Profile name from profiles.yaml (basic or regulated)
+    required: false
+    default: basic
+  summary-title:
+    description: Heading written to the job step summary
+    required: false
+    default: "Assurance gate"
+  fail-on-partial:
+    description: "true: PARTIAL also fails the job (strict gate); default warn-and-continue"
+    required: false
+    default: "false"
+outputs:
+  verdict:
+    description: PASS, PARTIAL, FAIL or DEFECT
+    value: ${{ steps.gate.outputs.verdict }}
+runs:
+  using: "composite"
+  steps:
+    - name: Ensure pyyaml (validator profile loader)
+      shell: bash
+      run: python3 -m pip install --quiet pyyaml
+
+    - id: gate
+      shell: bash
+      run: |
+        set -o pipefail
+        validator="${{ github.workspace }}/ops/assurance-profiles/validator.py"
+        output="$(python3 "$validator" --packet "${{ inputs.packet }}" --profile "${{ inputs.profile }}")" && exit_code=0 || exit_code=$?
+        verdict=$(printf '%s' "$output" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
+        if [ "$exit_code" = "3" ]; then verdict=DEFECT; fi
+        echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
+        {
+          echo "## ${{ inputs.summary-title }}"
+          echo ""
+          echo "verdict: **$verdict** (exit $exit_code) - packet $(basename "${{ inputs.packet }}") vs profile ${{ inputs.profile }}"
+        } >> "$GITHUB_STEP_SUMMARY"
+        printf '%s\n' "$output"
+        # PARTIAL is a warning unless the caller asked for a strict gate;
+        # FAIL (2) and DEFECT (3) always fail the job.
+        if [ "${{ inputs.fail-on-partial }}" = "true" ]; then
+          [ "$exit_code" = "0" ]
+        else
+          [ "$exit_code" -le 1 ]
+        fi

@@ -393,7 +393,7 @@ def main(argv: list[str] | None = None) -> int:
     if problems:
         for problem in problems:
             print(f"profile-data defect: {problem}")
-        return 2
+        return 3
     packet = json.loads(pathlib.Path(args.packet).read_text())
     result = validate(packet, args.profile)
     print(json.dumps(result, indent=2, sort_keys=True))
