@@ -12,3 +12,4 @@ sys.path.insert(
     str(pathlib.Path(__file__).resolve().parent / "services" / "correlation" / "src"),
 )
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "services" / "rules" / "src"))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "services" / "prebind" / "src"))
