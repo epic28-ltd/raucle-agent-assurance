@@ -551,5 +551,13 @@ def default_data_dir() -> pathlib.Path:
 
     env = os.environ.get("OAA_INVESTIGATION_UI_DATA")
     if env:
-        return pathlib.Path(env)
+        # The value comes from the environment, so resolve it and refuse
+        # unusable targets before it can seed any file access downstream.
+        resolved = pathlib.Path(env).expanduser().resolve()
+        if resolved == pathlib.Path(resolved.root) or resolved == pathlib.Path.home():
+            raise SystemExit(
+                f"refusing OAA_INVESTIGATION_UI_DATA={env!s}: "
+                "resolves to an unusable data directory"
+            )
+        return resolved
     return pathlib.Path(__file__).resolve().parents[2] / "demo_data"
