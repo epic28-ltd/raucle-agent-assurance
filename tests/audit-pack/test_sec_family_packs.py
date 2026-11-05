@@ -33,7 +33,8 @@ MANIFEST = "manifest.json"
 _spec = importlib.util.spec_from_file_location(
     "oaa_audit_pack", REPO_ROOT / "ops" / "audit-pack" / "pack.py"
 )
-assert _spec and _spec.loader
+assert _spec
+assert _spec.loader
 pack = importlib.util.module_from_spec(_spec)
 sys.modules.setdefault("oaa_audit_pack", pack)
 _spec.loader.exec_module(pack)
@@ -41,7 +42,8 @@ _spec.loader.exec_module(pack)
 _vspec = importlib.util.spec_from_file_location(
     "oaa_verify_pack_sec", REPO_ROOT / "tools" / "verifier" / "verify_pack.py"
 )
-assert _vspec and _vspec.loader
+assert _vspec
+assert _vspec.loader
 verify_pack = importlib.util.module_from_spec(_vspec)
 sys.modules.setdefault("oaa_verify_pack_sec", verify_pack)
 _vspec.loader.exec_module(verify_pack)

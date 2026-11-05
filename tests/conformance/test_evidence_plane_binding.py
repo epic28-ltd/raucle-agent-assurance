@@ -225,5 +225,6 @@ def test_store_get_missing_hash_raises(tmp_path: pathlib.Path):
 def test_registry_knows_and_roots_snapshot():
     reg = TrustRootRegistry()
     reg.add(TrustRoot(KID, "pem", "1970-01-01T00:00:00+00:00", None))
-    assert reg.knows(KID) and not reg.knows("other")
+    assert reg.knows(KID)
+    assert not reg.knows("other")
     assert [r.key_id for r in reg.roots] == [KID]
