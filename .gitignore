@@ -21,3 +21,6 @@ evidence.jsonl.bak
 nohup.out
 demo_data/red_findings.json
 demo/w3/runtime/
+.cache/
+nohup*.out
+/tmp/
