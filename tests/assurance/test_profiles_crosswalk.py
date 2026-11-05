@@ -42,7 +42,10 @@ def _fixture_packet(**overrides) -> dict:
         "capability_chain": ["shell", "file_write", "http_fetch"],
         "policy_proof_refs": ["policy://billing/http-fetch", "policy://billing/shell"],
         "receipt_chain": {"total_count": 214, "verified_count": 214, "invalid_or_missing_count": 0},
-        "coverage": {"gate_covered_tools": ["shell", "file_write", "http_fetch"], "unverified_tools": []},
+        "coverage": {
+            "gate_covered_tools": ["shell", "file_write", "http_fetch"],
+            "unverified_tools": [],
+        },
         "governance": {
             "DORA": {
                 "Art 28(1)-28(3) transaction logging": {"status": "SUPPORTED"},
@@ -107,7 +110,9 @@ def test_missing_packet_fields_degrade_to_partial_not_pass() -> None:
 
 
 def test_invalid_receipts_fail_visibly_under_basic() -> None:
-    packet = _fixture_packet(receipt_chain={"total_count": 214, "verified_count": 213, "invalid_or_missing_count": 1})
+    packet = _fixture_packet(
+        receipt_chain={"total_count": 214, "verified_count": 213, "invalid_or_missing_count": 1}
+    )
     result = _run(packet, BASIC)
     assert result["verdict"] == validator.FAIL
     assert any(
@@ -117,7 +122,9 @@ def test_invalid_receipts_fail_visibly_under_basic() -> None:
 
 
 def test_unverified_tools_warn_under_basic_fail_under_regulated() -> None:
-    packet = _fixture_packet(coverage={"gate_covered_tools": ["shell"], "unverified_tools": ["http_fetch"]})
+    packet = _fixture_packet(
+        coverage={"gate_covered_tools": ["shell"], "unverified_tools": ["http_fetch"]}
+    )
     basic = _run(packet, BASIC)
     regulated = _run(packet, REGULATED)
     assert basic["verdict"] == validator.PARTIAL
@@ -172,7 +179,11 @@ def test_unsupported_control_never_becomes_supported() -> None:
         result = _run(packet, profile)
         # A fabricated claim fails in EVERY profile: tampered_claim semantics.
         assert result["verdict"] == validator.FAIL
-        row = next(c for c in result["checks"] if c["check_id"].endswith("LLM06 Sensitive Information Disclosure"))
+        row = next(
+            c
+            for c in result["checks"]
+            if c["check_id"].endswith("LLM06 Sensitive Information Disclosure")
+        )
         assert row["status"] == validator.FAIL
         assert "overstates" in row["note"]
 
@@ -189,7 +200,9 @@ def test_packet_cannot_claim_success_beyond_the_crosswalk() -> None:
     for profile in (BASIC, REGULATED):
         result = _run(packet, profile)
         assert result["verdict"] == validator.FAIL
-        row = next(c for c in result["checks"] if c["check_id"].endswith("Art 5(1) ICT risk framework"))
+        row = next(
+            c for c in result["checks"] if c["check_id"].endswith("Art 5(1) ICT risk framework")
+        )
         assert row["status"] == validator.FAIL
         assert "overstates" in row["note"]
 
@@ -237,7 +250,11 @@ def test_cli_exit_codes_by_verdict(tmp_path: pathlib.Path) -> None:
     tampered_path.write_text(
         json.dumps(
             _fixture_packet(
-                receipt_chain={"total_count": 214, "verified_count": 213, "invalid_or_missing_count": 1}
+                receipt_chain={
+                    "total_count": 214,
+                    "verified_count": 213,
+                    "invalid_or_missing_count": 1,
+                }
             )
         )
     )
@@ -252,7 +269,16 @@ def test_cli_refuses_broken_profile_data(tmp_path: pathlib.Path) -> None:
     # validation by self_check, so the CLI cannot gate on inconsistent data.
     packet_path = tmp_path / "packet.json"
     packet_path.write_text(json.dumps(_fixture_packet()))
-    broken = {**PROFILES, "profiles": {**PROFILES["profiles"], "basic": {**PROFILES["profiles"]["basic"], "required_controls": ["DORA:not a real control"]}}}
+    broken = {
+        **PROFILES,
+        "profiles": {
+            **PROFILES["profiles"],
+            "basic": {
+                **PROFILES["profiles"]["basic"],
+                "required_controls": ["DORA:not a real control"],
+            },
+        },
+    }
     problems = validator.self_check(profiles=broken, crosswalk=CROSSWALK)
     assert problems
     tmp_path.joinpath("defect").write_text(json.dumps(problems))
