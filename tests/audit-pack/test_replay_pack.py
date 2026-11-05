@@ -28,7 +28,8 @@ _spec = importlib.util.spec_from_file_location(
     "oaa_pack_replay",
     REPO_ROOT / "packages" / "raucle-adapter" / "src" / "oaa_raucle_adapter" / "replay.py",
 )
-assert _spec and _spec.loader
+assert _spec
+assert _spec.loader
 replay = importlib.util.module_from_spec(_spec)
 sys.modules["oaa_pack_replay"] = replay
 _spec.loader.exec_module(replay)
@@ -79,7 +80,8 @@ def test_replay_renders_the_decision_and_the_chain(pack_dirs) -> None:
     assert body["decision"]["signature_state"] is not None
     chain = body["authority_chain"]
     nodes = chain["nodes"]
-    assert nodes and all("signature" in node for node in nodes)
+    assert nodes
+    assert all("signature" in node for node in nodes)
 
 
 def test_replay_policy_is_honest_about_versioned_text(pack_dirs) -> None:
@@ -115,14 +117,16 @@ def test_replay_hops_state_the_pack_gap_honestly(pack_dirs) -> None:
 def test_replay_verify_uses_the_pinned_snapshot(pack_dirs) -> None:
     for pack_dir in pack_dirs.values():
         rows = _replay(pack_dir)["verify"]
-        assert rows and rows[0]["receipt_hash"] == _first_receipt_hash(pack_dir)
+        assert rows
+        assert rows[0]["receipt_hash"] == _first_receipt_hash(pack_dir)
         assert rows[0]["verify"] in ("valid", "invalid", "unknown_key", "unreachable")
 
 
 def test_replay_timestamps_are_recorded_and_ordered(pack_dirs) -> None:
     for pack_dir in pack_dirs.values():
         stamps = _replay(pack_dir)["timestamps"]
-        assert stamps and any(s["kind"] == "receipt" for s in stamps)
+        assert stamps
+        assert any(s["kind"] == "receipt" for s in stamps)
         ats = [s["at"] for s in stamps]
         assert ats == sorted(ats)
 
@@ -135,7 +139,8 @@ def test_replay_pending_graph_degrades_honestly(pack_dirs) -> None:
     assert body["authority_chain"]["nodes"] == []
     verdict = body["decision"]["decision"]
     assert verdict in ("allow", "deny"), "the envelope payload itself is shown"
-    assert body["verify"] and body["verify"][0]["verify"] == "valid"
+    assert body["verify"]
+    assert body["verify"][0]["verify"] == "valid"
 
 
 def test_replay_unknown_receipt_raises(pack_dirs) -> None:

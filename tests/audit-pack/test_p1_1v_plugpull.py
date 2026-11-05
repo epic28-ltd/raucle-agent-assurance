@@ -33,7 +33,8 @@ CLOCK = dt.datetime(2026, 11, 5, 12, 0, 0, tzinfo=dt.UTC)
 
 def _load(name: str, path: pathlib.Path):
     spec = importlib.util.spec_from_file_location(name, path)
-    assert spec and spec.loader
+    assert spec
+    assert spec.loader
     mod = importlib.util.module_from_spec(spec)
     sys.modules[name] = mod
     spec.loader.exec_module(mod)
@@ -128,7 +129,8 @@ def test_plug_pulled_before_run_tamper_path_still_fails_red(
     assert report.failed
     assert "OVERALL VERDICT: RED" in report.render()
     check = next(c for c in report.checks if c.name == "manifest-integrity")
-    assert check.status == "FAIL" and "verify-notes.md" in check.message
+    assert check.status == "FAIL"
+    assert "verify-notes.md" in check.message
     assert offline_guard == [], f"verifier attempted external calls: {offline_guard}"
 
 

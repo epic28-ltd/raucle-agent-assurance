@@ -37,7 +37,8 @@ MANIFEST = "manifest.json"
 _spec = importlib.util.spec_from_file_location(
     "oaa_audit_pack", REPO_ROOT / "ops" / "audit-pack" / "pack.py"
 )
-assert _spec and _spec.loader
+assert _spec
+assert _spec.loader
 pack = importlib.util.module_from_spec(_spec)
 sys.modules["oaa_audit_pack"] = pack
 _spec.loader.exec_module(pack)
@@ -45,7 +46,8 @@ _spec.loader.exec_module(pack)
 _vspec = importlib.util.spec_from_file_location(
     "oaa_verify_pack", REPO_ROOT / "tools" / "verifier" / "verify_pack.py"
 )
-assert _vspec and _vspec.loader
+assert _vspec
+assert _vspec.loader
 verify_pack = importlib.util.module_from_spec(_vspec)
 sys.modules["oaa_verify_pack"] = verify_pack
 _vspec.loader.exec_module(verify_pack)
@@ -102,7 +104,8 @@ def test_window_filter_single_receipt(built: dict, tmp_path: pathlib.Path) -> No
     lines = [ln for ln in (DEMO / "evidence_store.jsonl").read_text().splitlines() if ln.strip()]
     rec = json.loads(lines[0])
     first = pack.select_envelopes(DEMO / "evidence_store.jsonl", receipt_hash=rec["receipt_hash"])
-    assert len(first) == 1 and first[0] == lines[0]
+    assert len(first) == 1
+    assert first[0] == lines[0]
     t0 = pack._event_time(lines[0])
     lo, hi = t0.replace(microsecond=0), t0.replace(microsecond=0)
     sub = pack.select_envelopes(DEMO / "evidence_store.jsonl", from_utc=lo, to_utc=hi)
@@ -120,7 +123,8 @@ def test_chain_graph_slot_pending(built: dict) -> None:
 def test_claim_sheet_no_claims_and_guard(built: dict) -> None:
     text = (pathlib.Path(built["pack_dir"]) / "claims.md").read_text()
     pack.assert_no_compliance_claims(text)  # raises on any positive claim
-    assert pack.GUARD_HEADER in text and pack.GUARD_SENTINEL in text
+    assert pack.GUARD_HEADER in text
+    assert pack.GUARD_SENTINEL in text
     assert "not establish legal or regulatory" in text
 
 
@@ -300,7 +304,8 @@ def test_timestamp_token_green_path(tmp_path: pathlib.Path) -> None:
     report = verify_pack.verify_pack(d)
     assert not report.failed
     check = next(c for c in report.checks if c.name == "timestamp-tokens")
-    assert check.status == "PASS" and "matching token file" in check.message
+    assert check.status == "PASS"
+    assert "matching token file" in check.message
     sig_check = next(c for c in report.checks if c.name == "receipt-signatures")
     assert "1 of 1" in sig_check.message
 
@@ -394,7 +399,8 @@ def test_manifest_declares_pinned_snapshot_and_self_containment(built: dict) -> 
     # verifier agrees, and does not warn on a P1.1c pack
     report = verify_pack.verify_pack(pathlib.Path(built["pack_dir"]))
     pk = next(c for c in report.checks if c.name == "pinned-key-snapshot")
-    assert pk.status == "PASS" and not report.warned
+    assert pk.status == "PASS"
+    assert not report.warned
 
 
 def test_build_refuses_key_not_in_pinned_snapshot(tmp_path: pathlib.Path) -> None:
@@ -472,7 +478,8 @@ def test_resolved_pack_with_pinned_keys_self_contained(
         for n in g.get("nodes", [])
         if n.get("kind") == "receipt" and isinstance(n.get("signature"), dict)
     ]
-    assert sig_states and all(s == "verified" for s in sig_states), sig_states
+    assert sig_states, sig_states
+    assert all(s == "verified" for s in sig_states), sig_states
     bundle = d / "signatures" / "chain_receipts.jsonl"
     # every graph receipt id is carried inside the pack
     report = verify_pack.verify_pack(d)
@@ -517,7 +524,8 @@ def test_chain_pack_graph_coverage_check_fails_without_bundle(
     report = verify_pack.verify_pack(d)
     assert report.failed
     check = next(c for c in report.checks if c.name == "chain-graph-slot")
-    assert check.status == "FAIL" and "not shipped" in check.message
+    assert check.status == "FAIL"
+    assert "not shipped" in check.message
 
 
 def test_signature_bundle_tamper_fails_named(built: dict, tmp_path: pathlib.Path) -> None:
@@ -555,14 +563,16 @@ def test_render_claim_sheet_cli_matches_pack(built: dict, tmp_path: pathlib.Path
     expected = (pathlib.Path(built["pack_dir"]) / "claims.md").read_text()
     assert proc.stdout == expected
     pack.assert_no_compliance_claims(proc.stdout)
-    assert pack.GUARD_HEADER in proc.stdout and pack.GUARD_SENTINEL in proc.stdout
+    assert pack.GUARD_HEADER in proc.stdout
+    assert pack.GUARD_SENTINEL in proc.stdout
 
 
 def test_rendered_demo_claim_sheet_ships_with_guard() -> None:
     """The checked-in rendered sample is a real generator output, guard intact."""
     sample = REPO_ROOT / "docs" / "demo" / "auditor-claims-demo.md"
     text = sample.read_text()
-    assert pack.GUARD_HEADER in text and pack.GUARD_SENTINEL in text
+    assert pack.GUARD_HEADER in text
+    assert pack.GUARD_SENTINEL in text
     pack.assert_no_compliance_claims(text)
     assert "<!-- Rendered sample" in text
 

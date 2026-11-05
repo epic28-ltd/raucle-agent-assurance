@@ -30,7 +30,8 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 _spec = importlib.util.spec_from_file_location(
     "oaa_second_laptop", REPO_ROOT / "ops" / "audit-pack" / "second_laptop.py"
 )
-assert _spec is not None and _spec.loader is not None
+assert _spec is not None
+assert _spec.loader is not None
 role_play = importlib.util.module_from_spec(_spec)
 sys.modules["oaa_second_laptop"] = role_play
 _spec.loader.exec_module(role_play)
@@ -38,7 +39,8 @@ _spec.loader.exec_module(role_play)
 _pack_spec = importlib.util.spec_from_file_location(
     "oaa_audit_pack", REPO_ROOT / "ops" / "audit-pack" / "pack.py"
 )
-assert _pack_spec is not None and _pack_spec.loader is not None
+assert _pack_spec is not None
+assert _pack_spec.loader is not None
 pack = importlib.util.module_from_spec(_pack_spec)
 sys.modules["oaa_audit_pack"] = pack
 _pack_spec.loader.exec_module(pack)
@@ -64,17 +66,21 @@ def test_second_laptop_role_play_full_flow(tmp_path: pathlib.Path) -> None:
     pack_dir = pathlib.Path(result["laptop_pack"])
     # Nothing but the pack and the verifier CLI crossed over.
     entries = sorted(p.name for p in laptop.iterdir())
-    assert "verify_pack.py" in entries and pack_dir.name in entries
-    assert "conftest.py" not in entries and "pytest" not in " ".join(entries)
+    assert "verify_pack.py" in entries
+    assert pack_dir.name in entries
+    assert "conftest.py" not in entries
+    assert "pytest" not in " ".join(entries)
     # Green verdict under namespace isolation.
     assert "OVERALL VERDICT: GREEN" in result["verification_green"]
-    assert result["network_probe"] is not None and result["network_probe"]["expectedly_failed"]
+    assert result["network_probe"] is not None
+    assert result["network_probe"]["expectedly_failed"]
     # Deliberate tamper came back RED with exit 1 under the same isolation.
     assert "OVERALL VERDICT: RED" in result["verification_tamper"]
     assert "tampered after export" in result["verification_tamper"]
     # Claim sheet: guard intact, no compliance claims, signed and signature valid.
     sheet = (laptop / "claims.md").read_text()
-    assert pack.GUARD_HEADER in sheet and pack.GUARD_SENTINEL in sheet
+    assert pack.GUARD_HEADER in sheet
+    assert pack.GUARD_SENTINEL in sheet
     pack.assert_no_compliance_claims(sheet)
     signature = base64.b64decode((laptop / "claims.md.sig").read_text().strip())
     pub = Ed25519PublicKey.from_public_bytes((laptop / "claims-signing-key.pub").read_bytes())
@@ -82,7 +88,9 @@ def test_second_laptop_role_play_full_flow(tmp_path: pathlib.Path) -> None:
     # Honest notes were left in the directory.
     notes = (laptop / "role-play-notes.md").read_text()
     lowered = notes.lower()
-    assert "second laptop" in lowered and "same kernel" in lowered and "honest limits" in lowered
+    assert "second laptop" in lowered
+    assert "same kernel" in lowered
+    assert "honest limits" in lowered
     assert result["isolation_note"].startswith("netns via")
 
 
