@@ -66,56 +66,99 @@ def esc(value) -> str:
     return html.escape(str(value), quote=True)
 
 
-def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
-    app = fastapi.FastAPI(title="OAA Investigation UI (UI-01)", version="0.1.0")
-    data = DemoData(data_dir or DATA_DIR)
+# shared view-lens helpers (pure in `data`)
 
-    def _run_summary(run: dict) -> dict:
-        verif: dict[str, int] = {}
-        corr: dict[str, int] = {}
-        span_count = 0
-        privileged = 0
-        for trace in run["traces"]:
-            for span in trace["spans"]:
-                span_count += 1
-                if span.get("privileged"):
-                    privileged += 1
-                    status = data.verification_for(span.get("receipt_hash"))
-                    verif[status["status"]] = verif.get(status["status"], 0) + 1
-                    c = data.correlation_for_span(span, trace["trace_id"])
-                    corr[c["state"]] = corr.get(c["state"], 0) + 1
-        return {
-            "span_count": span_count,
-            "privileged_span_count": privileged,
-            "verification_summary": verif,
-            "correlation_summary": corr,
-            "pending_correlation": data.pending_count,
-        }
 
-    def _run_findings(run: dict) -> list[dict]:
-        traces = {t["trace_id"] for t in run["traces"]}
-        hashes = {s["receipt_hash"] for t in run["traces"] for s in t["spans"] if s["receipt_hash"]}
-        out = []
-        for f in data.findings:
-            refs = set(f["evidence_refs"])
-            if refs & traces or refs & hashes:
-                out.append(f)
-        return out
+def _run_summary(data: DemoData, run: dict) -> dict:
+    verif: dict[str, int] = {}
+    corr: dict[str, int] = {}
+    span_count = 0
+    privileged = 0
+    for trace in run["traces"]:
+        for span in trace["spans"]:
+            span_count += 1
+            if span.get("privileged"):
+                privileged += 1
+                status = data.verification_for(span.get("receipt_hash"))
+                verif[status["status"]] = verif.get(status["status"], 0) + 1
+                c = data.correlation_for_span(span, trace["trace_id"])
+                corr[c["state"]] = corr.get(c["state"], 0) + 1
+    return {
+        "span_count": span_count,
+        "privileged_span_count": privileged,
+        "verification_summary": verif,
+        "correlation_summary": corr,
+        "pending_correlation": data.pending_count,
+    }
+
+
+def _run_findings(data: DemoData, run: dict) -> list[dict]:
+    traces = {t["trace_id"] for t in run["traces"]}
+    hashes = {s["receipt_hash"] for t in run["traces"] for s in t["spans"] if s["receipt_hash"]}
+    out = []
+    for f in data.findings:
+        refs = set(f["evidence_refs"])
+        if refs & traces or refs & hashes:
+            out.append(f)
+    return out
+
+
+# ------------------------------------------------------------ API (JSON)
+
+
+def _triage_state_path(base_dir: pathlib.Path) -> pathlib.Path:
+    """Sidecar path, resolved and confined to the demo data directory.
+
+    The data directory can come from the environment, so the resolved
+    sidecar path must stay inside it before anything is read or written.
+    """
+    base = pathlib.Path(base_dir).resolve()
+    path = (base / "triage_state.json").resolve()
+    if not path.is_relative_to(base):
+        raise ValueError(
+            f"triage state path {str(path)!s} escapes the demo data dir "
+            f"{str(base)!s}; refusing to use it"
+        )
+    return path
+
+
+def _findings_age_seconds(f: dict) -> float | None:
+    import datetime as dt  # noqa: PLC0415
+
+    detected = f.get("detected_at")
+    if not detected:
+        return None
+    return (dt.datetime.now(dt.UTC) - dt.datetime.fromisoformat(detected)).total_seconds()
+
+
+def index() -> FileResponse:
+    return FileResponse(_static_dir / "index.html")  # UI-02 SPA
+
+
+def legacy() -> FileResponse:
+    return FileResponse(_static_dir / "legacy.html")  # UI-01 SPA, kept reachable
+
+
+class _Routes:
+    """Endpoint logic for UI-01; bodies live here so ``create_app`` stays a
+    pure router registration (S3776): no counting logic in the factory."""
+
+    def __init__(self, data_dir: pathlib.Path) -> None:
+        self.data_dir = data_dir
+        self.data = DemoData(self.data_dir)
 
     # ------------------------------------------------------------ API (JSON)
-    @app.get("/api/runs")
-    def api_runs():
+    def runs(self):
         return [
             {
                 **{k: r[k] for k in ("run_id", "agent", "release", "started")},
-                **_run_summary(r),
+                **_run_summary(self.data, r),
             }
-            for r in data.runs
+            for r in self.data.runs
         ]
 
-    @app.get("/api/runs/{run_id}")
-    def api_run(run_id: str):
-        run = data.get_run(run_id)
+    def run(self, run_id: str):
+        run = self.data.get_run(run_id)
         if run is None:
             return JSONResponse({"error": "unknown run_id"}, status_code=404)
         traces = []
@@ -132,16 +175,16 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
                         "started": span["started"],
                         "attrs": span["attrs"],  # hostile content: SPA renders via textContent
                         "receipt_hash": span["receipt_hash"],
-                        "verification": data.verification_for(span.get("receipt_hash")),
-                        "correlation": data.correlation_for_span(span, trace["trace_id"]),
+                        "verification": self.data.verification_for(span.get("receipt_hash")),
+                        "correlation": self.data.correlation_for_span(span, trace["trace_id"]),
                         "evidence_canonical": bool(
-                            data.store_line(span.get("receipt_hash") or "")
+                            self.data.store_line(span.get("receipt_hash") or "")
                             if span["receipt_hash"]
                             else False
                         ),
                     }
                 )
-            corr = data.correlation_by_trace.get(trace["trace_id"])
+            corr = self.data.correlation_by_trace.get(trace["trace_id"])
             traces.append(
                 {
                     "trace_id": trace["trace_id"],
@@ -154,18 +197,17 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
             )
         return {
             **{k: run[k] for k in ("run_id", "agent", "release", "started")},
-            **_run_summary(run),
+            **_run_summary(self.data, run),
             "traces": traces,
-            "findings": _run_findings(run),
+            "findings": _run_findings(self.data, run),
         }
 
-    @app.get("/api/dashboard")
-    def api_dashboard() -> dict:
+    def dashboard(self) -> dict:
         """UI-02 health-at-a-glance aggregate: three traffic-light counters
         plus verification / correlation state distributions. Every number
         comes from the shared counting module (one source, both surfaces);
         no counting logic lives here any more."""
-        counts = counts_payload(data_dir, data)
+        counts = counts_payload(self.data_dir, self.data)
         active = counts["findings"]["active"]
         suppressed = counts["findings"]["suppressed"]
         return {
@@ -179,21 +221,18 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
             "runs": counts["runs"],
         }
 
-    @app.get("/api/counts")
-    def api_counts() -> dict:
+    def counts(self) -> dict:
         """UI-05 coherence pass: ONE full breakdown of every count both
-        surfaces render, computed from the same demo data source by the
+        surfaces render, computed from the same demo self.data source by the
         shared counting module. The board, the dashboard and the console
         (via its proxy) all read from exactly this output."""
-        return counts_payload(data_dir, data)
+        return counts_payload(self.data_dir, self.data)
 
-    @app.get("/api/findings")
-    def api_findings():
-        return data.findings
+    def findings(self):
+        return self.data.findings
 
     # ---------------------------------------------- RED-INTEGRATION intake
-    @app.post("/api/findings/ingest")
-    async def api_ingest_findings(request: fastapi.Request):
+    async def ingest_findings(self, request: fastapi.Request):
         """Accepts red findings at run end (see red_intake + the spike doc).
         Body: a JSON array of findings, an ``{"findings": [...]}`` object, or
         raw JSONL text — the exact shape of ``corpora/findings.jsonl``.
@@ -215,74 +254,47 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
             return JSONResponse({"error": str(exc)}, status_code=422)
         if not findings:
             return JSONResponse({"error": "no findings in body"}, status_code=422)
-        summary = ingest_red_findings(data.dir, findings)
+        summary = ingest_red_findings(self.data.dir, findings)
         return {"ingested": True, "source": RED_SOURCE, **summary}
 
-    @app.get("/api/findings/red")
-    def api_red_findings():
+    def red_findings(self):
         """The ingested red slice (source-tagged 'red-mvp'), board-shaped."""
         return {
             "source": RED_SOURCE,
-            "by_severity": _red_counts(),
-            "findings": [red_board_finding(r) for r in load_red_findings(data.dir)],
+            "by_severity": self._red_counts(),
+            "findings": [red_board_finding(r) for r in load_red_findings(self.data.dir)],
         }
 
-    def _red_counts() -> dict:
+    def _red_counts(self) -> dict:
         from .red_intake import RED_SEVERITIES  # noqa: PLC0415
 
         counts = dict.fromkeys(RED_SEVERITIES, 0)
-        for r in load_red_findings(data.dir):
+        for r in load_red_findings(self.data.dir):
             counts[r["severity"]] = counts.get(r["severity"], 0) + 1
         return counts
 
     # ------------------------------------------------- UI-02.4 findings board
-    def _triage_state_path(data_dir: pathlib.Path) -> pathlib.Path:
-        """Sidecar path, resolved and confined to the demo data directory.
-
-        The data directory can come from the environment, so the resolved
-        sidecar path must stay inside it before anything is read or written.
-        """
-        base = pathlib.Path(data_dir).resolve()
-        path = (base / "triage_state.json").resolve()
-        if not path.is_relative_to(base):
-            raise ValueError(
-                f"triage state path {str(path)!s} escapes the demo data dir "
-                f"{str(base)!s}; refusing to use it"
-            )
-        return path
-
-    def _load_triage_states() -> dict:
+    def _load_triage_states(self) -> dict:
         """Board triage overrides, persisted as a UI-sidecar index (never the
         canonical evidence store). Default state derives from the finding:
         fixture-suppressed findings sit in the Suppressed column, everything
         else is untriaged (New)."""
-        return load_triage_states(data.dir)
+        return load_triage_states(self.data.dir)
 
-    def _default_board_state(f: dict) -> str:
-        return default_board_state(f)  # shared with the counting module
-
-    def _findings_age_seconds(f: dict) -> float | None:
-        import datetime as dt  # noqa: PLC0415
-
-        detected = f.get("detected_at")
-        if not detected:
-            return None
-        return (dt.datetime.now(dt.UTC) - dt.datetime.fromisoformat(detected)).total_seconds()
-
-    def _board_findings() -> tuple[list[dict], dict]:
-        states = _load_triage_states()
-        red_rows = [red_board_finding(r) for r in load_red_findings(data.dir)]
+    def _board_findings(self) -> tuple[list[dict], dict]:
+        states = self._load_triage_states()
+        red_rows = [red_board_finding(r) for r in load_red_findings(self.data.dir)]
         red_ids = {f["id"] for f in red_rows}
         findings = []
-        for f in [*data.findings, *red_rows]:
-            st = states.get(f["id"]) or _default_board_state(f)
+        for f in [*self.data.findings, *red_rows]:
+            st = states.get(f["id"]) or default_board_state(f)
             if st not in BOARD_STATES:
-                st = _default_board_state(f)
+                st = default_board_state(f)
             findings.append(_board_row(f, st, red_ids, _findings_age_seconds(f)))
         # KPI values are the counting module's finding-lens counts, so every
         # KPI number equals its own chip count and column/member count:
         # verified stays an explicit index-plane metric (valid bucket).
-        counts = counts_payload(data_dir, data)
+        counts = counts_payload(self.data_dir, self.data)
         lens = counts["findings"]["lens"]
         kpis = {
             "needs_investigation": lens["needs_investigation"],
@@ -293,9 +305,8 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
         }
         return findings, kpis
 
-    @app.get("/api/findings/board")
-    def api_findings_board():
-        findings, kpis = _board_findings()
+    def findings_board(self):
+        findings, kpis = self._board_findings()
         by_state = dict.fromkeys(BOARD_STATES, 0)
         for f in findings:
             by_state[f["state"]] += 1
@@ -306,11 +317,10 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
             "findings": findings,
         }
 
-    @app.post("/api/findings/{finding_id}/triage")
-    def api_triage(finding_id: str, body: dict):
+    def triage(self, finding_id: str, body: dict):
         """Alpha board-state persistence: cycles 'New -> Investigating ->
         Resolved' (click the state button per card; see the spike). Writes a
-        sidecar ``triage_state.json`` in the demo data dir — the canonical
+        sidecar ``triage_state.json`` in the demo self.data dir — the canonical
         evidence store stays untouched (invariant 1)."""
         # finding_id arrives from request content, so it is format-checked
         # before it can index the sidecar state file: only the finding-id
@@ -319,7 +329,7 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
         finding_id_ok = re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", finding_id)
         if finding_id_ok is None or ".." in finding_id:
             return JSONResponse({"error": "malformed finding id"}, status_code=422)
-        if not any(f["id"] == finding_id for f in data.findings):
+        if not any(f["id"] == finding_id for f in self.data.findings):
             return JSONResponse({"error": "unknown finding id"}, status_code=404)
         state = str(body.get("state", ""))
         if state not in BOARD_STATES:
@@ -327,13 +337,13 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
                 {"error": "state must be one of " + ", ".join(BOARD_STATES)},
                 status_code=422,
             )
-        path = _triage_state_path(data.dir)
+        path = _triage_state_path(self.data.dir)
         current = {}
         try:
             current = json.loads(path.read_text()) if path.is_file() else {}
         except (OSError, ValueError):
             current = {}
-        known_ids = {f["id"] for f in data.findings}
+        known_ids = {f["id"] for f in self.data.findings}
         current = {k: v for k, v in current.items() if isinstance(k, str) and k in known_ids}
         current[finding_id] = state
         # Suppression rationale: read-modify-write of the sidecar itself. The
@@ -343,22 +353,20 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
         path.write_text(json.dumps(current, indent=2, sort_keys=True))  # NOSONAR
         return {"id": finding_id, "state": state}
 
-    @app.get("/api/receipts/{receipt_hash}")
-    def api_receipt(receipt_hash: str):
-        meta = data.receipt_meta(receipt_hash)
+    def receipt(self, receipt_hash: str):
+        meta = self.data.receipt_meta(receipt_hash)
         if meta is None:
             return JSONResponse({"error": "unknown receipt"}, status_code=404)
         return {
             **meta,
-            "verification": data.verification_for(receipt_hash),
-            "correlation": data.correlation_by_hash.get(receipt_hash),
+            "verification": self.data.verification_for(receipt_hash),
+            "correlation": self.data.correlation_by_hash.get(receipt_hash),
             "jws": "available for download",  # never the value itself
             "jws_download": f"/api/receipts/{receipt_hash}/jws",
         }
 
-    @app.get("/api/receipts/{receipt_hash}/jws")
-    def api_jws(receipt_hash: str) -> Response:
-        line = data.store_line(receipt_hash)
+    def jws(self, receipt_hash: str) -> Response:
+        line = self.data.store_line(receipt_hash)
         if line is None:
             return JSONResponse(
                 {"error": "no canonical envelope for this receipt"}, status_code=404
@@ -370,9 +378,8 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
             headers={"Content-Disposition": f'attachment; filename="{receipt_hash}.jws"'},
         )
 
-    @app.post("/api/receipts/{receipt_hash}/verify")
-    def api_verify(receipt_hash: str):
-        line = data.store_line(receipt_hash)
+    def verify_receipt(self, receipt_hash: str):
+        line = self.data.store_line(receipt_hash)
         if line is None:
             return JSONResponse(
                 {
@@ -388,11 +395,10 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
                 status_code=404,
                 # status stays 404-able but body never fabricates a crypto verdict
             )
-        return {"receipt_hash": receipt_hash, **verify_offline(line, data.trust_roots())}
+        return {"receipt_hash": receipt_hash, **verify_offline(line, self.data.trust_roots())}
 
     # ------------------------------------------------- optional live Langfuse
-    @app.get("/api/live/traces")
-    def api_live_traces() -> dict:
+    def live_traces(self) -> dict:
         base = os.environ.get("OAA_LANGFUSE_BASE_URL")
         public_key = os.environ.get("OAA_LANGFUSE_PUBLIC_KEY")
         secret_key = os.environ.get("OAA_LANGFUSE_SECRET_KEY")
@@ -410,7 +416,7 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
                 timeout=5.0,
             )
             resp.raise_for_status()
-            payload = resp.json().get("data", [])
+            payload = resp.json().get("self.data", [])
         except Exception as exc:
             return {"available": False, "reason": f"langfuse unavailable: {exc}"}
         # Minimal index-plane projection; content stays index-only.
@@ -427,11 +433,10 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
         }
 
     # --------------------------------------------- server-rendered (no-JS) views
-    @app.get("/view/runs", response_class=HTMLResponse)
-    def view_runs() -> str:
+    def view_runs(self) -> str:
         rows = []
-        for r in data.runs:
-            s = _run_summary(r)
+        for r in self.data.runs:
+            s = _run_summary(self.data, r)
             rows.append(
                 "<tr>"
                 f"<td><a href='/view/run/{esc(r['run_id'])}'>{esc(r['run_id'])}</a></td>"
@@ -450,14 +455,13 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
             "<th>verification</th><th>correlation</th></tr>" + "".join(rows) + TABLE_CLOSE,
         )
 
-    @app.get("/view/run/{run_id}", response_class=HTMLResponse)
-    def view_run(run_id: str) -> str:
-        run = data.get_run(run_id)
+    def view_run(self, run_id: str) -> str:
+        run = self.data.get_run(run_id)
         if run is None:
             return _page("Runs", "<p>unknown run_id (escaped): " + esc(run_id) + "</p>")
         parts = []
         for trace in run["traces"]:
-            corr = data.correlation_by_trace.get(trace["trace_id"])
+            corr = self.data.correlation_by_trace.get(trace["trace_id"])
             corr_state = corr["state"] if corr else "pending"
             cls = (
                 "badge badge-unknown"
@@ -475,8 +479,8 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
                 )
             )
             for span in trace["spans"]:
-                v = data.verification_for(span["receipt_hash"])
-                c = data.correlation_for_span(span, trace["trace_id"])
+                v = self.data.verification_for(span["receipt_hash"])
+                c = self.data.correlation_for_span(span, trace["trace_id"])
                 vc = "badge-unknown" if v["explicit_unknown"] else "badge-ok"
                 cc = (
                     "badge-unknown"
@@ -508,7 +512,7 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
             f"<td>{esc(f['confidence'])}</td><td>{esc(f['suppressed'])}</td>"
             f"<td>{esc(f['suppression_reason'] or '')}</td>"
             "</tr>"
-            for f in _run_findings(run)
+            for f in _run_findings(self.data, run)
         )
         parts.append(
             "<h2>findings</h2><table><tr><th>rule</th><th>severity</th><th>confidence</th>"
@@ -517,12 +521,11 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
         parts.append("<p><a href='/view/runs'>&larr; runs</a></p>")
         return _page(esc(run["run_id"]), "".join(parts))
 
-    @app.get("/view/receipt/{receipt_hash}", response_class=HTMLResponse)
-    def view_receipt(receipt_hash: str) -> str:
-        meta = data.receipt_meta(receipt_hash)
+    def view_receipt(self, receipt_hash: str) -> str:
+        meta = self.data.receipt_meta(receipt_hash)
         if meta is None:
             return _page("Evidence", "<p>unknown receipt (escaped): " + esc(receipt_hash) + "</p>")
-        v = data.verification_for(receipt_hash)
+        v = self.data.verification_for(receipt_hash)
         verify_btn = (
             "<form method='post' action='"
             f"/view/receipt/{esc(receipt_hash)}/verify'>"
@@ -553,9 +556,8 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
         )
         return _page("Evidence", body)
 
-    @app.post("/view/receipt/{receipt_hash}/verify", response_class=HTMLResponse)
-    def view_verify(receipt_hash: str) -> str:
-        line = data.store_line(receipt_hash)
+    def view_verify(self, receipt_hash: str) -> str:
+        line = self.data.store_line(receipt_hash)
         if line is None:
             return _page(
                 "Verify offline",
@@ -563,7 +565,7 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
                 + esc(receipt_hash)
                 + " — offline classify not applicable (explicit, not blank).</p>",
             )
-        result = verify_offline(line, data.trust_roots())
+        result = verify_offline(line, self.data.trust_roots())
         body = (
             f"<p>receipt_hash: {esc(receipt_hash)}</p>"
             "<p>verifier output summary:</p><pre>"
@@ -579,14 +581,42 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
         )
         return _page("Verify offline", body)
 
-    @app.get("/", include_in_schema=False)
     def index() -> FileResponse:
         return FileResponse(_static_dir / "index.html")  # UI-02 SPA
 
-    @app.get("/legacy.html", include_in_schema=False)
     def legacy() -> FileResponse:
         return FileResponse(_static_dir / "legacy.html")  # UI-01 SPA, kept reachable
 
+
+def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
+    """Build the FastAPI app; each route binds to a shared _Routes view."""
+    app = fastapi.FastAPI(title="OAA Investigation UI (UI-01)", version="0.1.0")
+    api = _Routes(data_dir or DATA_DIR)
+
+    # ------------------------------------------------------------ API (JSON)
+    app.get("/api/runs")(api.runs)
+    app.get("/api/runs/{run_id}")(api.run)
+    app.get("/api/dashboard")(api.dashboard)
+    app.get("/api/counts")(api.counts)
+    app.get("/api/findings")(api.findings)
+    # ---------------------------------------------- RED-INTEGRATION intake
+    app.post("/api/findings/ingest")(api.ingest_findings)
+    app.get("/api/findings/red")(api.red_findings)
+    # ------------------------------------------------- UI-02.4 findings board
+    app.get("/api/findings/board")(api.findings_board)
+    app.post("/api/findings/{finding_id}/triage")(api.triage)
+    app.get("/api/receipts/{receipt_hash}")(api.receipt)
+    app.get("/api/receipts/{receipt_hash}/jws")(api.jws)
+    app.post("/api/receipts/{receipt_hash}/verify")(api.verify_receipt)
+    # ------------------------------------------------- optional live Langfuse
+    app.get("/api/live/traces")(api.live_traces)
+    # --------------------------------------------- server-rendered (no-JS) views
+    app.get("/view/runs", response_class=HTMLResponse)(api.view_runs)
+    app.get("/view/run/{run_id}", response_class=HTMLResponse)(api.view_run)
+    app.get("/view/receipt/{receipt_hash}", response_class=HTMLResponse)(api.view_receipt)
+    app.post("/view/receipt/{receipt_hash}/verify", response_class=HTMLResponse)(api.view_verify)
+    app.get("/", include_in_schema=False)(index)
+    app.get("/legacy.html", include_in_schema=False)(legacy)
     return app
 
 

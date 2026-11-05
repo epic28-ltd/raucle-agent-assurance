@@ -169,32 +169,49 @@ def ingest_red_findings(data_dir: pathlib.Path, findings: list[dict]) -> dict:
 
 
 # ------------------------------------------------------------------ parser
+def _payload_findings(payload) -> list[dict] | None:
+    """Findings from a pre-parsed body, when the shape is recognised."""
+    if isinstance(payload, dict) and isinstance(payload.get("findings"), list):
+        return payload["findings"]
+    if isinstance(payload, list):
+        return payload
+    return None
+
+
+def _jsonl_rows(text: str) -> list[dict]:
+    """JSONL: one object per line; blank lines and # comments ignored."""
+    out = []
+    for ln in text.splitlines():
+        ln = ln.strip()
+        if not ln or ln.startswith("#"):
+            continue
+        out.append(json.loads(ln))
+    return out
+
+
+def _shaped_findings(parsed) -> list[dict]:
+    """Findings from a parsed body, unwrapping the ``findings`` key."""
+    if isinstance(parsed, dict) and isinstance(parsed.get("findings"), list):
+        return parsed["findings"]
+    if isinstance(parsed, list):
+        return parsed
+    return [parsed]
+
+
 def parse_findings_body(body_text: str, payload=None) -> list[dict]:
     """Accept a JSON array, an ``{"findings": [...]}`` object or JSONL text."""
     if payload is not None:
-        if isinstance(payload, dict) and isinstance(payload.get("findings"), list):
-            return payload["findings"]
-        if isinstance(payload, list):
-            return payload
+        rows = _payload_findings(payload)
+        if rows is not None:
+            return rows
     text = (body_text or "").strip()
     if not text:
         return []
     try:
         parsed = json.loads(text)
     except ValueError:
-        # JSONL: one object per line, blank lines and # comments ignored.
-        out = []
-        for ln in text.splitlines():
-            ln = ln.strip()
-            if not ln or ln.startswith("#"):
-                continue
-            out.append(json.loads(ln))
-        return out
-    if isinstance(parsed, list):
-        return parsed
-    if isinstance(parsed, dict) and isinstance(parsed.get("findings"), list):
-        return parsed["findings"]
-    return [parsed]
+        return _jsonl_rows(text)
+    return _shaped_findings(parsed)
 
 
 # ---------------------------------------------------------------- validator
@@ -205,18 +222,30 @@ def validate_red_finding(raw) -> dict:
     missing = [k for k in REQUIRED_FIELDS if k not in raw]
     if missing:
         raise ValueError(f"missing field(s): {', '.join(missing)}")
-    try:
-        uid = uuid.UUID(str(raw["finding_id"]))
-    except ValueError as exc:
-        raise ValueError(f"finding_id is not a valid UUID: {raw['finding_id']}") from exc
-    if uid.variant != uuid.RFC_4122 or uid.version != 5:
-        raise ValueError(f"finding_id is not UUID5: {raw['finding_id']}")
+    _validate_finding_id(raw)
     if not _RULE_RE.match(str(raw["rule"])):
         raise ValueError(f"rule must match RED-xxx: {raw['rule']}")
     if raw["severity"] not in RED_SEVERITIES:
         raise ValueError(f"severity not in {sorted(RED_SEVERITIES)}: {raw['severity']}")
     if raw["confidence"] not in RED_CONFIDENCE:
         raise ValueError(f"confidence not in {sorted(RED_CONFIDENCE)}: {raw['confidence']}")
+    _validate_evidence_ref(raw)
+    return raw
+
+
+def _validate_finding_id(raw: dict) -> None:
+    """finding_id must be a deterministic UUID5."""
+    try:
+        uid = uuid.UUID(str(raw["finding_id"]))
+    except ValueError as exc:
+        raise ValueError(f"finding_id is not a valid UUID: {raw['finding_id']}") from exc
+    if uid.variant != uuid.RFC_4122 or uid.version != 5:
+        raise ValueError(f"finding_id is not UUID5: {raw['finding_id']}")
+
+
+def _validate_evidence_ref(raw: dict) -> None:
+    """evidence_ref requires kind/value/sha256; a local path reference is
+    re-hashed at ingest."""
     ref = raw["evidence_ref"]
     if not isinstance(ref, dict) or not {"kind", "value", "sha256"} <= set(ref):
         raise ValueError("evidence_ref requires kind, value, sha256")
@@ -224,7 +253,6 @@ def validate_red_finding(raw) -> dict:
         raise ValueError("evidence_ref.sha256 must be 64 hex chars")
     if not str(ref["value"]) or not str(raw["explanation"]):
         raise ValueError("evidence_ref.value and explanation must be non-empty")
-    # Evidence integrity: a local path reference is re-hashed at ingest.
     value = pathlib.Path(str(ref["value"]))
     if value.is_file():
         digest = hashlib.sha256(value.read_bytes()).hexdigest()
@@ -232,7 +260,6 @@ def validate_red_finding(raw) -> dict:
             raise ValueError(
                 f"evidence integrity mismatch for {value}: sha256 {digest} != {ref['sha256']}"
             )
-    return raw
 
 
 def _normalize(raw: dict) -> dict:
