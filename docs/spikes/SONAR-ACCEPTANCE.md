@@ -171,3 +171,43 @@ preference by the analyzer's Web rules.
 
 **Decision owner:** Craig. **Status:** accepted November 2026; revisit if
 the search widget is ever rebuilt, or if the SPA is replaced by server routes.
+
+## Coverage scope: detector-bait and cross-repo exclusions
+
+**Scope key:** `sonar.coverage.exclusions` (sonar-project.properties) and
+`[tool.coverage.run] omit` (pyproject.toml), kept consistent.
+
+**Excluded files** (why each is out of the coverage denominator, not a
+coverage dodge):
+
+1. `tests/security/fixtures/*` — seeded-secret detector bait. These fixtures
+   deliberately carry credential-shaped content so the PRIV-01 leak
+   detectors have something real to catch. They exist to fail: any coverage
+   of them measures the bait, not a control.
+2. `tests/security/test_priv01_live.py` — the PRIV-01 live probe. It is an
+   adversarial harness whose pass condition is "the detector fired"; its
+   behaviour is asserted by the redaction/guard tests
+   (`tests/security/test_redaction.py`), not by line coverage.
+3. `tests/conformance/test_fixture_conformance.py` — the conformance
+   bait/contract harness (same family as 1 and 2).
+4. `tests/conformance/test_evidence_plane.py`-paired bait files under
+   `tests/security/fixtures/leak_harness.py` fall under exclusion 1.
+
+**Behaviour assertion path:** the excluded files' contract is asserted by
+test-level checks (detector fires, secrets blocked, guard tests fail loudly
+when the bait is scrubbed), which are themselves in the measured scope.
+Line coverage of a file designed to fail is meaningless by construction:
+the excluded files have no valid "all lines executed" state short of
+triggering the incident they simulate.
+
+**Cross-repo code:** the pinned raucle worktree imported through the local
+pin (`**/raucle-63edacd/**` in the coverage omit — including
+`raucle/chain_graph.py`, which the P1.1a resolver loads by file path) is
+excluded: it is raucle's own code, owned by raucle's coverage campaign.
+It never appears inside `sonar.sources` in CI (raucle is not installed
+there), and its local coverage.json appearance is an artefact of the
+local pinned worktree import path.
+
+**Decision owner:** Craig. **Status:** accepted November 2026; revisit if
+any bait file ever becomes a live control (it must then move into
+`sonar.sources` and earn real tests).
