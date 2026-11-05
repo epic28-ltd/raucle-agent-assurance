@@ -131,23 +131,7 @@ def rubric_from_dict(data: object) -> Rubric:
     for key in ("rubric_id", "rubric_version", "criteria", "applicable_to", "uncertainty"):
         if key not in data:
             raise ValueError(f"rubric field {key!r} is required (no defaults)")
-    criteria: list[Criterion] = []
-    raw_criteria = data["criteria"]
-    if not isinstance(raw_criteria, list) or not raw_criteria:
-        raise ValueError("criteria must be a non-empty list")
-    for i, raw in enumerate(raw_criteria):
-        if not isinstance(raw, dict):
-            raise ValueError(f"criteria[{i}] must be a mapping")
-        for key in ("id", "weight", "description"):
-            if key not in raw:
-                raise ValueError(f"criteria[{i}].{key} is required")
-        criteria.append(
-            Criterion(
-                id=str(raw["id"]),
-                weight=raw["weight"],
-                description=str(raw["description"]),
-            )
-        )
+    criteria: list[Criterion] = _criteria_from_dict(data["criteria"])
     raw_app = data["applicable_to"]
     if not isinstance(raw_app, dict) or "scenario_classes" not in raw_app:
         raise ValueError("applicable_to must be a mapping with scenario_classes")
@@ -167,6 +151,27 @@ def rubric_from_dict(data: object) -> Rubric:
             abstain_rule=str(raw_unc["abstain_rule"]),
         ),
     )
+
+
+def _criteria_from_dict(raw_criteria: object) -> list[Criterion]:
+    """Validate the criteria list: nothing is defaulted, every field required."""
+    if not isinstance(raw_criteria, list) or not raw_criteria:
+        raise ValueError("criteria must be a non-empty list")
+    criteria: list[Criterion] = []
+    for i, raw in enumerate(raw_criteria):
+        if not isinstance(raw, dict):
+            raise ValueError(f"criteria[{i}] must be a mapping")
+        for key in ("id", "weight", "description"):
+            if key not in raw:
+                raise ValueError(f"criteria[{i}].{key} is required")
+        criteria.append(
+            Criterion(
+                id=str(raw["id"]),
+                weight=raw["weight"],
+                description=str(raw["description"]),
+            )
+        )
+    return criteria
 
 
 def load_rubric(path: Path) -> Rubric:
