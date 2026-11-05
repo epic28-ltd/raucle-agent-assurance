@@ -131,21 +131,21 @@ def generate(workspace: pathlib.Path) -> FixtureCorpus:
         trace_id="evd-trace-0001",
     )
     env = capture_verbatim(cfg1, {r_allow["receipt_id"], r_deny["receipt_id"]})
-    records.append(
-        {
-            "name": "valid_allow",
-            "expected": "valid",
-            "envelope": env[r_allow["receipt_id"]].decode(),
-            "note": f"verbatim store envelope; gateway decision={r_allow['decision']!r}",
-        }
-    )
-    records.append(
-        {
-            "name": "valid_deny",
-            "expected": "valid",
-            "envelope": env[r_deny["receipt_id"]].decode(),
-            "note": f"verbatim store envelope; gateway decision={r_deny['decision']!r}",
-        }
+    records.extend(
+        [
+            {
+                "name": "valid_allow",
+                "expected": "valid",
+                "envelope": env[r_allow["receipt_id"]].decode(),
+                "note": f"verbatim store envelope; gateway decision={r_allow['decision']!r}",
+            },
+            {
+                "name": "valid_deny",
+                "expected": "valid",
+                "envelope": env[r_deny["receipt_id"]].decode(),
+                "note": f"verbatim store envelope; gateway decision={r_deny['decision']!r}",
+            },
+        ]
     )
 
     # ------------------------------------------------------ invalid variants
@@ -219,23 +219,23 @@ def generate(workspace: pathlib.Path) -> FixtureCorpus:
     )
 
     # ------------------------------------- pending / unavailable (simulated)
-    records.append(
-        {
-            "name": "pending_async_ingest",
-            "expected": "pending",
-            "simulated": True,
-            "note": "async ingest is companion-side: envelope captured but verification not yet "
-            "run; harness synthesises state pending (no raucle call)",
-        }
-    )
-    records.append(
-        {
-            "name": "unavailable_store_gone",
-            "expected": "unavailable",
-            "simulated": True,
-            "note": "evidence-plane object missing/unreadable at retrieval: harness synthesises "
-            "state unavailable, never guessed",
-        }
+    records.extend(
+        [
+            {
+                "name": "pending_async_ingest",
+                "expected": "pending",
+                "simulated": True,
+                "note": "async ingest is companion-side: envelope captured but verification not yet "
+                "run; harness synthesises state pending (no raucle call)",
+            },
+            {
+                "name": "unavailable_store_gone",
+                "expected": "unavailable",
+                "simulated": True,
+                "note": "evidence-plane object missing/unreadable at retrieval: harness synthesises "
+                "state unavailable, never guessed",
+            },
+        ]
     )
 
     # ------------------------------------------------------------------ sanity
