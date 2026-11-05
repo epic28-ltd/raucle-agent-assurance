@@ -370,7 +370,7 @@ def _diff(a: dict, b: dict, prefix: str = "") -> list[str]:
     return out
 
 
-def main(argv: list[str] | None = None) -> int:
+def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(
         description="OV-3: independently re-validate an agent assurance packet"
     )
@@ -384,78 +384,96 @@ def main(argv: list[str] | None = None) -> int:
         "--report",
         help="write the machine-readable revalidation report (oaa.revalidation-report/v1)",
     )
-    args = ap.parse_args(argv)
+    return ap.parse_args(argv)
 
-    checks: list[tuple[str, str]] = []
 
-    def fail(message: str) -> int:
-        checks.append(("FAIL", message))
-        return _report(checks, report_path)
+def _refused_report_message(report_path: str | None) -> str | None:
+    """The tainted ``--report`` destination is canonicalised before any write.
 
-    # The --report destination is a tainted CLI path: canonicalise it (and
-    # refuse unusable destinations as a named FAIL) before anything else.
-    report_path: str | None = None
-    if args.report is not None:
-        canonical = _report_path(args.report)
-        if canonical == 1:
-            checks.append(("FAIL", f"--report path refused (unusable destination): {args.report}"))
-            return _report(checks, None)
-        report_path = canonical
+    Traversal shorthands and destinations that resolve to a filesystem root
+    or the home directory are refused outright — per the same hardening as
+    generate_report's --out. Refusal keeps the run fail-visible (a named
+    FAIL), never a silent pass.
+    """
+    if report_path is None:
+        return None
+    resolved = pathlib.Path(report_path).expanduser().resolve()
+    if resolved == pathlib.Path(resolved.root) or resolved == pathlib.Path.home():
+        return f"--report path refused (unusable destination): {report_path}"
+    return None
 
-    try:
-        with open(args.packet, encoding="utf-8") as fh:
-            packet_text = fh.read()
-    except OSError:
-        return fail(f"packet not found: {args.packet}")
-    packet = json.loads(packet_text)
-    missing = [f for f in _REQUIRED_FIELDS if f not in packet]
-    if missing:
-        return fail(f"packet is missing required fields: {', '.join(missing)}")
 
-    # 1. envelope integrity
+def _canonical_report(report_path: str | None) -> str | None:
+    if report_path is None:
+        return None
+    return str(pathlib.Path(report_path).expanduser().resolve())
+
+
+def _packet_digest_fail(packet: dict, checks: list[tuple[str, str]]) -> str | None:
+    """Check 1 — the packet stamp re-derives from the packet body."""
     body = dict(packet)
     stamp = body.pop("packet_content_sha256", None)
     body.pop("packet_pq_signature", None)  # added after the digest; outside the body
     recomputed = SHA256_PREFIX + hashlib.sha256(canonical_json(body).encode()).hexdigest()
     if stamp != recomputed:
-        return fail(
+        return (
             "packet_content_sha256 does not re-derive from the packet body"
             " (tampered or mis-stamped packet)"
         )
     checks.append(("PASS", "packet digest re-derives from the packet body"))
+    return None
 
-    # 1b. optional quantum-ready packet signature (OV-22)
-    if "packet_pq_signature" in packet:
-        try:
-            _verify_pq_signature_field(packet)
-        except _Fail as exc:
-            return fail(str(exc))
-        checks.append(
-            (
-                "PASS",
-                "ML-DSA-65 packet signature verifies over the packet digest",
-            )
-        )
 
-    # 2. trust anchor
+def _packet_pq_fail(packet: dict, checks: list[tuple[str, str]]) -> str | None:
+    """Check 1b — the optional quantum-ready packet signature (OV-22)."""
+    if "packet_pq_signature" not in packet:
+        return None
     try:
-        with open(args.evidence_store, "rb") as fh:
-            store_bytes = fh.read()
-    except OSError:
-        return fail(f"evidence store not found: {args.evidence_store}")
-    want = SHA256_PREFIX + hashlib.sha256(store_bytes).hexdigest()
+        _verify_pq_signature_field(packet)
+    except _Fail as exc:
+        return str(exc)
+    checks.append(("PASS", "ML-DSA-65 packet signature verifies over the packet digest"))
+    return None
+
+
+def _load_bytes_fail(path: str, label: str) -> tuple[str, str | None]:
+    """Read a whole file; an OSError is a named FAIL, never a silent pass."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return fh.read(), None
+    except OSError as exc:
+        return "", f"{label} not found: {path} ({exc})"
+
+
+def _load_store_bytes_fail(path: str, label: str) -> tuple[bytes, str | None]:
+    try:
+        with open(path, "rb") as fh:
+            return fh.read(), None
+    except OSError as exc:
+        return b"", f"{label} not found: {path} ({exc})"
+
+
+def _evidence_store_fail(store_path: str, packet: dict, checks: list) -> str | None:
+    """Check 2 — the supplied store digests to what the packet recorded."""
+    data, err = _load_store_bytes_fail(store_path, "evidence store")
+    if err is not None:
+        return err
+    want = SHA256_PREFIX + hashlib.sha256(data).hexdigest()
     recorded = ""
     inputs = packet.get("inputs")
     if isinstance(inputs, dict):
         recorded = str(inputs.get("evidence_store_sha256", ""))
     if recorded != want:
-        return fail(
+        return (
             "evidence store digest does not match the packet's recorded input"
             " (the packet was not built from this artefact: wrong or swapped store)"
         )
     checks.append(("PASS", "evidence store digest matches the packet's recorded input"))
+    return None
 
-    # 3 + 4. independent re-derivation and byte-level comparison
+
+def _rederive_diffs(args: argparse.Namespace) -> tuple[dict | None, str | None]:
+    """Check 3 — re-derive the packet; an input-loader or chain _Fail is named."""
     try:
         gov_in = _load_json_file(args.governance, "governance")
         gov = gov_in if isinstance(gov_in, dict) else None
@@ -475,22 +493,63 @@ def main(argv: list[str] | None = None) -> int:
             ),
         )
     except _Fail as exc:
-        return fail(str(exc))
-    checks.append(
-        (
-            "PASS",
-            "every receipt re-derives its recorded sha256 from its envelope bytes",
-        )
-    )
+        return None, str(exc)
+    return rederived, None
+
+
+def _body_diff_fail(packet: dict, rederived: dict, checks: list) -> str | None:
+    """Check 4 — byte-level comparison of the packet body against the re-derivation."""
+    checks.append(("PASS", "every receipt re-derives its recorded sha256 from its envelope bytes"))
     # The PQ signature covers the digest and sits outside the digest body,
     # so like the stamp itself it is excluded from the body comparison.
     packet.pop("packet_pq_signature", None)
     diffs = _diff(packet, rederived)
-    if diffs:
-        for d in diffs:
-            checks.append(("FAIL", f"re-derived packet differs at {d}"))
+    if not diffs:
+        checks.append(("PASS", "packet body reproduces exactly from the supplied evidence"))
+        return None
+    for d in diffs:
+        checks.append(("FAIL", f"re-derived packet differs at {d}"))
+    return "re-derived packet differs"
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parse_args(argv)
+    checks: list[tuple[str, str]] = []
+
+    # The --report destination is a tainted CLI path: canonicalise it (and
+    # refuse unusable destinations as a named FAIL) before anything else.
+    refusal = _refused_report_message(args.report)
+    if refusal is not None:
+        checks.append(("FAIL", refusal))
+        return _report(checks, None)
+    report_path = _canonical_report(args.report)
+
+    def fail(message: str) -> int:
+        checks.append(("FAIL", message))
         return _report(checks, report_path)
-    checks.append(("PASS", "packet body reproduces exactly from the supplied evidence"))
+
+    text, err = _load_bytes_fail(args.packet, "packet")
+    if err is not None:
+        return fail(err)
+    packet = json.loads(text)
+    missing = [f for f in _REQUIRED_FIELDS if f not in packet]
+    if missing:
+        return fail(f"packet is missing required fields: {', '.join(missing)}")
+
+    for named_fail in (
+        _packet_digest_fail(packet, checks),
+        _packet_pq_fail(packet, checks),
+        _evidence_store_fail(args.evidence_store, packet, checks),
+    ):
+        if named_fail is not None:
+            return fail(named_fail)
+
+    rederived, rederive_fail = _rederive_diffs(args)
+    if rederive_fail is not None:
+        return fail(rederive_fail)
+    diff_fail = _body_diff_fail(packet, rederived, checks)
+    if diff_fail is not None:
+        return _report(checks, report_path)
     return _report(checks, report_path)
 
 
@@ -505,21 +564,6 @@ def _report_document(checks: list[tuple[str, str]]) -> dict:
         "verdict": "MISMATCH" if failed else "REPRODUCED",
         "checks": [{"status": status, "message": message} for status, message in checks],
     }
-
-
-def _report_path(report_path: str) -> int | str | None:
-    """Canonicalise the ``--report`` destination or refuse it (named FAIL).
-
-    The path arrives from a CLI argument, so it is resolved to an absolute
-    canonical form before any write, and destinations that resolve to a
-    filesystem root or the home directory are refused outright — traversal
-    shorthands die here, per the same hardening as generate_report's --out.
-    An ``int`` return is the named-FAIL exit for a refused path.
-    """
-    resolved = pathlib.Path(report_path).expanduser().resolve()
-    if resolved == pathlib.Path(resolved.root) or resolved == pathlib.Path.home():
-        return 1
-    return str(resolved)
 
 
 def _report(checks: list[tuple[str, str]], report_path: str | None = None) -> int:

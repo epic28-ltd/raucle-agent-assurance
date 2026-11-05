@@ -213,7 +213,7 @@ def test_end_to_end_revalidate_report_piped_to_iaa(tmp_path: Path) -> None:
 # the OV-20 code paths carry measurable coverage too.
 
 
-@pytest.fixture()
+@pytest.fixture
 def oaa_iaa():
     spec = importlib.util.spec_from_file_location(
         "oaa_iaa_isolated", SRC / "oaa_iaa" / "__main__.py"
@@ -315,15 +315,11 @@ def test_main_writes_revalidation_opinion(oaa_iaa, monkeypatch, capsys) -> None:
 
 
 def test_main_explicit_none_argv_reads_stdin(oaa_iaa, monkeypatch, capsys) -> None:
-    argv = sys.argv[:]
-    sys.argv = ["oaa_iaa"]
-    try:
-        monkeypatch.setattr(
-            "sys.stdin", io.StringIO(json.dumps({"schema": "oaa.revalidation-report/v1"}))
-        )
-        assert oaa_iaa.main(None) == 0
-    finally:
-        sys.argv = argv
+    monkeypatch.setattr(sys, "argv", ["oaa_iaa"])
+    monkeypatch.setattr(
+        "sys.stdin", io.StringIO(json.dumps({"schema": "oaa.revalidation-report/v1"}))
+    )
+    assert oaa_iaa.main(None) == 0
     opinion = json.loads(capsys.readouterr().out)
     assert opinion["verdict"] == "fail"
     assert opinion["concerns"][0]["code"] == "REVALIDATION_VERDICT_UNREADABLE"

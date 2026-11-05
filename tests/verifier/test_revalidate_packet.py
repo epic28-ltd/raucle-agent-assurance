@@ -340,3 +340,15 @@ def test_revalidator_fails_on_incomplete_packet(tmp_path: pathlib.Path) -> None:
     packet_path = tmp_path / "packet.json"
     packet_path.write_text(json.dumps({"kind": "agent_assurance_packet"}))
     assert rv.main(["--packet", str(packet_path), "--evidence-store", str(DEMO_STORE)]) == 1
+
+
+def test_pq_signature_fail_is_a_named_fail(tmp_path: pathlib.Path, capsys) -> None:
+    """A packet carrying an invalid PQ signature is a named FAIL (OV-22)."""
+    packet = _build_packet({})
+    packet["packet_pq_signature"] = {"algorithm": "ml-dsa-65"}
+    packet_path = tmp_path / "packet.json"
+    packet_path.write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n")
+    result = rv.main(["--packet", str(packet_path), "--evidence-store", str(DEMO_STORE)])
+    assert result == 1
+    out = capsys.readouterr().out
+    assert "packet_pq_signature" in out
