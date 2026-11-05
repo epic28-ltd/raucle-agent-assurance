@@ -232,20 +232,8 @@ def build_action(receipt_row: dict[str, Any], *, include_caid: bool = True) -> A
     principal = gate.get("agent_id") or payload.get("agent_id") or "unknown"
     trace_id = gate.get("trace_id") or payload.get("trace_id") or ""
 
-    args = gate.get("args")
-    if args is not None:
-        args_digest = jcs_digest({"args": args})
-        args_basis = "x_gate-args"
-    else:
-        args_digest = sha256_hex(DESCRIPTIVE_SALT + receipt_hash.encode("utf-8"))
-        args_basis = "descriptive"
-
-    delegated = gate.get("acting_for") or None
-    approval_id = gate.get("approval_id") or None
-    if delegated is None and approval_id is not None:
-        delegated = {"approval_id": approval_id}
-    elif delegated is not None:
-        delegated = {"acting_for": delegated}
+    args_digest, args_basis = _args_digest(gate, receipt_hash)
+    delegated = _delegated_authority(gate)
 
     action: dict[str, Any] = {
         "tool": tool,
@@ -263,15 +251,39 @@ def build_action(receipt_row: dict[str, Any], *, include_caid: bool = True) -> A
     action_caid: str | None = None
     caid_basis = "omitted"
     if include_caid:
-        # Descriptive CAID (draft profile-pinning NOT implemented in K1):
-        # caid:1:<action-type>:<suite>:<digest-b64url> where the digest binds
-        # the action_digest bytes. Relying parties must treat this as
-        # descriptive only until CAID profiles land (see K1 findings doc).
-        raw = bytes.fromhex(action_digest.split(":", 1)[1])
-        action_caid = f"caid:1:{tool}:sha256:{sha256_b64url(raw)}"
-        caid_basis = "descriptive"
+        action_caid, caid_basis = _descriptive_caid(tool, action_digest)
 
     return ActionBuild(action, action_digest, action_caid, caid_basis, args_basis)
+
+
+def _args_digest(gate: dict[str, Any], receipt_hash: str) -> tuple[str, str]:
+    """Args digest: sha256 over JCS of ``x_gate.args`` when carried; else a
+    receipt-derived placeholder marked ``descriptive`` so the relying party
+    never mistakes it for signed argument bytes."""
+    args = gate.get("args")
+    if args is not None:
+        return jcs_digest({"args": args}), "x_gate-args"
+    return sha256_hex(DESCRIPTIVE_SALT + receipt_hash.encode("utf-8")), "descriptive"
+
+
+def _delegated_authority(gate: dict[str, Any]) -> dict[str, Any] | None:
+    """``x_gate.acting_for`` / ``approval_id`` when non-empty, else null."""
+    delegated = gate.get("acting_for") or None
+    approval_id = gate.get("approval_id") or None
+    if delegated is None and approval_id is not None:
+        return {"approval_id": approval_id}
+    if delegated is not None:
+        return {"acting_for": delegated}
+    return None
+
+
+def _descriptive_caid(tool: str, action_digest: str) -> tuple[str, str]:
+    """Descriptive CAID (draft profile-pinning NOT implemented in K1):
+    caid:1:<action-type>:<suite>:<digest-b64url> where the digest binds the
+    action_digest bytes. Relying parties must treat this as descriptive only
+    until CAID profiles land (see K1 findings doc)."""
+    raw = bytes.fromhex(action_digest.split(":", 1)[1])
+    return f"caid:1:{tool}:sha256:{sha256_b64url(raw)}", "descriptive"
 
 
 # ---------------------------------------------------------------------------
