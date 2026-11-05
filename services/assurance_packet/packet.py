@@ -453,14 +453,15 @@ def main(argv: list[str] | None = None) -> int:
     try:
         refs = _load_cli_refs(args)
         if args.pq_private_key is not None:
+            if _rqpq is None:
+                raise ValueError("PQ signing requires the raucle package (installed dependency)")
             try:
-                pq_private = _rqpq.pq_private_key_from_pem(
-                    pathlib.Path(args.pq_private_key).read_text(encoding="ascii")
-                )
-            except ImportError as exc:
-                raise ValueError(f"PQ signing requires the raucle package: {exc}") from exc
+                with open(args.pq_private_key, encoding="ascii") as pq_fh:
+                    pq_private = _rqpq.pq_private_key_from_pem(pq_fh.read())
             except OSError as exc:
-                raise ValueError(f"pq private key file not found: {exc}") from exc
+                raise ValueError(
+                    f"pq private key not found: {args.pq_private_key} ({exc})"
+                ) from exc
         else:
             pq_private = None
         packet = build_packet(
