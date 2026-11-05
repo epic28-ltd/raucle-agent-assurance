@@ -1,0 +1,30 @@
+name: assurance-gate
+
+on:
+  workflow_call:
+    inputs:
+      packet:
+        description: Path to agent_assurance_packet.json
+        required: true
+        type: string
+      profile:
+        description: Profile name (basic or regulated)
+        required: false
+        default: basic
+        type: string
+      fail-on-partial:
+        description: Fail the job on PARTIAL instead of warn-and-continue
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/assurance-gate
+        with:
+          packet: ${{ inputs.packet }}
+          profile: ${{ inputs.profile }}
+          fail-on-partial: ${{ inputs.fail-on-partial }}
