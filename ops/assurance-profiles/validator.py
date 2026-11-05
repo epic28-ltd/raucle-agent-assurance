@@ -87,7 +87,9 @@ def _declared_controls(governance: object) -> dict[str, str]:
     return out
 
 
-def _check(checks: list[dict], check_id: str, status: str, expected: str, actual: str, note: str = "") -> None:
+def _check(
+    checks: list[dict], check_id: str, status: str, expected: str, actual: str, note: str = ""
+) -> None:
     checks.append(
         {
             "check_id": check_id,
@@ -200,7 +202,13 @@ def validate(
             f"{len(unverified)} unverified: {names}",
         )
     else:
-        _check(checks, "coverage:gate", OK, "no unverified tools under gate custody", "all covered tools receipted")
+        _check(
+            checks,
+            "coverage:gate",
+            OK,
+            "no unverified tools under gate custody",
+            "all covered tools receipted",
+        )
 
     # 4. Required governance frameworks declared in the packet.
     for fw in profile["required_frameworks"]:
@@ -368,25 +376,39 @@ def self_check(*, profiles: dict | None = None, crosswalk: dict | None = None) -
     for name, profile in profiles["profiles"].items():
         for gap, value in profile["outcome_semantics"].items():
             if value not in ("fail", "warn"):
-                problems.append(f"profile {name}: semantics {gap} must be fail or warn, got {value!r}")
+                problems.append(
+                    f"profile {name}: semantics {gap} must be fail or warn, got {value!r}"
+                )
         for control_id in profile["required_controls"]:
             if control_id not in index:
-                problems.append(f"profile {name}: required control {control_id!r} not present in crosswalk")
+                problems.append(
+                    f"profile {name}: required control {control_id!r} not present in crosswalk"
+                )
     for row in crosswalk["rows"]:
         if row["status"] not in CROSSWALK_STATUSES:
             problems.append(f"crosswalk {row['control_id']}: unknown status {row['status']!r}")
         if row["status"] == "UNSUPPORTED" and not row.get("unsat_reason"):
-            problems.append(f"crosswalk {row['control_id']}: UNSUPPORTED rows must carry an honest unsat_reason")
+            problems.append(
+                f"crosswalk {row['control_id']}: UNSUPPORTED rows must carry an honest unsat_reason"
+            )
         if row["status"] != "UNSUPPORTED" and not row.get("evidence_field"):
-            problems.append(f"crosswalk {row['control_id']}: SUPPORTED/PARTIAL rows must cite an evidence field")
+            problems.append(
+                f"crosswalk {row['control_id']}: SUPPORTED/PARTIAL rows must cite an evidence field"
+            )
     return problems
 
 
 def main(argv: list[str] | None = None) -> int:
     """CLI: python ops/assurance-profiles/validator.py --packet packet.json --profile regulated"""
-    parser = argparse.ArgumentParser(description="Validate an agent assurance packet against a governance profile.")
-    parser.add_argument("--packet", required=True, help="path to an agent_assurance_packet.json file")
-    parser.add_argument("--profile", default="basic", help="profile name from profiles.yaml (basic or regulated)")
+    parser = argparse.ArgumentParser(
+        description="Validate an agent assurance packet against a governance profile."
+    )
+    parser.add_argument(
+        "--packet", required=True, help="path to an agent_assurance_packet.json file"
+    )
+    parser.add_argument(
+        "--profile", default="basic", help="profile name from profiles.yaml (basic or regulated)"
+    )
     args = parser.parse_args(argv)
 
     problems = self_check()
