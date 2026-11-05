@@ -32,14 +32,20 @@ Decision owner: **Craig** (epic28-ltd). Project:
 
 ### Accepted remaining flows
 
-**Rule:** pythonsecurity:S8707.
+**Rule:** pythonsecurity:S8707 (and the related pythonsecurity:S2083 taint
+on `api_triage`, which traces the same env-configured demo data directory).
 
 **Flows:** CLI-supplied *input* paths in `ops/audit-pack/pack.py`
 (`--evidence-store`, `--trust-roots`, `--policy-receipts`, `--policies-dir`),
 `ops/assurance/generate_report.py` (`--data-dir`, `--audit-events`),
-`packages/raucle-adapter/examples/run_evd.py` (output directory argument)
-and `packages/raucle-adapter/src/oaa_raucle_adapter/fixture_gen.py`
-(caller-provided workspace parameter).
+`packages/raucle-adapter/examples/run_evd.py` (output directory argument),
+`packages/raucle-adapter/src/oaa_raucle_adapter/fixture_gen.py`
+(caller-provided workspace parameter), and the environment-configured
+`OAA_INVESTIGATION_UI_DATA` demo data directory as it flows into
+`oaa_investigation_ui.data.DemoData._receipt_index_rows` and the
+`api_triage` sidecar write (`triage_state.json`, a fixed filename inside
+that already-validated directory, with the finding id charset-checked and
+membership-checked first).
 
 **Rationale:** these are deliberate read/target locations: the tool's
 entire contract is to operate on evidence, reports, or fixture corpora the
@@ -50,8 +56,12 @@ directories legitimately live anywhere the operator's account can reach, and
 convert a security control into a functional regression without removing a
 real attack vector: the CLI already runs with the invoking user's own
 privileges, and the only escalation would be the caller attacking itself.
-What *is* attacker-controlled in this pipeline: pack contents (zip
-members, receipt hashes, policy file names): is now validated before any
+The same holds for the UI demo data dir: it is a deployment-time
+configuration value setting where the operator's own demo data lives, not
+request-supplied input; `api_triage` additionally validates the finding id
+against both a strict charset and the loaded findings before any write.
+What *is* attacker-controlled in this pipeline (pack contents: zip
+members, receipt hashes, policy file names) is now validated before any
 write or extraction, as listed above.
 
 **Residual risk accepted:** an operator who runs the pack builder or report
