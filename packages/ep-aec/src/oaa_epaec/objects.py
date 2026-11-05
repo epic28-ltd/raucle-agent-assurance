@@ -436,9 +436,29 @@ def evaluate_requirement(
     for any fixed-limit violation.
     """
     req = requirement or ""
+    _requirement_size_limits(req)
+    tokens = _tokenize(req)
+    _requirement_token_limits(tokens)
+
+    # Recursive-descent evaluation, single pass, deterministic.
+    parser = _ReqParser(tokens, set(component_types))
+    try:
+        verdict_bool = parser.parse_or()
+    except RecursionError as exc:  # pathological nesting beyond the depth cap
+        raise RequirementRejected("EVAL_PARSE", "evaluation recursed") from exc
+    if parser.pos != len(tokens):
+        raise RequirementRejected("EVAL_PARSE", f"trailing tokens from offset {parser.pos}")
+    return _verdict(verdict_bool, parser.missing)
+
+
+def _requirement_size_limits(req: str) -> None:
+    """Fixed-limit guard: total encoded size."""
     if len(req.encode("utf-8")) > MAX_REQUIREMENT_BYTES:
         raise RequirementRejected("EVAL_LIMIT_BYTES", f"> {MAX_REQUIREMENT_BYTES} bytes")
-    tokens = _tokenize(req)
+
+
+def _requirement_token_limits(tokens: list[str]) -> None:
+    """Fixed-limit guards: token count and paren balancing/depth."""
     if len(tokens) > MAX_REQUIREMENT_TOKENS:
         raise RequirementRejected("EVAL_LIMIT_TOKENS", f"> {MAX_REQUIREMENT_TOKENS} tokens")
     depth = 0
@@ -456,62 +476,60 @@ def evaluate_requirement(
     if depth != 0:
         raise RequirementRejected("EVAL_PARSE", "unbalanced '('")
 
-    # Recursive-descent evaluation, single pass, deterministic.
-    present = set(component_types)
-    pos = 0
-    missing: set[str] = set()
 
-    def peek() -> str | None:
-        return tokens[pos] if pos < len(tokens) else None
+class _ReqParser:
+    """Single-pass recursive-descent parser over the requirement tokens."""
 
-    def parse_or() -> bool:
-        nonlocal pos
-        val = parse_and()
-        while peek() == "OR":
-            pos += 1
-            val = parse_and() or val
+    def __init__(self, tokens: list[str], present: set[str]) -> None:
+        self.tokens = tokens
+        self.pos = 0
+        self.present = present
+        self.missing: set[str] = set()
+
+    def peek(self) -> str | None:
+        return self.tokens[self.pos] if self.pos < len(self.tokens) else None
+
+    def parse_or(self) -> bool:
+        val = self.parse_and()
+        while self.peek() == "OR":
+            self.pos += 1
+            val = self.parse_and() or val
         return val
 
-    def parse_and() -> bool:
-        nonlocal pos
-        val = parse_unary()
-        while peek() == "AND":
-            pos += 1
-            val = parse_unary() and val
+    def parse_and(self) -> bool:
+        val = self.parse_unary()
+        while self.peek() == "AND":
+            self.pos += 1
+            val = self.parse_unary() and val
         return val
 
-    def parse_unary() -> bool:
-        nonlocal pos
-        tok = peek()
+    def parse_unary(self) -> bool:
+        tok = self.peek()
         if tok is None:
             raise RequirementRejected("EVAL_PARSE", "unexpected end of expression")
         if tok == "NOT":
-            pos += 1
-            return not parse_unary()
+            self.pos += 1
+            return not self.parse_unary()
         if tok == "(":
-            pos += 1
-            val = parse_or()
-            if peek() != ")":
+            self.pos += 1
+            val = self.parse_or()
+            if self.peek() != ")":
                 raise RequirementRejected("EVAL_PARSE", "expected ')'")
-            pos += 1
+            self.pos += 1
             return val
         if tok == ")" or tok in ("AND", "OR"):
             raise RequirementRejected("EVAL_PARSE", f"unexpected token {tok!r}")
-        pos += 1
+        self.pos += 1
         if tok in _RESERVED:
             raise RequirementRejected("EVAL_PARSE", f"reserved word used as atom: {tok!r}")
-        ok = tok in present
+        ok = tok in self.present
         if not ok:
-            missing.add(tok)
+            self.missing.add(tok)
         return ok
 
-    try:
-        verdict_bool = parse_or()
-    except RecursionError as exc:  # pathological nesting beyond the depth cap
-        raise RequirementRejected("EVAL_PARSE", "evaluation recursed") from exc
-    if pos != len(tokens):
-        raise RequirementRejected("EVAL_PARSE", f"trailing tokens from offset {pos}")
 
+def _verdict(verdict_bool: bool, missing: set[str]) -> tuple[str, list[str]]:
+    """Bounded, sorted reason codes for the verdict."""
     if verdict_bool:
         return SATISFIED, ["EVAL_SATISFIED"]
     codes = [f"EVAL_UNSATISFIED_ATOM:{name}" for name in sorted(missing)[:16]]

@@ -100,28 +100,10 @@ def _trend_series() -> dict:
     from oaa_investigation_ui.counting import default_data_dir, load_cached  # noqa: PLC0415
 
     data = load_cached(default_data_dir())
-    series = []
-    for run in sorted(data.runs, key=lambda r: r["started"]):
-        buckets = {"valid": 0, "unproven": 0, "unaccounted": 0}
-        for trace in run["traces"]:
-            for span in trace["spans"]:
-                if not span.get("privileged"):
-                    continue
-                v = data.verification_for(span.get("receipt_hash"))
-                status = v["status"]
-                if status == "valid":
-                    buckets["valid"] += 1
-                elif status in ("invalid", "unsupported_schema"):
-                    buckets["unaccounted"] += 1
-                elif status not in ("unavailable", "not_applicable"):
-                    buckets["unproven"] += 1
-        series.append(
-            {
-                "label": run["run_id"],
-                "at": run["started"],
-                **buckets,
-            }
-        )
+    series = [
+        {"label": run["run_id"], "at": run["started"], **_run_buckets(data, run)}
+        for run in sorted(data.runs, key=lambda r: r["started"])
+    ]
     return {
         "kind": "per run",
         "note": "one point per ingested run (demo fixture set)",
@@ -213,27 +195,57 @@ def _red_dogfood() -> dict:
     }
     attempts_file = corpus / "policy_attempts.jsonl"
     findings_file = corpus / "findings.jsonl"
-    if attempts_file.exists():
-        for line in attempts_file.read_text().splitlines():
-            if not line.strip():
-                continue
-            rec = json.loads(line)
-            out["attempts"] += 1
-            if rec.get("red_receipt_present"):
-                out["receipted"] += 1
-            if rec.get("decision") == "allow":
-                out["red_receipted_allow"] = out.get("red_receipted_allow", 0) + 1
-        out["available"] = True
-    if findings_file.exists():
-        for line in findings_file.read_text().splitlines():
-            if not line.strip():
-                continue
-            rec = json.loads(line)
-            out["findings_total"] += 1
-            sev = rec.get("severity", "info")
-            out["findings_by_severity"][sev] = out["findings_by_severity"].get(sev, 0) + 1
+    _tally_attempts(out, attempts_file)
+    _tally_findings(out, findings_file)
     out["share"] = round(100 * out["receipted"] / out["attempts"]) if out["attempts"] else 0
     return out
+
+
+def _tally_attempts(out: dict, attempts_file: pathlib.Path) -> None:
+    """Count attempts + receipts from the red agent's own attempts corpus."""
+    if not attempts_file.exists():
+        return
+    for line in attempts_file.read_text().splitlines():
+        if not line.strip():
+            continue
+        rec = json.loads(line)
+        out["attempts"] += 1
+        if rec.get("red_receipt_present"):
+            out["receipted"] += 1
+        if rec.get("decision") == "allow":
+            out["red_receipted_allow"] = out.get("red_receipted_allow", 0) + 1
+    out["available"] = True
+
+
+def _tally_findings(out: dict, findings_file: pathlib.Path) -> None:
+    """Count the red findings corpus by severity."""
+    if not findings_file.exists():
+        return
+    for line in findings_file.read_text().splitlines():
+        if not line.strip():
+            continue
+        rec = json.loads(line)
+        out["findings_total"] += 1
+        sev = rec.get("severity", "info")
+        out["findings_by_severity"][sev] = out["findings_by_severity"].get(sev, 0) + 1
+
+
+def _run_buckets(data, run: dict) -> dict:
+    """One run's verification buckets over its privileged spans (same loop
+    and bucket taxonomy as counts_payload - UI-05 coherence)."""
+    buckets = {"valid": 0, "unproven": 0, "unaccounted": 0}
+    for trace in run["traces"]:
+        for span in trace["spans"]:
+            if not span.get("privileged"):
+                continue
+            status = data.verification_for(span.get("receipt_hash"))["status"]
+            if status == "valid":
+                buckets["valid"] += 1
+            elif status in ("invalid", "unsupported_schema"):
+                buckets["unaccounted"] += 1
+            elif status not in ("unavailable", "not_applicable"):
+                buckets["unproven"] += 1
+    return buckets
 
 
 def _ago(seconds: float) -> str:
@@ -259,25 +271,11 @@ ACTIVITY_PLACEHOLDER = [
 ]
 
 
-def create_app() -> fastapi.FastAPI:
-    app = fastapi.FastAPI(title="Raucle Console (EPIC-N)", version="0.1.0")
+class _Routes:
+    """Endpoint logic for the console; bodies live here so ``create_app``
+    stays a pure router registration (S3776)."""
 
-    def _assurance_url() -> str:
-        return os.environ.get("RAUCLE_ASSURANCE_URL", ASSURANCE_URL_DEFAULT)
-
-    def _trust_portal_url() -> str:
-        return os.environ.get("RAUCLE_TRUST_PORTAL_URL", TRUST_PORTAL_URL_DEFAULT)
-
-    def _trust_gateway_url() -> str:
-        """The hosted/live Trust gateway console (traffic topology, receipt
-        stream, policy files, learn mode). demo.raucle.com is the public
-        demo deployment; a self-hosted deployment points this at its own
-        gateway UI via RAUCLE_TRUST_GATEWAY_URL."""
-        return os.environ.get("RAUCLE_TRUST_GATEWAY_URL", "https://demo.raucle.com/")
-
-    # ------------------------------------------------------------ API (JSON)
-    @app.get("/api/overview")
-    def api_overview() -> dict:
+    def overview(self) -> dict:
         """Suite summary: add-in catalogue, shared-module Trust counts, activity.
 
         Assurance counters are fetched by the SPA from the add-in itself
@@ -327,8 +325,7 @@ def create_app() -> fastapi.FastAPI:
             "single_tenant_alpha": True,
         }
 
-    @app.get("/api/config")
-    def api_config(request: fastapi.Request) -> dict:
+    def config(self, request: fastapi.Request) -> dict:
         """Client configuration. The iframe target must be reachable FROM THE
         BROWSER, so when no explicit RAUCLE_ASSURANCE_URL override is set the
         origin is derived per request from the Host header (same host, add-in
@@ -356,8 +353,7 @@ def create_app() -> fastapi.FastAPI:
             "coverage_target_pct": COVERAGE_TARGET_PCT,
         }
 
-    @app.get("/api/trust/policies/summary")
-    def api_trust_policies_summary() -> JSONResponse:
+    def trust_policies_summary(self) -> JSONResponse:
         """Same-origin proxy for the H1 portal's /api/v1/policies/summary
         (Trust-dashboard reconcile decision, 4 Nov: the portal owns deep
         policy management; the console narrates and links, never edits).
@@ -383,8 +379,7 @@ def create_app() -> fastapi.FastAPI:
                 status_code=503,
             )
 
-    @app.get("/api/assurance/dashboard")
-    def api_assurance_dashboard() -> JSONResponse:
+    def assurance_dashboard(self) -> JSONResponse:
         """Server-side proxy for the add-in's own /api/dashboard.
 
         The SPA cannot fetch the add-in cross-origin (the add-in sends no
@@ -401,8 +396,7 @@ def create_app() -> fastapi.FastAPI:
                 status_code=503,
             )
 
-    @app.get("/api/assurance/counts")
-    def api_assurance_counts() -> JSONResponse:
+    def assurance_counts(self) -> JSONResponse:
         """Server-side proxy for the add-in's own /api/counts (UI-05
         coherence pass: the full shared counting-module breakdown). Same
         graceful degradation contract as the dashboard proxy."""
@@ -416,8 +410,7 @@ def create_app() -> fastapi.FastAPI:
                 status_code=503,
             )
 
-    @app.get("/api/assurance/findings")
-    def api_assurance_findings() -> JSONResponse:
+    def assurance_findings(self) -> JSONResponse:
         """Server-side proxy for the add-in's /api/findings (UI-02.3: the
         overview findings card needs rule_id / severity / suppression for
         rows, which the dashboard aggregate does not carry). Same graceful
@@ -432,56 +425,23 @@ def create_app() -> fastapi.FastAPI:
                 status_code=503,
             )
 
-    @app.get("/api/trends")
-    def api_trends() -> dict:
+    def trends(self) -> dict:
         """Per-run bucket series for the Overview Trends card. Derived from
         the shared counting module's demo fixture set (same source as every
         console figure); the add-in's live runs replace these when the
         proxy contract is extended with windows."""
         return _trend_series()
 
-    @app.get("/api/red/dogfood")
-    def api_red_dogfood() -> dict:
+    def red_dogfood(self) -> dict:
         """The red agent's own gate receipts (dogfooding, EPIC L invariant 1)."""
         return _red_dogfood()
 
-    def _red_runner_url() -> str:
-        return os.environ.get("RAUCLE_RED_RUNNER_URL", RED_RUNNER_URL_DEFAULT)
-
-    def _proxy_red(method: str, path: str, *, body=None):
-        """Forward a call to the red runner with explicit offline handling:
-        an unreachable runner degrades to a 503 the SPA renders honestly -
-        never a blank card, never a guessed status. Runner-side validation
-        errors (e.g. unknown preset) pass their own status through."""
-        try:
-            r = httpx.request(
-                method,
-                _red_runner_url().rstrip("/") + path,
-                json=body,
-                timeout=5.0,
-            )
-            r.raise_for_status()
-            return JSONResponse(r.json())
-        except httpx.HTTPStatusError as exc:
-            try:
-                detail = exc.response.json()
-            except ValueError:
-                detail = {"error": "runner error", "detail": exc.response.text[:300]}
-            return JSONResponse(detail, status_code=exc.response.status_code)
-        except Exception as exc:  # connection refused, timeout, DNS: offline
-            return JSONResponse(
-                {"error": "red runner offline", "detail": type(exc).__name__},
-                status_code=503,
-            )
-
-    @app.get("/api/red/targets")
-    def api_red_targets() -> JSONResponse:
+    def red_targets(self) -> JSONResponse:
         """Proxy the runner's /targets: the demo gateway plus any named gates
         registered with it (with endpoint / policy digest per gate)."""
         return _proxy_red("GET", "/targets")
 
-    @app.post("/api/red/run")
-    async def api_red_run(request: fastapi.Request) -> JSONResponse:
+    async def red_run(self, request: fastapi.Request) -> JSONResponse:
         """Proxy the runner's POST /run. The requested preset is checked at
         the console as well (cheap misuse filter); the runner remains the
         arbiter and any runner-side rejection is passed through verbatim."""
@@ -500,23 +460,19 @@ def create_app() -> fastapi.FastAPI:
             return JSONResponse({"error": "target must be a non-empty string"}, status_code=422)
         return _proxy_red("POST", "/run", body={"preset": preset, "target": target})
 
-    @app.get("/api/red/status")
-    def api_red_status() -> JSONResponse:
+    def red_status(self) -> JSONResponse:
         """Proxy the runner's /status for the live results poll."""
         return _proxy_red("GET", "/status")
 
-    @app.get("/api/red/results")
-    def api_red_results() -> JSONResponse:
+    def red_results(self) -> JSONResponse:
         """Proxy the runner's /results (finding rows + receipts counter)."""
         return _proxy_red("GET", "/results")
 
-    @app.post("/api/red/stop")
-    def api_red_stop() -> JSONResponse:
+    def red_stop(self) -> JSONResponse:
         """Proxy the runner's POST /stop (aborts a run in flight)."""
         return _proxy_red("POST", "/stop")
 
-    @app.get("/api/assurance/findings/red")
-    def api_assurance_findings_red() -> JSONResponse:
+    def assurance_findings_red(self) -> JSONResponse:
         """Server-side GET proxy for the add-in's ingested-red-finding slice.
 
         The SPA must not fetch the add-in cross-origin (the add-in sends no
@@ -534,8 +490,7 @@ def create_app() -> fastapi.FastAPI:
                 status_code=503,
             )
 
-    @app.post("/api/assurance/findings/ingest")
-    async def api_assurance_findings_ingest(request: fastapi.Request) -> JSONResponse:
+    async def assurance_findings_ingest(self, request: fastapi.Request) -> JSONResponse:
         """Server-side proxy for the add-in's findings intake (the same
         graceful degradation contract as the GET proxies above). The add-in
         validates the red schema itself; a 422 passes through so the SPA can
@@ -563,18 +518,89 @@ def create_app() -> fastapi.FastAPI:
                 status_code=503,
             )
 
-    @app.get("/api/health")
-    def api_health() -> dict:
+    def health(self) -> dict:
         return {"service": "raucle-console", "status": "ok"}
 
     # ------------------------------------------------------------ static SPA
-    @app.get("/", include_in_schema=False)
-    def index() -> FileResponse:
+    def index(self) -> FileResponse:
         return FileResponse(_static_dir / "index.html")
 
-    @app.get("/static/index.html", include_in_schema=False)
-    def spa() -> FileResponse:
+    def spa(self) -> FileResponse:
         return FileResponse(_static_dir / "index.html")
+
+
+def _assurance_url() -> str:
+    return os.environ.get("RAUCLE_ASSURANCE_URL", ASSURANCE_URL_DEFAULT)
+
+
+def _trust_portal_url() -> str:
+    return os.environ.get("RAUCLE_TRUST_PORTAL_URL", TRUST_PORTAL_URL_DEFAULT)
+
+
+def _trust_gateway_url() -> str:
+    """The hosted/live Trust gateway console (traffic topology, receipt
+    stream, policy files, learn mode). demo.raucle.com is the public
+    demo deployment; a self-hosted deployment points this at its own
+    gateway UI via RAUCLE_TRUST_GATEWAY_URL."""
+    return os.environ.get("RAUCLE_TRUST_GATEWAY_URL", "https://demo.raucle.com/")
+
+
+def _red_runner_url() -> str:
+    return os.environ.get("RAUCLE_RED_RUNNER_URL", RED_RUNNER_URL_DEFAULT)
+
+
+def _proxy_red(method: str, path: str, *, body=None):
+    """Forward a call to the red runner with explicit offline handling:
+    an unreachable runner degrades to a 503 the SPA renders honestly -
+    never a blank card, never a guessed status. Runner-side validation
+    errors (e.g. unknown preset) pass their own status through."""
+    try:
+        r = httpx.request(
+            method,
+            _red_runner_url().rstrip("/") + path,
+            json=body,
+            timeout=5.0,
+        )
+        r.raise_for_status()
+        return JSONResponse(r.json())
+    except httpx.HTTPStatusError as exc:
+        try:
+            detail = exc.response.json()
+        except ValueError:
+            detail = {"error": "runner error", "detail": exc.response.text[:300]}
+        return JSONResponse(detail, status_code=exc.response.status_code)
+    except Exception as exc:  # connection refused, timeout, DNS: offline
+        return JSONResponse(
+            {"error": "red runner offline", "detail": type(exc).__name__},
+            status_code=503,
+        )
+
+
+def create_app() -> fastapi.FastAPI:
+    """Build the FastAPI app; each route binds to a shared _Routes view."""
+    app = fastapi.FastAPI(title="Raucle Console (EPIC-N)", version="0.1.0")
+    api = _Routes()
+
+    # ------------------------------------------------------------ API (JSON)
+    app.get("/api/overview")(api.overview)
+    app.get("/api/config")(api.config)
+    app.get("/api/trust/policies/summary")(api.trust_policies_summary)
+    app.get("/api/assurance/dashboard")(api.assurance_dashboard)
+    app.get("/api/assurance/counts")(api.assurance_counts)
+    app.get("/api/assurance/findings")(api.assurance_findings)
+    app.get("/api/trends")(api.trends)
+    app.get("/api/red/dogfood")(api.red_dogfood)
+    app.get("/api/red/targets")(api.red_targets)
+    app.post("/api/red/run")(api.red_run)
+    app.get("/api/red/status")(api.red_status)
+    app.get("/api/red/results")(api.red_results)
+    app.post("/api/red/stop")(api.red_stop)
+    app.get("/api/assurance/findings/red")(api.assurance_findings_red)
+    app.post("/api/assurance/findings/ingest")(api.assurance_findings_ingest)
+    app.get("/api/health")(api.health)
+    # ------------------------------------------------------------ static SPA
+    app.get("/", include_in_schema=False)(api.index)
+    app.get("/static/index.html", include_in_schema=False)(api.spa)
 
     # Vendored UI assets (Inter font) and the token/app stylesheets are all
     # served locally only: the SPA never fetches anything external at
