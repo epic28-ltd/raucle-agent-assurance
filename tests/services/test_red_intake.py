@@ -67,7 +67,7 @@ def _example_finding(
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def client(tmp_path: pathlib.Path) -> TestClient:
     shutil.copytree(DATA_DIR, tmp_path / "demo")
     # red_findings.json is runtime state: a live dev-server ingest leaves rows

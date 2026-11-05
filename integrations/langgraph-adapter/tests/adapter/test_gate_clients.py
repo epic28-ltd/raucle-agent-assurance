@@ -33,7 +33,7 @@ class _GateHandler(BaseHTTPRequestHandler):
         pass
 
 
-@pytest.fixture()
+@pytest.fixture
 def gate_server():
     server = HTTPServer(("127.0.0.1", 0), _GateHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)

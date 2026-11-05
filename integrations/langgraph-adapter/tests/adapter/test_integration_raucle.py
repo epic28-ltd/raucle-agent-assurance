@@ -76,7 +76,7 @@ class _Sink:
         self.events.append(dict(event))
 
 
-@pytest.fixture()
+@pytest.fixture
 def h():
     return Harness()
 

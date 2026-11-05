@@ -38,7 +38,7 @@ def client() -> TestClient:
     return TestClient(create_app(DATA_DIR))
 
 
-@pytest.fixture()
+@pytest.fixture
 def tmp_client(tmp_path: pathlib.Path) -> TestClient:
     """A copy of the demo dir so triage-state writes never touch the repo."""
     shutil.copytree(DATA_DIR, tmp_path / "demo")

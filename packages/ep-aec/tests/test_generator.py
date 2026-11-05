@@ -16,7 +16,7 @@ from oaa_epaec.objects import SATISFIED, UNSATISFIED, jcs
 FROZEN = dt.datetime(2026, 11, 4, 12, 0, 0, tzinfo=dt.UTC)
 
 
-@pytest.fixture()
+@pytest.fixture
 def store(tmp_path):
     payloads = [gate_payload(trace_id=f"tr-{i}") for i in (1, 2)]
     hashes = make_store(tmp_path / "store", payloads)

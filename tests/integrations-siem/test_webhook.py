@@ -157,7 +157,7 @@ def test_env_builder_rejects_payload_keys():
 # ------------------------------------------------------------ delivery -----
 
 
-@pytest.fixture()
+@pytest.fixture
 def config_factory(tmp_path: Path):
     def factory(url: str, **overrides) -> tuple[WebhookConfig, Path, Path]:
         allow_http = overrides.pop("allow_http", url.startswith("http://"))
@@ -201,7 +201,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         pass
 
 
-@pytest.fixture()
+@pytest.fixture
 def server():
     _Handler.fail_next = []
     _Handler.received = []

@@ -31,7 +31,7 @@ STATIC = pathlib.Path(__file__).resolve().parents[1] / "static"
 CONSOLE_DIR = STATIC.parent
 
 
-@pytest.fixture()
+@pytest.fixture
 def client() -> TestClient:
     return TestClient(create_app())
 
