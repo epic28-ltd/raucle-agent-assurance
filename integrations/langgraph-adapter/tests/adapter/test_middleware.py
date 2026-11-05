@@ -67,7 +67,13 @@ class AuditSink:
 
 
 def make_request(name="read_file", args=None, call_id="call-1"):
-    return {"tool_call": {"name": name, "args": args or {"path": "/tmp/x"}, "id": call_id}}
+    return {
+        "tool_call": {
+            "name": name,
+            "args": args or {"path": "/var/oaa-demo/synthetic/x"},
+            "id": call_id,
+        }
+    }
 
 
 ALLOW = GateDecision(
@@ -91,7 +97,7 @@ def test_allow_with_receipt_runs_tool_and_attaches_span_attrs():
     ex = StubExecutor()
     out = mw.wrap_tool_call(make_request(), ex)
 
-    assert out == "ran:{'path': '/tmp/x'}"
+    assert out == "ran:{'path': '/var/oaa-demo/synthetic/x'}"
     assert len(ex.calls) == 1  # tool body ran exactly once
     attrs = spans.attrs["call-1"]
     assert attrs["oaa.receipt_hash"] == "sha256:abc"
@@ -183,7 +189,7 @@ def test_gate_error_fail_open_runs_tool_without_receipt():
     ex = StubExecutor()
     out = mw.wrap_tool_call(make_request(), ex)
 
-    assert out == "ran:{'path': '/tmp/x'}"  # fail_open lets the call through
+    assert out == "ran:{'path': '/var/oaa-demo/synthetic/x'}"  # fail_open lets the call through
     assert ex.calls and len(ex.calls) == 1
     assert spans.attrs["call-1"]["oaa.verification"] == "unverified"
     assert "oaa.receipt_hash" not in spans.attrs["call-1"]
@@ -242,7 +248,7 @@ def test_latency_recorded_in_audit_event():
 def test_args_forwarded_verbatim_to_gate():
     gate = FakeGateClient([ALLOW])
     mw = RaucleGateMiddleware(gate)
-    args = {"path": "/tmp/evd-allow.txt", "nested": {"k": [1, 2]}}
+    args = {"path": "/var/oaa-demo/evd-allow.txt", "nested": {"k": [1, 2]}}
     mw.wrap_tool_call(make_request(args=args), StubExecutor())
 
     assert gate.requests[0]["args"] == args

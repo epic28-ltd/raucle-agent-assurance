@@ -29,6 +29,7 @@ import html
 import json
 import os
 import pathlib
+import re
 
 import fastapi
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
@@ -325,6 +326,13 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
         Resolved' (click the state button per card; see the spike). Writes a
         sidecar ``triage_state.json`` in the demo data dir — the canonical
         evidence store stays untouched (invariant 1)."""
+        # finding_id arrives from request content, so it is format-checked
+        # before it can index the sidecar state file: only the finding-id
+        # charset is accepted, and anything aiming at a path element ("..
+        # ", separators) is rejected outright.
+        finding_id_ok = re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", finding_id)
+        if finding_id_ok is None or ".." in finding_id:
+            return JSONResponse({"error": "malformed finding id"}, status_code=422)
         if not any(f["id"] == finding_id for f in data.findings):
             return JSONResponse({"error": "unknown finding id"}, status_code=404)
         state = str(body.get("state", ""))

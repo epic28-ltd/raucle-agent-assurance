@@ -29,13 +29,13 @@ policies:
     ttl_seconds: 300
     constraints:
       allow:
-        path: ["/tmp/evd-allow.txt"]
+        path: ["/var/oaa-demo/evd-allow.txt"]
   - tool: write_file
     agent_id: agent:evd
     ttl_seconds: 300
     constraints:
       allow:
-        path: ["/tmp/evd-only.txt"]
+        path: ["/var/oaa-demo/evd-only.txt"]
 """
 
 
@@ -111,7 +111,7 @@ def generate(workspace: pathlib.Path) -> FixtureCorpus:
     # ---------------------------------------------------------------- valid
     r_allow = gw1.check_tool_call(
         "read_file",
-        {"path": "/tmp/evd-allow.txt"},
+        {"path": "/var/oaa-demo/evd-allow.txt"},
         agent_id="agent:evd",
         source="agent",
         destination="fs",

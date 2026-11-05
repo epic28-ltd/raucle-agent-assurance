@@ -108,7 +108,8 @@ def test_real_deny_through_raucle_gateway(h):
     """A policy-violating path is denied and the tool body NEVER runs."""
     runs = []
     out = h.mw.wrap_tool_call(
-        _req("read_file", {"path": "/tmp/definitely-not-allowed.txt"}, "k3-deny-1"), runs.append
+        _req("read_file", {"path": "/var/oaa-demo/definitely-not-allowed.txt"}, "k3-deny-1"),
+        runs.append,
     )
     assert runs == [], "tool body must not run on deny"
     assert "denied by Raucle Agent Trust gate" in str(out["content"])

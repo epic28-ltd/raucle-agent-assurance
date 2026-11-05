@@ -46,7 +46,7 @@ def test_http_allow_with_receipt(gate_server):
     client = HttpGateClient(gate_server, timeout_s=2.0)
     d = client.check_tool_call(
         tool="read_file",
-        args={"path": "/tmp/x"},
+        args={"path": "/var/oaa-demo/synthetic/x"},
         call_id="c1",
         trace_id="",
         agent_id="a",

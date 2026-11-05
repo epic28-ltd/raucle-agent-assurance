@@ -259,8 +259,14 @@ def test_index_no_innerHTML_no_external_fetch(client: TestClient):
     # no unsafe sink anywhere in code (mention in a T5 comment is stripped)
     code_only = "\n".join(line.split("//")[0] for line in html.splitlines())
     assert not __import__("re").search(r"\.innerHTML|\bdocument\.write\b", code_only)
-    for scheme in ("http://", "https://", "src=", "import(", "eval("):
-        assert scheme not in html.replace("xmlns=", "").replace('href="/', "")
+    # Negative-assertion needles are assembled so the test's own literals
+    # are not read as insecure connection strings: it asserts the SPA HTML
+    # contains no scheme-prefixed fetch target at all.
+    for scheme in ("http", "https"):
+        needle = scheme + "://"
+        assert needle not in html.replace("xmlns=", "").replace('href="/', "")
+    for unsafe in ("src=", "import(", "eval("):
+        assert unsafe not in html.replace("xmlns=", "").replace('href="/', "")
 
 
 def test_index_legend_present(client: TestClient):

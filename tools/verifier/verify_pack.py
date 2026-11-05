@@ -107,15 +107,47 @@ def _sha256_file(path: pathlib.Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _extract_zip_safely(zf: zipfile.ZipFile, dest: pathlib.Path) -> None:
+    """Zip-slip-safe extraction: every member is validated before any write.
+
+    A verifier must never trust the pack it is verifying: member names are
+    rejected when absolute, dotted-up, or otherwise aiming outside the
+    extraction root, and non-regular members (links, specials) are refused
+    outright.
+    """
+    dest_r = dest.resolve()
+    for m in zf.infolist():
+        parts = pathlib.PurePosixPath(m.filename).parts
+        if (
+            not parts
+            or pathlib.PurePosixPath(m.filename).is_absolute()
+            or any(part in {"..", "."} for part in parts)
+            or any("\\" in part or part.endswith(":") for part in parts)
+        ):
+            raise SystemExit(
+                f"refusing to extract a pack containing an unsafe entry: {m.filename!r}"
+            )
+        if (m.external_attr >> 16) & 0o170000 not in (0, 0o100000):  # not a regular file
+            raise SystemExit(
+                f"refusing to extract a pack containing a non-regular entry: {m.filename!r}"
+            )
+        target = dest_r.joinpath(*parts)
+        if dest_r != target and dest_r not in target.resolve().parents:
+            raise SystemExit(
+                f"refusing to extract {m.filename!r}: it would land outside the extraction root"
+            )
+        zf.extract(m, dest_r)
+
+
 def load_pack(target: pathlib.Path) -> tuple[pathlib.Path, bool]:
     """Return (pack_dir, is_temp). Accepts a directory or a .zip."""
     target = pathlib.Path(target)
     if target.is_dir():
         return target, False
     if zipfile.is_zipfile(target):
-        tmp = pathlib.Path(tempfile.mkdtemp(prefix="oaa-verify-"))
+        tmp = pathlib.Path(tempfile.mkdtemp(prefix="oaa-verify-"))  # mode 0700, private
         with zipfile.ZipFile(target) as zf:
-            zf.extractall(tmp)
+            _extract_zip_safely(zf, tmp)
         subdirs = [d for d in tmp.iterdir() if d.is_dir()]
         pack_path = subdirs[0] if len(subdirs) == 1 else tmp
         # never hand out pack==tmp: the caller cleanup rmtree(pack.parent)
@@ -137,7 +169,11 @@ def check_manifest(pack: pathlib.Path, report: Report) -> None:
         files: dict[str, str] = manifest.get("files", {})
     except Exception as exc:
         report.checks.append(
-            Check("manifest-integrity", "FAIL", f"manifest.json is not readable JSON ({exc}) — the pack's inventory is damaged")
+            Check(
+                "manifest-integrity",
+                "FAIL",
+                f"manifest.json is not readable JSON ({exc}) — the pack's inventory is damaged",
+            )
         )
         return
     problems: list[str] = []
@@ -146,7 +182,9 @@ def check_manifest(pack: pathlib.Path, report: Report) -> None:
         if not p.is_file():
             problems.append(f"missing {rel} — the manifest promises it; the pack does not have it")
         elif _sha256_file(p) != digest:
-            problems.append(f"{rel} — recorded sha256 {digest[:16]}… but the file hashes to {_sha256_file(p)[:16]}… (tampered after export)")
+            problems.append(
+                f"{rel} — recorded sha256 {digest[:16]}… but the file hashes to {_sha256_file(p)[:16]}… (tampered after export)"
+            )
     extra = sorted(
         str(p.relative_to(pack))
         for p in pack.rglob("*")
@@ -192,9 +230,7 @@ def _check_signature(jws: str, pem: str) -> str | None:
     if header.get("alg") != "EdDSA":
         return f"unsupported signature algorithm {header.get('alg')!r} (this verifier checks EdDSA receipts only)"
     try:
-        pub = serialization.load_pem_public_key(
-            pem.encode() if isinstance(pem, str) else pem
-        )
+        pub = serialization.load_pem_public_key(pem.encode() if isinstance(pem, str) else pem)
         if not isinstance(pub, Ed25519PublicKey):
             return f"key snapshot entry is {type(pub).__name__}, not an Ed25519 public key"
         pub.verify(_b64d(sig_b64), f"{header_b64}.{payload_b64}".encode())
@@ -225,7 +261,9 @@ def _verify_one_envelope(line: str, label: str, keys: dict[str, dict]) -> str | 
     start = dt.datetime.fromisoformat(root["valid_from"])
     end = dt.datetime.fromisoformat(root["valid_until"]) if root.get("valid_until") else None
     if event_time < start or (end and event_time >= end):
-        return f"{label}: event at {event_time.isoformat()} falls outside key {kid!r} validity window"
+        return (
+            f"{label}: event at {event_time.isoformat()} falls outside key {kid!r} validity window"
+        )
     reason = _check_signature(rec["jws"], root["public_key_pem"])
     if reason:
         return f"{label}: {reason}"
@@ -272,16 +310,38 @@ def check_signature_bundle(pack: pathlib.Path, report: Report, keys: dict[str, d
             else:
                 ok += 1
     if failures:
-        report.checks.append(Check("signature-bundle", "FAIL", f"{len(failures)} of {total} bundle receipt(s) FAILED: {'; '.join(failures)}"))
+        report.checks.append(
+            Check(
+                "signature-bundle",
+                "FAIL",
+                f"{len(failures)} of {total} bundle receipt(s) FAILED: {'; '.join(failures)}",
+            )
+        )
     else:
-        report.checks.append(Check("signature-bundle", "PASS", f"{ok} of {total} chain receipt(s) in signatures/: receipt_hash re-derived, signature valid against the pinned snapshot."))
+        report.checks.append(
+            Check(
+                "signature-bundle",
+                "PASS",
+                f"{ok} of {total} chain receipt(s) in signatures/: receipt_hash re-derived, signature valid against the pinned snapshot.",
+            )
+        )
 
 
-def check_receipts(pack: pathlib.Path, report: Report, keys: dict[str, dict], key_problems: list[str]) -> None:
+def check_receipts(
+    pack: pathlib.Path, report: Report, keys: dict[str, dict], key_problems: list[str]
+) -> None:
     if key_problems or not (pack / "keys").is_dir():
-        report.checks.append(Check("key-snapshot", "FAIL", "; ".join(key_problems) or "keys/ directory absent"))
+        report.checks.append(
+            Check("key-snapshot", "FAIL", "; ".join(key_problems) or "keys/ directory absent")
+        )
         return
-    report.checks.append(Check("key-snapshot", "PASS", f"{len(keys)} public key(s) in the embedded snapshot (public halves only)."))
+    report.checks.append(
+        Check(
+            "key-snapshot",
+            "PASS",
+            f"{len(keys)} public key(s) in the embedded snapshot (public halves only).",
+        )
+    )
 
     receipts_path = pack / "receipts.jsonl"
     lines = [ln for ln in receipts_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
@@ -300,14 +360,18 @@ def check_receipts(pack: pathlib.Path, report: Report, keys: dict[str, dict], ke
         try:
             want = "sha256:" + hashlib.sha256(rec["jws"].encode()).hexdigest()
             if rec["receipt_hash"] != want:
-                failures.append(f"{label}: receipt_hash does not re-derive from the receipt bytes (tampered)")
+                failures.append(
+                    f"{label}: receipt_hash does not re-derive from the receipt bytes (tampered)"
+                )
                 continue
         except (KeyError, TypeError, AttributeError) as exc:
             failures.append(f"{label}: malformed envelope, missing envelope fields ({exc})")
             continue
         kid = header_d.get("kid")
         if kid not in keys:
-            failures.append(f"{label}: signing key {kid!r} is not in the key snapshot — the pack cannot vouch for it")
+            failures.append(
+                f"{label}: signing key {kid!r} is not in the key snapshot — the pack cannot vouch for it"
+            )
             continue
         root = keys[kid]
         iat = int(payload.get("iat", 0))
@@ -315,7 +379,9 @@ def check_receipts(pack: pathlib.Path, report: Report, keys: dict[str, dict], ke
         start = dt.datetime.fromisoformat(root["valid_from"])
         end = dt.datetime.fromisoformat(root["valid_until"]) if root.get("valid_until") else None
         if event_time < start or (end and event_time >= end):
-            failures.append(f"{label}: event at {event_time.isoformat()} falls outside key {kid!r} validity window")
+            failures.append(
+                f"{label}: event at {event_time.isoformat()} falls outside key {kid!r} validity window"
+            )
             continue
         reason = _check_signature(rec["jws"], root["public_key_pem"])
         if reason:
@@ -328,14 +394,21 @@ def check_receipts(pack: pathlib.Path, report: Report, keys: dict[str, dict], ke
             f"{len(failures)} of {len(lines)} receipt(s) FAILED: {'; '.join(failures)}",
         )
         if failures
-        else ("PASS", f"{ok_count} of {len(lines)} receipt(s): receipt_hash re-derived, signature valid against the key snapshot, event time within the key's validity window.")
+        else (
+            "PASS",
+            f"{ok_count} of {len(lines)} receipt(s): receipt_hash re-derived, signature valid against the key snapshot, event time within the key's validity window.",
+        )
     )
     report.checks.append(Check("receipt-signatures", status, msg))
 
 
 def check_timestamps(pack: pathlib.Path, report: Report) -> None:
     ts_dir = pack / "timestamps"
-    lines = [ln for ln in (pack / "receipts.jsonl").read_text(encoding="utf-8").splitlines() if ln.strip()]
+    lines = [
+        ln
+        for ln in (pack / "receipts.jsonl").read_text(encoding="utf-8").splitlines()
+        if ln.strip()
+    ]
     claimed: list[tuple[str, bytes]] = []
     for line in lines:
         try:
@@ -354,13 +427,23 @@ def check_timestamps(pack: pathlib.Path, report: Report) -> None:
     for rh, token in claimed:
         p = ts_dir / f"{rh.replace(':', '-')}.token"
         if not p.is_file():
-            failures.append(f"receipt {rh[:24]}… claims an RFC 3161 anchor but its token file is missing from timestamps/")
+            failures.append(
+                f"receipt {rh[:24]}… claims an RFC 3161 anchor but its token file is missing from timestamps/"
+            )
         elif p.read_bytes() != token:
-            failures.append(f"receipt {rh[:24]}…: token file does not match the token embedded in the receipt (tampered)")
+            failures.append(
+                f"receipt {rh[:24]}…: token file does not match the token embedded in the receipt (tampered)"
+            )
     if failures:
         report.checks.append(Check("timestamp-tokens", "FAIL", "; ".join(failures)))
     elif claimed:
-        report.checks.append(Check("timestamp-tokens", "PASS", f"{len(claimed)} claimed RFC 3161 anchor(s) carried matching token file(s)."))
+        report.checks.append(
+            Check(
+                "timestamp-tokens",
+                "PASS",
+                f"{len(claimed)} claimed RFC 3161 anchor(s) carried matching token file(s).",
+            )
+        )
     else:
         report.checks.append(
             Check(
@@ -379,12 +462,18 @@ def check_claim_sheet(pack: pathlib.Path, report: Report) -> None:
                 "claim-sheet-guard",
                 "PASS",
                 "claims.md absent.",
-                warnings=["the pack has no claim sheet at all — ask the operator to regenerate the pack with one"],
+                warnings=[
+                    "the pack has no claim sheet at all — ask the operator to regenerate the pack with one"
+                ],
             )
         )
         return
     text = p.read_text(encoding="utf-8")
-    missing = [name for name, needle in (("guard section", GUARD_HEADER), ("guard sentence", GUARD_SENTINEL)) if needle not in text]
+    missing = [
+        name
+        for name, needle in (("guard section", GUARD_HEADER), ("guard sentence", GUARD_SENTINEL))
+        if needle not in text
+    ]
     if missing:
         report.checks.append(
             Check(
@@ -409,12 +498,24 @@ def check_claim_sheet(pack: pathlib.Path, report: Report) -> None:
 def check_chain_graph(pack: pathlib.Path, report: Report) -> None:
     p = pack / "chain_graph.json"
     if not p.is_file():
-        report.checks.append(Check("chain-graph-slot", "PASS", "chain_graph.json absent — the slot is additive and its absence is noted, not concealed."))
+        report.checks.append(
+            Check(
+                "chain-graph-slot",
+                "PASS",
+                "chain_graph.json absent — the slot is additive and its absence is noted, not concealed.",
+            )
+        )
         return
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
     except Exception as exc:
-        report.checks.append(Check("chain-graph-slot", "FAIL", f"chain_graph.json is not readable JSON ({exc}) — damaged pack"))
+        report.checks.append(
+            Check(
+                "chain-graph-slot",
+                "FAIL",
+                f"chain_graph.json is not readable JSON ({exc}) — damaged pack",
+            )
+        )
         return
     status = data.get("status", "")
     # P1.1c self-containment: every receipt a RESOLVED graph depends on
@@ -428,7 +529,13 @@ def check_chain_graph(pack: pathlib.Path, report: Report) -> None:
                         try:
                             shipped.add(json.loads(ln)["receipt_hash"])
                         except Exception as exc:
-                            report.checks.append(Check("chain-graph-slot", "FAIL", f"undecodable envelope in {path.name}: {exc}"))
+                            report.checks.append(
+                                Check(
+                                    "chain-graph-slot",
+                                    "FAIL",
+                                    f"undecodable envelope in {path.name}: {exc}",
+                                )
+                            )
                             return
         holes: list[str] = []
         for rh, g in data.get("graphs", {}).items():
@@ -438,7 +545,9 @@ def check_chain_graph(pack: pathlib.Path, report: Report) -> None:
                 if isinstance(node, dict) and node.get("kind") == "receipt":
                     rid = node.get("id", "")
                     if rid.startswith("sha256:") and rid not in shipped:
-                        holes.append(f"{rh[:24]}… depends on {rid[:24]}… which is not shipped in the pack")
+                        holes.append(
+                            f"{rh[:24]}… depends on {rid[:24]}… which is not shipped in the pack"
+                        )
         if holes:
             report.checks.append(Check("chain-graph-slot", "FAIL", "; ".join(holes[:5])))
             return
@@ -460,7 +569,11 @@ def check_pinned_key_snapshot(pack: pathlib.Path, report: Report) -> None:
         block = json.loads(m.read_text(encoding="utf-8")).get("pinned_key_snapshot")
     except Exception as exc:
         report.checks.append(
-            Check("pinned-key-snapshot", "FAIL", f"manifest.json is not readable JSON ({exc}) — the pinned-key-snapshot block cannot be checked")
+            Check(
+                "pinned-key-snapshot",
+                "FAIL",
+                f"manifest.json is not readable JSON ({exc}) — the pinned-key-snapshot block cannot be checked",
+            )
         )
         return
     if not block:
@@ -469,18 +582,36 @@ def check_pinned_key_snapshot(pack: pathlib.Path, report: Report) -> None:
                 "pinned-key-snapshot",
                 "PASS",
                 "Pack carries no pinned-key-snapshot manifest block (pre-P1.1c layout); receipt checks still ran against keys/.",
-                warnings=["this pack does not declare a pinned key snapshot digest; ask the operator for a P1.1c export"],
+                warnings=[
+                    "this pack does not declare a pinned key snapshot digest; ask the operator for a P1.1c export"
+                ],
             )
         )
         return
     rel = block.get("file", "")
     f = pack / rel
     if not f.is_file():
-        report.checks.append(Check("pinned-key-snapshot", "FAIL", f"declared snapshot {rel!r} is missing from the pack"))
+        report.checks.append(
+            Check(
+                "pinned-key-snapshot", "FAIL", f"declared snapshot {rel!r} is missing from the pack"
+            )
+        )
     elif _sha256_file(f) != block.get("sha256"):
-        report.checks.append(Check("pinned-key-snapshot", "FAIL", f"declared snapshot digest for {rel!r} does not match the embedded bytes"))
+        report.checks.append(
+            Check(
+                "pinned-key-snapshot",
+                "FAIL",
+                f"declared snapshot digest for {rel!r} does not match the embedded bytes",
+            )
+        )
     else:
-        report.checks.append(Check("pinned-key-snapshot", "PASS", f"The declared pinned key snapshot {rel} matches its recorded digest ({len(block.get('key_ids', []))} key id(s)); verification depends on nothing outside the pack."))
+        report.checks.append(
+            Check(
+                "pinned-key-snapshot",
+                "PASS",
+                f"The declared pinned key snapshot {rel} matches its recorded digest ({len(block.get('key_ids', []))} key id(s)); verification depends on nothing outside the pack.",
+            )
+        )
 
 
 # ----------------------------------------------------------------- CLI -----
@@ -491,7 +622,13 @@ def verify_pack(target: pathlib.Path) -> Report:
     try:
         report = Report()
         if not (pack / MANIFEST_NAME).is_file():
-            report.checks.append(Check("manifest-integrity", "FAIL", "manifest.json missing — the pack cannot verify itself"))
+            report.checks.append(
+                Check(
+                    "manifest-integrity",
+                    "FAIL",
+                    "manifest.json missing — the pack cannot verify itself",
+                )
+            )
             return report
         check_manifest(pack, report)
         keys, key_problems = load_key_snapshot(pack)
@@ -524,6 +661,7 @@ def install_offline_audit() -> list[str]:
     exercised separately by the demo and tests where `unshare -n` is
     available on the machine.
     """
+
     def _refuse(where: str):
         def _hook(*args, **kwargs):
             EXTERNAL_CALL_AUDIT.append(where)

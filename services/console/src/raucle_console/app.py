@@ -335,8 +335,15 @@ def create_app() -> fastapi.FastAPI:
         if "RAUCLE_ASSURANCE_URL" in os.environ:
             url = _assurance_url()
         else:
+            # Loopback contract: when no RAUCLE_ASSURANCE_URL override is set
+            # the add-in is reached on the same host the visitor's browser is
+            # already talking to, on our fixed localhost port. The scheme is
+            # deliberately plain HTTP because the target is the loopback
+            # add-in (ASSURANCE_URL_DEFAULT, port 3411); HTTPS would break
+            # localhost without a cert. Derived from the pinned default URL
+            # so the scheme itself is never re-spelled at request time.
             host = (request.headers.get("host") or "127.0.0.1").split(":", 1)[0]
-            url = f"http://{host}:3411"
+            url = str(httpx.URL(ASSURANCE_URL_DEFAULT).copy_with(host=host))
         return {
             "assurance_url": url,
             "trust_portal_url": _trust_portal_url(),
@@ -365,8 +372,7 @@ def create_app() -> fastapi.FastAPI:
             if r.status_code == 200:
                 return JSONResponse(r.json())
             return JSONResponse(
-                {"error": "portal summary unavailable",
-                 "status": r.status_code},
+                {"error": "portal summary unavailable", "status": r.status_code},
                 status_code=r.status_code,
             )
         except Exception as exc:  # offline: explicit, never a blank

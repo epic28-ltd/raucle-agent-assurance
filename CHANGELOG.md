@@ -47,6 +47,19 @@ from completed 4-Nov-2026 spike work (EPIC K, Open Agent Assurance companion).
   README, ruff/pytest configuration, GitHub Actions workflow (ruff + pytest,
   Python 3.11/3.12; local file only — nothing pushed).
 
+### Security
+
+- SonarQube Cloud security sweep (Nov 2026): harden AUD-01 pack builder
+  (`--out` canonicalisation/refusal, CLI input canonicalisation,
+  content-derived filename validation, policy-copy containment), zip-slip-
+  safe pack verification, investigation-UI data-dir confinement and finding
+  id validation, loopback HTTP intent made explicit (console `api_config`),
+  private-demo paths instead of publicly writable `/tmp` literals in
+  fixtures and tests, and committed `uv.lock` files for the two deployable
+  services. Accepted-remainder decisions (operator-chosen input paths,
+  library packages without locks) are recorded in
+  `docs/spikes/SONAR-ACCEPTANCE.md`.
+
 ### Known gaps / TODOs
 
 - P1.7a/P1.7b shipped: offline auditor export pack (self-contained, pinned

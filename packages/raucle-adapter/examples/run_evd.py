@@ -98,7 +98,7 @@ print(f"trust_policy_version: {ep.TRUST_POLICY_VERSION}\n")
 gw_cfg, gw_v1 = fg.new_gateway(OUT, "rotation")
 r_hist = gw_v1.check_tool_call(
     "read_file",
-    {"path": "/tmp/evd-allow.txt"},
+    {"path": "/var/oaa-demo/evd-allow.txt"},
     agent_id="agent:evd",
     source="agent",
     destination="fs",

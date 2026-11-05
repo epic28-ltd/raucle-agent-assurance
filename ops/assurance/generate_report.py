@@ -353,7 +353,11 @@ def main(argv: list[str] | None = None) -> int:
         clock=clock,
         audit_events_path=pathlib.Path(args.audit_events) if args.audit_events else None,
     )
-    out = pathlib.Path(args.out)
+    out = pathlib.Path(args.out).expanduser().resolve()
+    if out == pathlib.Path(out.root) or out == pathlib.Path.home():
+        raise SystemExit(
+            f"refusing --out {args.out!s}: resolving to {out} is not a usable report path"
+        )
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(report, encoding="utf-8")
     print(f"wrote {out} ({len(report)} chars)")

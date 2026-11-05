@@ -70,10 +70,12 @@ class TestActionObject:
         assert other.action["args_digest"] != b.action["args_digest"]
 
     def test_args_digest_from_x_gate_args(self):
-        b = _build(args={"path": "/tmp/x"})
+        b = _build(args={"path": "/var/oaa-demo/synthetic/x"})
         assert b.action["args_digest_basis"] == "x_gate-args"
         # digest binds the JCS of the args, deterministically
-        assert b.action["args_digest"] == jcs_digest({"args": {"path": "/tmp/x"}})
+        assert b.action["args_digest"] == jcs_digest(
+            {"args": {"path": "/var/oaa-demo/synthetic/x"}}
+        )
         # large args dict still canonicalises via the JCS subset
         b2 = _build(args={"k" * 40: list(range(50))})
         assert b2.action["args_digest_basis"] == "x_gate-args"

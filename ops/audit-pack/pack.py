@@ -38,6 +38,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import re
 import shutil
 import sys
 import zipfile
@@ -87,6 +88,44 @@ ZIP_NAME = "audit-pack.zip"
 
 def _b64d(seg: str) -> bytes:
     return base64.urlsafe_b64decode(seg + "=" * (-len(seg) % 4))
+
+
+_REceiptHashRe = re.compile(r"sha256:[0-9a-f]{64}")
+
+
+def _receipt_hash_filename(receipt_hash: str, *, label: str) -> str:
+    """Filename stem for content-derived artifact names.
+
+    ``receipt_hash`` is read from the evidence store (file content), not
+    from a trusted source, so it is validated against the canonical
+    ``sha256:<hex>`` form before it can ever become part of a written
+    path. Anything else fails loudly: a hostile store line must not be
+    able to aim a write outside the pack directory.
+    """
+    rh = receipt_hash.strip().lower()
+    if not _REceiptHashRe.fullmatch(rh):
+        raise ValueError(
+            f"{label}: receipt_hash {receipt_hash[:32]!r}… is not canonical "
+            "sha256:<64 hex>; refusing to derive a pack filename from it"
+        )
+    return rh.replace(":", "-")
+
+
+def _resolve_out_dir(out_dir: pathlib.Path) -> pathlib.Path:
+    """Canonicalise the CLI ``--out`` directory and refuse dangerous targets.
+
+    The pack builder removes and recreates ``out_dir`` wholesale, so a
+    mistyped or malicious ``--out`` (the caller may be an automated agent,
+    which is exactly what this project assumes) must not be able to name
+    a filesystem root or a home directory.
+    """
+    candidate = pathlib.Path(out_dir).expanduser().resolve()
+    if candidate == pathlib.Path(candidate.root) or candidate == pathlib.Path.home():
+        raise ValueError(
+            f"refusing --out {out_dir!s}: resolving to {candidate} would be "
+            "removed wholesale by the pack builder; choose a dedicated output directory"
+        )
+    return candidate
 
 
 def _now_iso() -> str:
@@ -289,14 +328,20 @@ def build_signature_bundle(
         try:
             rh = json.loads(line)["receipt_hash"]
         except Exception as exc:  # already reported by select_envelopes
-            print(f"audit-pack: signature bundle skipped undecodable store line: {exc}", file=sys.stderr)
+            print(
+                f"audit-pack: signature bundle skipped undecodable store line: {exc}",
+                file=sys.stderr,
+            )
             continue
         in_store_all[rh] = line
     for line in in_window:
         try:
             window_hashes.add(json.loads(line)["receipt_hash"])
         except Exception as exc:
-            print(f"audit-pack: signature bundle skipped undecodable window line: {exc}", file=sys.stderr)
+            print(
+                f"audit-pack: signature bundle skipped undecodable window line: {exc}",
+                file=sys.stderr,
+            )
     wanted = sorted(_graph_receipt_ids(graph_status, graphs) - window_hashes)
     extra: list[str] = []
     missing: list[str] = []
@@ -342,7 +387,6 @@ def build_signature_bundle(
     return len(extra), note
 
 
-
 def build_pack(
     evidence_store: pathlib.Path,
     trust_roots: pathlib.Path,
@@ -362,7 +406,7 @@ def build_pack(
     """
     evidence_store = pathlib.Path(evidence_store)
     trust_roots = pathlib.Path(trust_roots)
-    out_dir = pathlib.Path(out_dir)
+    out_dir = _resolve_out_dir(pathlib.Path(out_dir))
     if out_dir.exists():
         shutil.rmtree(out_dir)
 
@@ -405,7 +449,9 @@ def build_pack(
         x_ts = _envelope_payload(line).get("x_timestamp")
         if isinstance(x_ts, dict) and x_ts.get("token"):
             token = _b64d(str(x_ts["token"]))
-            rh = json.loads(line)["receipt_hash"].replace(":", "-")
+            rh = _receipt_hash_filename(
+                str(json.loads(line)["receipt_hash"]), label="timestamp token"
+            )
             (ts_dir / f"{rh}.token").write_bytes(token)
             token_count += 1
     if token_count == 0:
@@ -426,7 +472,15 @@ def build_pack(
         policies_dir = pathlib.Path(policies_dir)
         for f in sorted(policies_dir.iterdir()):
             if f.is_file() and f.suffix in {".yaml", ".yml", ".json"}:
-                shutil.copyfile(f, pol_dir / f.name)
+                target = pol_dir / f.name
+                # the copied path is derived from an untrusted directory
+                # listing; refuse anything that does not stay inside pol_dir
+                if target.resolve().parent != pol_dir.resolve():
+                    raise ValueError(
+                        f"policy file {str(f)!s} would not land inside the pack "
+                        "policies/ directory; refusing the copy"
+                    )
+                shutil.copyfile(f, target)
                 copied_policies.append(f.name)
     if policy_receipt_hashes:
         pol_lines: list[str] = []
@@ -490,9 +544,7 @@ def build_pack(
         if cand.is_file():
             _cg_path = cand
     if _cg_path is not None:
-        spec = importlib.util.spec_from_file_location(
-            "raucle_chain_graph_p1_1a", _cg_path
-        )
+        spec = importlib.util.spec_from_file_location("raucle_chain_graph_p1_1a", _cg_path)
         assert spec is not None and spec.loader is not None
         _cg = importlib.util.module_from_spec(spec)
         sys.modules.setdefault(spec.name, _cg)
@@ -506,7 +558,8 @@ def build_pack(
             rh = json.loads(line)["receipt_hash"]
             try:
                 graphs[rh] = _cg.resolve_chain_graph(
-                    rh, [json.loads(env_line) for env_line in envelopes],
+                    rh,
+                    [json.loads(env_line) for env_line in envelopes],
                     public_keys=public_keys,
                 )
             except Exception as exc:  # per-receipt: a graph state, not a crash
@@ -672,6 +725,20 @@ def _parse_utc(s: str) -> dt.datetime:
     return d.replace(tzinfo=dt.UTC) if d.tzinfo is None else d.astimezone(dt.UTC)
 
 
+def _cli_input_path(s: str, label: str) -> pathlib.Path:
+    """Canonicalise a CLI-supplied input path and require a real file.
+
+    CLI arguments may be supplied by an automated caller, so every input
+    is resolved to its canonical form up front and rejected with an honest
+    error when it does not name an existing regular file — no read of a
+    half-formed or surprising path ever happens.
+    """
+    p = pathlib.Path(s).expanduser().resolve()
+    if not p.is_file():
+        raise FileNotFoundError(f"--{label}: {s!s} resolves to {p}, which is not a regular file")
+    return p
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="AUD-01: build an offline auditor export pack (P1.7a)")
     ap.add_argument(
@@ -689,18 +756,22 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--clock", help="pinned clock, ISO-8601 (deterministic builds)")
     args = ap.parse_args(argv)
     store_lines = (
-        pathlib.Path(args.policy_receipts).read_text().splitlines()
+        _cli_input_path(args.policy_receipts, "policy-receipts")
+        .read_text(encoding="utf-8")
+        .splitlines()
         if args.policy_receipts
         else None
     )
     summary = build_pack(
-        pathlib.Path(args.evidence_store),
-        pathlib.Path(args.trust_roots),
+        _cli_input_path(args.evidence_store, "evidence-store"),
+        _cli_input_path(args.trust_roots, "trust-roots"),
         pathlib.Path(args.out),
         from_utc=_parse_utc(args.from_s) if args.from_s else None,
         to_utc=_parse_utc(args.to_s) if args.to_s else None,
         receipt_hash=args.receipt_hash,
-        policies_dir=pathlib.Path(args.policies_dir) if args.policies_dir else None,
+        policies_dir=(
+            pathlib.Path(args.policies_dir).expanduser().resolve() if args.policies_dir else None
+        ),
         policy_receipt_hashes=store_lines if store_lines is not None else None,
         clock=_parse_utc(args.clock) if args.clock else None,
     )

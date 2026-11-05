@@ -155,6 +155,16 @@ class DemoData:
 
     def _receipt_index_rows(self, synthetic_path: pathlib.Path) -> list[ReceiptRecord]:
         rows: list[ReceiptRecord] = []
+        # Confinement: the synthetic index path is derived from the (possibly
+        # env-sourced) data directory, so the resolved path must stay inside
+        # that directory before anything is read from it.
+        base_r = pathlib.Path(self.dir).resolve()
+        path_r = pathlib.Path(synthetic_path).resolve()
+        if base_r not in path_r.parents:
+            raise ValueError(
+                f"synthetic index {str(path_r)!s} is outside the demo data dir "
+                f"{str(base_r)!s}; refusing to read it"
+            )
         # Real receipts: index fields decoded from the signed payload.
         for meta in self._receipt_meta.values():
             rows.append(
