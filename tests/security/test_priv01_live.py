@@ -91,7 +91,8 @@ def test_priv01_b_with_redaction_seeds_absent(lf) -> None:
     assert text.count("[REDACTED:") >= 1
     # collector-side scan over the (post-SDK-scrub) export batch: zero
     scan = summary["scan"]
-    assert scan is not None and scan["clean"] is True
+    assert scan is not None
+    assert scan["clean"] is True
     assert scan["violation_count"] == 0
     assert summary["quarantined_span_count"] == 0
     # and the SDK layer counted what it scrubbed

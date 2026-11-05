@@ -116,7 +116,8 @@ def test_corpus_fp_measurement_is_deterministic() -> None:
 
 def test_corpus_measurement_shape() -> None:
     m = measured()
-    assert m["benign_runs"] == 40 and m["non_benign_runs"] == 60
+    assert m["benign_runs"] == 40
+    assert m["non_benign_runs"] == 60
     assert m["fp_bound"] == 6  # documented: ceil(15% of 40 benign cases)
     assert set(m) >= {
         "benign_runs",

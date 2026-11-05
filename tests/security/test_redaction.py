@@ -234,7 +234,8 @@ def test_entropy_bounds(
     scrubbed, violations = redactor.redact({"client.blob": value})
     if expected_detected:
         assert scrubbed["client.blob"].startswith("[REDACTED:high_entropy|")
-        assert violations and violations[0].pattern_id == "entropy_heuristic"
+        assert violations
+        assert violations[0].pattern_id == "entropy_heuristic"
     else:
         assert scrubbed["client.blob"] == value
         assert violations == []
@@ -257,8 +258,10 @@ def test_entropy_does_not_second_guess_pattern_hits(redactor: Redactor) -> None:
 def test_config_version_and_hash(redactor: Redactor) -> None:
     cfg = redactor.config
     assert cfg.config_version == 1
-    assert cfg.source_sha256 and len(cfg.source_sha256) == 64
-    assert cfg.config_sha256 and len(cfg.config_sha256) == 64
+    assert cfg.source_sha256
+    assert len(cfg.source_sha256) == 64
+    assert cfg.config_sha256
+    assert len(cfg.config_sha256) == 64
     assert any("oaa.metadata.*" in g for g in cfg.allowlist)
 
 
@@ -276,7 +279,8 @@ def test_seeded_fixtures_match_the_patterns(redactor: Redactor, seeds: dict[str,
 
 def test_seeded_fixture_values_are_synthetic(seeds: dict[str, dict]) -> None:
     pems = [s["value"] for s in seeds.values() if s["class"] == "private_key_pem"]
-    assert pems and pems[0].startswith("-----BEGIN RSA PRIVATE KEY-----")
+    assert pems
+    assert pems[0].startswith("-----BEGIN RSA PRIVATE KEY-----")
     # regeneration is deterministic: re-running gen_seeds is a no-op (pinned RNG)
     out = (FIXTURES / "seeds" / "seeds.json").read_text(encoding="utf-8")
     assert json.loads(out)["purpose"].startswith("PRIV-01")
@@ -333,7 +337,9 @@ def test_collector_scan_clean_payload(redactor: Redactor, seeds: dict[str, dict]
         },
     ]
     report = scan_batch(good, redactor)
-    assert report.clean and report.violation_count == 0 and report.span_count == 1
+    assert report.clean
+    assert report.violation_count == 0
+    assert report.span_count == 1
 
 
 def test_collector_scan_is_idempotent_over_redacted_batches(
@@ -378,7 +384,8 @@ def test_redaction_does_not_mutate_input(redactor: Redactor) -> None:
 def test_non_string_attributes_pass_through(redactor: Redactor) -> None:
     raw = {"oaa.stub": True, "count": 3, "none_val": None}
     scrubbed, violations = redactor.redact(raw)
-    assert scrubbed == raw and violations == []
+    assert scrubbed == raw
+    assert violations == []
 
 
 # ------------------------------------------------- OTel wrapper (needs otel sdk)

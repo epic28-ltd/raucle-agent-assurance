@@ -85,8 +85,10 @@ def test_baseline_distributions_shape() -> None:
     assert len(bl.tools) == 1
     t = bl.tools[0]
     assert (t.agent_id, t.tool) == ("a1", "http_fetch")
-    assert t.runs_seen == 4 and t.call_counts == (1.0, 1.0, 1.0, 1.0)
-    assert t.denial_ratio == 0.0 and t.hour_span == (10, 10)
+    assert t.runs_seen == 4
+    assert t.call_counts == (1.0, 1.0, 1.0, 1.0)
+    assert t.denial_ratio == 0.0
+    assert t.hour_span == (10, 10)
     assert t.latency_p95_ms is None  # documented placeholder
 
 
@@ -96,7 +98,8 @@ def test_beh_a_fires_on_known_volume_shift() -> None:
     findings = [f for f in run_beh_rules(bl, [shifted]) if f.rule_id == "BEH-A"]
     assert len(findings) == 1
     f = findings[0]
-    assert f.severity == "medium" and f.confidence == "advisory"
+    assert f.severity == "medium"
+    assert f.confidence == "advisory"
     assert "not intent" in f.explanation
 
 
@@ -137,7 +140,8 @@ def test_beh_c_fires_on_late_hour_volume() -> None:
     ]
     shifted = window_run("late", late, day=1)
     findings = [f for f in run_beh_rules(bl, [shifted]) if f.rule_id == "BEH-C"]
-    assert len(findings) == 1 and findings[0].confidence == "advisory"
+    assert len(findings) == 1
+    assert findings[0].confidence == "advisory"
 
 
 def test_beh_d_reuses_sec006_and_stays_advisory() -> None:
@@ -161,7 +165,8 @@ def test_beh_d_reuses_sec006_and_stays_advisory() -> None:
     findings = [f for f in run_beh_rules(bl, [shifted], CONFIG) if f.rule_id == "BEH-D"]
     assert len(findings) == 1
     f = findings[0]
-    assert f.severity == "low" and f.confidence == "advisory"
+    assert f.severity == "low"
+    assert f.confidence == "advisory"
     assert "SEC-006 reused" in f.explanation
     # acknowledged tool stays silent
     ack = [
@@ -231,7 +236,8 @@ def test_measurement_is_deterministic() -> None:
     runs.append(window_run("shift", [ev(i, mins=float(i)) for i in range(12)], label="vol-shift"))
     m1 = measure_false_positives(bl, runs)
     m2 = measure_false_positives(bl, runs)
-    assert m1 == m2 and m1["tp_count"] == 1
+    assert m1 == m2
+    assert m1["tp_count"] == 1
 
 
 def test_beh_rules_do_not_join_all_rules() -> None:
@@ -261,4 +267,5 @@ def test_run_beh_rules_sorted_and_advisory() -> None:
 @pytest.mark.parametrize("rule_id", ["BEH-A", "BEH-B", "BEH-C", "BEH-D"])
 def test_beh_rule_metadata(rule_id: str) -> None:
     rule = next(r for r in BEH_RULES if r.id == rule_id)
-    assert rule.version == "1.0.0" and rule.description
+    assert rule.version == "1.0.0"
+    assert rule.description

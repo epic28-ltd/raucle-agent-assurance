@@ -134,7 +134,8 @@ def test_no_secret_in_envelope():
     assert "<redacted:aws_access_key>" in json.dumps(env["fields"])
     # the placeholder carries only a pattern name, never matched material
     placeholder_text = json.dumps(env["fields"])
-    assert "leaked" in placeholder_text and SECRET_AWS_KEY not in placeholder_text
+    assert "leaked" in placeholder_text
+    assert SECRET_AWS_KEY not in placeholder_text
 
 
 def test_env_builder_rejects_payload_keys():

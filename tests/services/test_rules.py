@@ -693,7 +693,8 @@ def test_no_finding_ever_carries_raw_matched_content():
 def test_all_eleven_rules_registered():
     assert [r.id for r in ALL_RULES] == [f"SEC-{i:03d}" for i in range(1, 12)]
     for r in ALL_RULES:
-        assert r.version and r.description
+        assert r.version
+        assert r.description
 
 
 def test_run_rules_deterministic_and_sorted():
@@ -773,7 +774,8 @@ def test_shipped_yaml_matches_json_schema():
     for s in doc["rules"].get("suppressions", []):
         item_schema = rules_section["suppressions"]["items"]
         assert set(s) <= set(item_schema["properties"])
-        assert s["rule_id"] and len(s["reason"]) >= 8
+        assert s["rule_id"]
+        assert len(s["reason"]) >= 8
 
 
 def test_load_config_rejects_unknown_version(tmp_path):

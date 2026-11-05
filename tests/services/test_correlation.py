@@ -127,7 +127,8 @@ def test_grace_open_records_are_pending_not_missing():
     result = reconcile(
         [receipt(6)], [], CorrelationConfig(grace_seconds=30), at=T0 + dt.timedelta(seconds=5)
     )
-    assert result.records == [] and result.pending == 1
+    assert result.records == []
+    assert result.pending == 1
 
 
 def test_duplicate_collapses_provenance_not_data():
@@ -158,7 +159,8 @@ def test_receipt_without_trace_id_pending_within_grace():
     orphan = receipt(7, trace_id=None)
     result = reconcile([orphan], [trace()], at=T0 + dt.timedelta(seconds=5))
     # orphan receipt AND the trace side of t1 are both still open within grace
-    assert result.records == [] and result.pending == 2
+    assert result.records == []
+    assert result.pending == 2
 
 
 def test_state_enum_matches_adr_0002():

@@ -201,7 +201,8 @@ def test_abstain_when_required_data_missing(rubric_v1: Any) -> None:
 def test_abstain_on_empty_workflows(rubric_v1: Any) -> None:
     case = make_case(n=0)
     s = eval_of(rubric_v1, case)
-    assert s.score is None and "no workflow records" in s.applicability
+    assert s.score is None
+    assert "no workflow records" in s.applicability
 
 
 def test_abstain_when_sample_below_rubric_policy() -> None:
@@ -216,7 +217,8 @@ def test_abstain_when_sample_below_rubric_policy() -> None:
         }
     )
     s = eval_of(stricter, make_case(n=2))
-    assert s.score is None and "min_sample_size 3" in s.applicability
+    assert s.score is None
+    assert "min_sample_size 3" in s.applicability
     # the shipped rubric (min 2) does not abstain on the same input
     assert eval_of(shipped, make_case(n=2)).score is not None
 
@@ -229,7 +231,8 @@ def test_unknown_criterion_forces_abstain(rubric_v1: Any) -> None:
     data["criteria"].append({"id": "poetics", "weight": 0.05, "description": "x"})
     stricter = rubric_from_dict(data)
     s = eval_of(stricter, make_case())
-    assert s.score is None and "poetics" in s.applicability
+    assert s.score is None
+    assert "poetics" in s.applicability
 
 
 def test_uncertainty_bands() -> None:
@@ -307,9 +310,12 @@ def test_attach_callback_sink_receives_attributes() -> None:
 def test_attach_abstained_score_marks_attributes(rubric_v1: Any) -> None:
     s = eval_of(rubric_v1, make_case(scenario_class="sensitive_data"))
     body = to_score_api_body(s)
-    assert body["score"] is None and body["abstained"] is True and body["advisory"] is True
+    assert body["score"] is None
+    assert body["abstained"] is True
+    assert body["advisory"] is True
     attrs = to_span_attributes(s)
-    assert attrs["oaa.quality.score"] == "" and attrs["oaa.quality.abstained"] is True
+    assert attrs["oaa.quality.score"] == ""
+    assert attrs["oaa.quality.abstained"] is True
 
 
 def test_score_api_body_round_trips_through_json() -> None:
