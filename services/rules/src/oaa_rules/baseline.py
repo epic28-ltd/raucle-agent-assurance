@@ -422,18 +422,7 @@ class BEHAVolumeStepChange:
             d = stats.per_tool.get(key)
             if not d:
                 continue
-            # the whole run's observed step count for the runs in window
-            observed_steps = 0.0
-            for run in runs:
-                evs = [
-                    e
-                    for e in run.events
-                    if e.kind == "tool_audit"
-                    and e.tool == t.tool
-                    and (e.agent_id or "") == t.agent_id
-                ]
-                if evs:
-                    observed_steps = max(observed_steps, float(len(evs)))
+            observed_steps = _observed_step_max(runs, t)
             if observed_steps <= 0.0:  # integral-valued floats; no tolerance needed
                 continue
             hit, why = _steps_exceeds(t.steps_per_run, observed_steps)
@@ -451,6 +440,20 @@ class BEHAVolumeStepChange:
                     )
                 )
         return sorted(findings, key=lambda f: f.evidence_refs)
+
+
+def _observed_step_max(runs: Sequence[LabelledRun], t) -> float:
+    """Whole run's observed tool_audit step count for the runs in window."""
+    observed = 0.0
+    for run in runs:
+        evs = [
+            e
+            for e in run.events
+            if e.kind == "tool_audit" and e.tool == t.tool and (e.agent_id or "") == t.agent_id
+        ]
+        if evs:
+            observed = max(observed, float(len(evs)))
+    return observed
 
 
 class BEHADenialRatioShift:
