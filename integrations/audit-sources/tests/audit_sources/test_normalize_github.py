@@ -193,19 +193,22 @@ def test_no_payloads_beyond_declared_fields() -> None:
     assert cand.raw_ref["actor_is_agent"] is True
 
 
-def test_missing_actor_or_action_rejected() -> None:
+def test_missing_actor_rejected() -> None:
+    ev = github_event(actor=None)
     with pytest.raises(ValueError, match="lacks actor/action"):
-        normalize_github([github_event(actor=None)], _cfg())
+        normalize_github([ev], _cfg())
+
+
+def test_missing_action_rejected() -> None:
+    ev = github_event(action="")
     with pytest.raises(ValueError, match="lacks actor/action"):
-        normalize_github([github_event(action="")], _cfg())
+        normalize_github([ev], _cfg())
 
 
 def test_missing_timestamps_rejected() -> None:
+    ev = github_event(**{"@timestamp": None, "created_at": ""})
     with pytest.raises(ValueError, match="timestamp"):
-        normalize_github(
-            [github_event(**{"@timestamp": None, "created_at": ""})],
-            _cfg(),
-        )
+        normalize_github([ev], _cfg())
 
 
 def test_synthetic_marker_is_explicit() -> None:

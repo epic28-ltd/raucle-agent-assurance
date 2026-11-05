@@ -114,7 +114,8 @@ def test_real_deny_through_raucle_gateway(h):
     assert runs == [], "tool body must not run on deny"
     assert "denied by Raucle Agent Trust gate" in str(out["content"])
     ev = h.audit.events[0]
-    assert ev["decision"] == "deny" and ev["trace_id"] == "k3-deny-1"
+    assert ev["decision"] == "deny"
+    assert ev["trace_id"] == "k3-deny-1"
 
 
 def test_real_unknown_tool_deny(h):
@@ -134,7 +135,8 @@ def test_receipt_keyed_by_correlation_id(h):
         agent_id="agent:k3",
         source="langgraph",
     )
-    assert d.decision == "allow" and d.receipt_hash
+    assert d.decision == "allow"
+    assert d.receipt_hash
     store = pathlib.Path(h.gate._gateway.config.receipt_store)
     for line in store.read_text().splitlines():
         rec = json.loads(line)

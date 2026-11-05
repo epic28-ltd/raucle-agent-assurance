@@ -678,13 +678,10 @@ def test_config_carries_trust_portal_url(client: TestClient):
     assert body["trust_portal_url"] == "http://127.0.0.1:8090"
 
 
-def test_trust_portal_url_configurable():
-    os.environ["RAUCLE_TRUST_PORTAL_URL"] = "http://127.0.0.1:9410"
-    try:
-        c = TestClient(create_app())
-        assert c.get("/api/config").json()["trust_portal_url"] == "http://127.0.0.1:9410"
-    finally:
-        del os.environ["RAUCLE_TRUST_PORTAL_URL"]
+def test_trust_portal_url_configurable(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("RAUCLE_TRUST_PORTAL_URL", "http://127.0.0.1:9410")
+    c = TestClient(create_app())
+    assert c.get("/api/config").json()["trust_portal_url"] == "http://127.0.0.1:9410"
 
 
 def test_trust_policies_summary_proxy_degrades_honestly(client: TestClient):

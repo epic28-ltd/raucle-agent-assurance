@@ -354,5 +354,8 @@ def test_https_enforced(tmp_path):
     # unknown kind and missing ids fail closed
     with pytest.raises(ValueError, match="unknown outbound event kind"):
         build_envelope(EventInputs(**dict(BASIS, kind="trace"), fields={}))
+
+
+def test_build_envelope_requires_org_and_agent_id():
     with pytest.raises(ValueError, match="org_id and agent_id"):
         build_envelope(EventInputs(**dict(BASIS, org_id=""), fields={}))
