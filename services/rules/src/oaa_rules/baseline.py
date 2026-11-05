@@ -154,20 +154,12 @@ def build_baseline(
     """
     dists: dict[tuple[str, str, str], dict[str, Any]] = {}
     for run in _sorted_runs(runs):
-        stamps = [e.at for e in run.events]
-        if not stamps:
+        hours, by_tool, release = _run_tool_split(run)
+        if not by_tool:
             continue
-        hours = [s.astimezone(UTC).hour for s in stamps]
-        by_tool: dict[str, list[Event]] = {}
-        for e in run.events:
-            if e.kind == "tool_audit" and e.tool:
-                by_tool.setdefault(e.tool, []).append(e)
-        run_tools = sorted(by_tool)
-        releases = sorted({e.release_id or "" for e in run.events if e.kind == "tool_audit"})
-        release = releases[0] if releases else None
-        for tool in run_tools:
-            evs = sorted(by_tool[tool], key=lambda e: (e.at, e.ref or ""))
-            key = (run.events[0].agent_id or "", release or "", tool)
+        agent_id = run.events[0].agent_id or ""
+        for tool in sorted(by_tool):
+            key = (agent_id, release or "", tool)
             d = dists.setdefault(
                 key,
                 {
@@ -179,12 +171,54 @@ def build_baseline(
                     "release": release,
                 },
             )
-            d["call_counts"].append(float(len(evs)))
-            d["steps_per_run"].append(float(len(set(e.trace_id or e.ref or "" for e in evs))))
-            d["calls"] += len(evs)
-            d["denies"] += sum(1 for e in evs if e.decision == "deny")
-            d["hours"].extend(hours)
+            _tally_tool_events(d, by_tool[tool], hours)
 
+    tools = _tools_from_dists(dists)
+    body = {
+        "label": label or (runs[0].label if runs else "unlabelled"),
+        "version": version,
+        "tools": [t.as_dict() for t in tools],
+    }
+    digest = baseline_digest(body)
+    return Baseline(
+        label=body["label"],
+        built_at=datetime.now(UTC).isoformat(timespec="seconds"),
+        version=version,
+        tools=tuple(tools),
+        digest=digest,
+    )
+
+
+def _run_tool_split(run: LabelledRun) -> tuple[list[int], dict[str, list[Event]], str | None]:
+    """Per-run split: event hours, tool-audit events per tool, pinned release.
+
+    Per-run steps are the per-run sorted event counts (tool-audit events for
+    the tool; all events when the run never touches the tool are excluded).
+    """
+    stamps = [e.at for e in run.events]
+    if not stamps:
+        return [], {}, None
+    hours = [s.astimezone(UTC).hour for s in stamps]
+    by_tool: dict[str, list[Event]] = {}
+    for e in run.events:
+        if e.kind == "tool_audit" and e.tool:
+            by_tool.setdefault(e.tool, []).append(e)
+    releases = sorted({e.release_id or "" for e in run.events if e.kind == "tool_audit"})
+    return hours, by_tool, (releases[0] if releases else None)
+
+
+def _tally_tool_events(d: dict[str, Any], evs: list[Event], hours: list[int]) -> None:
+    """Accumulate one run's tool events into the (agent, release, tool) bucket."""
+    evs = sorted(evs, key=lambda e: (e.at, e.ref or ""))
+    d["call_counts"].append(float(len(evs)))
+    d["steps_per_run"].append(float(len(set(e.trace_id or e.ref or "" for e in evs))))
+    d["calls"] += len(evs)
+    d["denies"] += sum(1 for e in evs if e.decision == "deny")
+    d["hours"].extend(hours)
+
+
+def _tools_from_dists(dists: dict[tuple[str, str, str], dict[str, Any]]) -> list[ToolDistribution]:
+    """Deterministic per-(agent_id, release, tool) distributions."""
     tools: list[ToolDistribution] = []
     for key in sorted(dists):
         d = dists[key]
@@ -202,19 +236,7 @@ def build_baseline(
                 hour_span=(min(d["hours"]), max(d["hours"])) if d["hours"] else None,
             )
         )
-    body = {
-        "label": label or (runs[0].label if runs else "unlabelled"),
-        "version": version,
-        "tools": [t.as_dict() for t in tools],
-    }
-    digest = baseline_digest(body)
-    return Baseline(
-        label=body["label"],
-        built_at=datetime.now(UTC).isoformat(timespec="seconds"),
-        version=version,
-        tools=tuple(tools),
-        digest=digest,
-    )
+    return tools
 
 
 def _sorted_runs(runs: Sequence[LabelledRun]) -> list[LabelledRun]:
@@ -317,17 +339,19 @@ def window_stats(runs: Sequence[LabelledRun]) -> WindowStats:
         for e in events:
             by_tool.setdefault(e.tool or "", []).append(e)
         hours = [e.at.astimezone(UTC).hour for e in events]
+        agent_id = run.events[0].agent_id or ""
         for tool in sorted(by_tool):
-            evs = by_tool[tool]
-            key = (run.events[0].agent_id or "", release or "", tool)
-            d = acc.setdefault(
-                key,
-                {"calls": 0, "denies": 0, "hours": []},
-            )
-            d["calls"] += len(evs)
-            d["denies"] += sum(1 for e in evs if e.decision == "deny")
-            d["hours"].extend(hours)
+            key = (agent_id, release or "", tool)
+            d = acc.setdefault(key, {"calls": 0, "denies": 0, "hours": []})
+            _tally_window_events(d, by_tool[tool], hours)
     return WindowStats(per_tool=acc)
+
+
+def _tally_window_events(d: dict[str, Any], evs: list[Event], hours: list[int]) -> None:
+    """Accumulate live-window tool events into one (agent, release, tool)."""
+    d["calls"] += len(evs)
+    d["denies"] += sum(1 for e in evs if e.decision == "deny")
+    d["hours"].extend(hours)
 
 
 # ------------------------------------------------------------- drift rules
