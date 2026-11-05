@@ -9,8 +9,12 @@ no-bind, plus one documented extension, unresolved.
 The unresolved case is honest absence of evidence, not a hidden verdict: an
 ambiguous, duplicated, or receipt-less action attempt is reported as
 unresolved with an explicit anomaly, never promoted to a fabricated
-consequence state. The repo invariant (no fabricated verdicts, fail-visible)
-outranks the desire to fill all seven counters.
+consequence state. Two further states are evidence-backed by committed red
+findings (round 2): narrowed from RED-004's verified matched_degraded
+attenuation, no_bind from RED-019's unconfigured-tool no-bind denials. The
+remaining zeros (held, escalated, quarantined) stay annotated: the repo
+invariant (no fabricated verdicts, fail-visible) outranks the desire to
+fill all seven counters.
 """
 
 from __future__ import annotations
@@ -37,6 +41,20 @@ DERIVABLE_STATES = frozenset({"admitted", "refused", "unresolved"})
 # suppress an unqualified 'admitted' reading in the indicator summary.
 PREBIND_ENFORCEMENT_WEAKNESS_RULES = frozenset({"RED-011", "RED-013", "RED-017"})
 
+# States additionally derivable from red-finding evidence (round 2, OV-16).
+RED_DERIVABLE_STATES = frozenset({"narrowed", "no_bind"})
+
+# Red rules that evidence a NARROWED (attenuated) boundary outcome: the forge
+# suite's weaker class landed on matched_degraded — trust attenuated, not
+# refused, not admitted at full strength (the CAGE-1 narrowed/attenuated
+# consequence).
+PREBIND_NARROWED_RULES = frozenset({"RED-004"})
+
+# Red rules that evidence a NO_BIND outcome: a cross-server or unconfigured
+# MCP tool name resolves to no policy binding at all, so the gate denies it
+# on the grounds that nothing binds it (the CAGE-1 no-bind consequence).
+PREBIND_NO_BIND_RULES = frozenset({"RED-019"})
+
 # Red rules that evidence the boundary HELD (verified PASS findings).
 PREBIND_BOUNDARY_HELD_RULES = frozenset({"RED-004", "RED-009", "RED-015", "RED-019"})
 
@@ -44,13 +62,30 @@ RECEIPT_SCHEMA_CURRENT = "provenance-receipt/v1"
 
 
 def load_receipt_index(path: Path) -> list[dict]:
-    """Read a receipt index JSONL, skipping '#' comment header lines."""
+    """Read a receipt index JSONL, skipping '#' comment header lines.
+
+    An undecodable line fails visibly with a named ValueError: an index
+    line that never parsed is broken evidence, not absence of evidence,
+    so it is neither skipped (which would under-count the boundary) nor
+    crashed on with a traceback. Same rule as the correlation reader's
+    missing-hash reject.
+    """
     rows: list[dict] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
+    for line_no, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        line = raw.strip()
         if not line or line.startswith("#"):
             continue
-        rows.append(json.loads(line))
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"receipt index {path}: line {line_no} is not a JSON object ({exc})"
+            ) from exc
+        if not isinstance(row, dict):
+            raise ValueError(
+                f"receipt index {path}: line {line_no} is {type(row).__name__}, not an object"
+            )
+        rows.append(row)
     return rows
 
 
@@ -107,22 +142,75 @@ def derive_receipt_state_from_runs(runs: dict) -> list[dict]:
     for run in runs.get("runs", []):
         for trace in run.get("traces", []):
             for span in trace.get("spans", []):
-                if span.get("receipt_hash") or not span.get("privileged"):
-                    continue
-                anomalies = ["missing_receipt_at_gate"]
-                decision_seen = (span.get("attrs") or {}).get("oaa.decision_seen")
-                if decision_seen is not None:
-                    anomalies.append(f"decision_seen:{decision_seen}")
-                out.append(
-                    {
-                        "run_id": run.get("run_id"),
-                        "trace_id": trace.get("trace_id"),
-                        "span_id": span.get("span_id"),
-                        "state": "unresolved",
-                        "anomalies": anomalies,
-                    }
-                )
+                out.extend(_missing_receipt_rows(run, trace, span))
     return out
+
+
+def _missing_receipt_rows(run: dict, trace: dict, span: dict) -> list[dict]:
+    """Unresolved rows for a privileged span carrying no boundary receipt."""
+    if span.get("receipt_hash") or not span.get("privileged"):
+        return []
+    anomalies = ["missing_receipt_at_gate"]
+    decision_seen = (span.get("attrs") or {}).get("oaa.decision_seen")
+    if decision_seen is not None:
+        anomalies.append(f"decision_seen:{decision_seen}")
+    return [
+        {
+            "run_id": run.get("run_id"),
+            "trace_id": trace.get("trace_id"),
+            "span_id": span.get("span_id"),
+            "state": "unresolved",
+            "anomalies": anomalies,
+        }
+    ]
+
+
+def _classify_red_findings(
+    red_findings: list[dict] | None,
+) -> tuple[list[str], dict[str, list[str]], list[str], list[str]]:
+    """(held, by-rule enforcement weaknesses, narrowed, no_bind) from red findings."""
+    held_findings: list[str] = []
+    weak_findings_by_rule: dict[str, list[str]] = {}
+    narrowed_findings: list[str] = []
+    no_bind_findings: list[str] = []
+    for finding in red_findings or []:
+        rule = finding.get("rule")
+        fid = finding.get("finding_id")
+        if not fid:
+            continue
+        if rule in PREBIND_NARROWED_RULES:
+            narrowed_findings.append(fid)
+        elif rule in PREBIND_NO_BIND_RULES:
+            no_bind_findings.append(fid)
+        elif rule in PREBIND_ENFORCEMENT_WEAKNESS_RULES:
+            weak_findings_by_rule.setdefault(rule, []).append(fid)
+        if rule in PREBIND_BOUNDARY_HELD_RULES:
+            # a PASS finding can evidence both the boundary-held label
+            # and a narrowed/no_bind counter (RED-004, RED-019)
+            held_findings.append(fid)
+    return held_findings, weak_findings_by_rule, narrowed_findings, no_bind_findings
+
+
+def _prescreen_receipts(receipts: list[dict]) -> tuple[list[dict], list[dict], list[str]]:
+    """(derivable, keyable, anomalies): rows the derivation cannot read are
+    malformed evidence, reported by name. A dict row without a usable
+    receipt_hash still counts (the decision is real evidence) but is
+    excluded from dup/trace grouping; a row that is not an object at all
+    carries no decision and is excluded from counts entirely. Neither is
+    guessed into a state."""
+    derivable: list[dict] = []
+    keyable: list[dict] = []
+    anomalies: list[str] = []
+    for idx, receipt in enumerate(receipts):
+        if not isinstance(receipt, dict):
+            anomalies.append(f"malformed_receipt_row:{idx}")
+            continue
+        derivable.append(receipt)
+        if isinstance(receipt.get("receipt_hash"), str) and receipt["receipt_hash"]:
+            keyable.append(receipt)
+        else:
+            anomalies.append(f"malformed_receipt_row:{idx}")
+    return derivable, keyable, anomalies
 
 
 def prebind_indicators(
@@ -137,12 +225,20 @@ def prebind_indicators(
     populate are reported as an explicit (zero-count) honest limitation
     rather than suppressed.
     """
-    counts = {state: 0 for state in PREBIND_STATES}
+    counts = dict.fromkeys(PREBIND_STATES, 0)
     anomalies: list[str] = []
     annotations: list[str] = []
 
+    # Rows the derivation cannot read are malformed evidence, reported by
+    # name: a dict row without a usable receipt_hash still counts (the
+    # decision is real evidence) but is excluded from dup/trace grouping;
+    # a row that is not an object at all carries no decision and is
+    # excluded from counts entirely. Neither is guessed into a state.
+    receipts, keyable, prescreen_anomalies = _prescreen_receipts(receipts)
+    anomalies.extend(prescreen_anomalies)
+
     by_hash: dict[str, list[dict]] = {}
-    for r in receipts:
+    for r in keyable:
         by_hash.setdefault(r["receipt_hash"], []).append(r)
 
     for receipt in receipts:
@@ -150,7 +246,7 @@ def prebind_indicators(
         counts[state] += 1
         anomalies.extend(per_receipt_anomalies)
 
-    trace_anomalies = _trace_grouping(receipts)
+    trace_anomalies = _trace_grouping(keyable)
     anomalies.extend(trace_anomalies)
 
     if runs is not None:
@@ -159,20 +255,34 @@ def prebind_indicators(
             counts["unresolved"] += 1
             anomalies.extend(row["anomalies"])
 
-    held_findings = []
-    weak_findings_by_rule: dict[str, list[str]] = {}
-    if red_findings:
-        for finding in red_findings:
-            rule = finding.get("rule")
-            if rule in PREBIND_BOUNDARY_HELD_RULES and finding.get("finding_id"):
-                held_findings.append(finding["finding_id"])
-            elif rule in PREBIND_ENFORCEMENT_WEAKNESS_RULES and finding.get("finding_id"):
-                weak_findings_by_rule.setdefault(rule, []).append(finding["finding_id"])
+    (
+        held_findings,
+        weak_findings_by_rule,
+        narrowed_findings,
+        no_bind_findings,
+    ) = _classify_red_findings(red_findings)
 
-    for state in sorted(set(PREBIND_STATES) - DERIVABLE_STATES):
+    red_evidence: dict[str, list[str]] = {}
+    if narrowed_findings:
+        red_evidence["narrowed"] = sorted(narrowed_findings)
+    if no_bind_findings:
+        red_evidence["no_bind"] = sorted(no_bind_findings)
+    # Each evidence-backed finding increments its state once: a verified
+    # matched_degraded forge outcome IS an attenuation (narrowed, not
+    # refused, not full-strength admission); a denial for an unconfigured
+    # tool name IS a no-bind outcome (nothing resolves to a binding).
+    counts["narrowed"] += len(red_evidence.get("narrowed", []))
+    counts["no_bind"] += len(red_evidence.get("no_bind", []))
+
+    non_derivable = (
+        set(PREBIND_STATES)
+        - DERIVABLE_STATES
+        - set(red_evidence)  # only skip states actually evidence-backed here
+    )
+    for state in sorted(non_derivable):
         annotations.append(
-            f"{state}: not derivable from receipts or committed runs today; "
-            "count is honest zero, not silent absence"
+            f"{state}: not derivable from receipts, committed runs, or red "
+            "findings today; count is honest zero, not silent absence"
         )
 
     if held_findings:
@@ -180,19 +290,25 @@ def prebind_indicators(
             "boundary-held red rules verified PASS: " + ", ".join(sorted(set(held_findings))[:5])
         )
 
+    for state, fids in red_evidence.items():
+        annotations.append(f"{state}: evidence-backed from red findings " + ", ".join(fids))
+
     return {
         "schema": "oaa.prebind-indicators/v1",
         "states": PREBIND_STATES,
         "counts": counts,
         "anomalies": sorted(set(anomalies)),
         "derivable_states": sorted(DERIVABLE_STATES),
-        "enforcement_weaknesses": {
-            rule: finding_ids for rule, finding_ids in sorted(weak_findings_by_rule.items())
-        },
+        "red_derived_states": sorted(RED_DERIVABLE_STATES),
+        "enforcement_weaknesses": dict(sorted(weak_findings_by_rule.items())),
+        "red_evidence": red_evidence,
         "derivation_note": (
             "admitted/refused/unresolved are derived from gate receipts and "
-            "committed run spans only; held, narrowed, escalated, quarantined "
-            "and no_bind await receipt vocabulary in the gate itself"
+            "committed run spans; narrowed and no_bind are evidence-backed from "
+            "red findings (RED-004 matched_degraded attenuation, RED-019 "
+            "unconfigured-tool no-bind denial); held, escalated and "
+            "quarantined remain honest zeros pending receipt vocabulary in "
+            "the gate itself"
         ),
         "annotation_count": len(annotations),
         "annotations": annotations,

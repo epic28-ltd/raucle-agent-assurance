@@ -29,7 +29,8 @@ unknowns), every receipt-hash evidence link of the case is present among the
 bound receipts, and no receipt or capability ref touches a tool outside the
 case ``boundaries.tools``. A weakened control (drop the evidence receipt,
 widen the tool set, introduce unknowns) therefore reads as a failure and is
-caught by classification.
+caught by classification. Tool-scope checks run only where ``boundaries.tools``
+is declared: a case declaring no tool boundary imposes no tool-scope constraint.
 """
 
 from __future__ import annotations
@@ -110,10 +111,13 @@ def validate_run_set(raw):
         errors = list(validator.iter_errors(record))
         if errors:
             detail = "; ".join(e.message for e in sorted(errors, key=str))
-            raise ValueError(
-                f"records[{index}] ({record.get('record_id', '<no id>')}) "
-                f"fails agent_run_record schema: {detail}"
-            )
+            if isinstance(record, dict):
+                bad_id = record.get("record_id", "<no id>")
+            else:
+                # A non-object record cannot carry an id; name its type
+                # instead of crashing with AttributeError.
+                bad_id = f"<non-object {type(record).__name__}>"
+            raise ValueError(f"records[{index}] ({bad_id}) fails agent_run_record schema: {detail}")
 
     bindings = runset.get("case_bindings") or {}
     if not isinstance(bindings, dict):
@@ -299,16 +303,20 @@ def main(argv=None) -> int:
         expectations = load_expectations(pathlib.Path(args.expectations))
         baseline = validate_run_set(load_json(pathlib.Path(args.baseline)))
         candidate = validate_run_set(load_json(pathlib.Path(args.candidate)))
+        report = compile_comparison(expectations, baseline, candidate)
     except (ValueError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
-    report = compile_comparison(expectations, baseline, candidate)
     payload = json.dumps(report, indent=2, sort_keys=False) + "\n"
-    if args.output:
-        pathlib.Path(args.output).write_text(payload)
-    else:
-        sys.stdout.write(payload)
+    try:
+        if args.output:
+            pathlib.Path(args.output).write_text(payload)
+        else:
+            sys.stdout.write(payload)
+    except OSError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
     if args.print_summary:
         sys.stderr.write(report["human_summary"] + "\n")
     return 0

@@ -24,6 +24,10 @@ fail-visible contract:
 3. Receipt chain — every store line re-derives its recorded
    ``receipt_hash`` from its JWS bytes; an edited or swapped receipt is a
    named FAIL.
+1b. Optional PQ signature (OV-22) — if the packet carries
+   ``packet_pq_signature`` (ML-DSA-65 over ``packet_content_sha256``),
+   it is verified with raucle's quantum-ready primitive; a bad,
+   unauthorised or malformed signature is a named FAIL.
 4. Verdict reproduction — an independent re-derivation of the packet
    body from the supplied inputs must equal the packet exactly; any
    divergence (counts, identity, coverage, refs, mappings) is a named
@@ -43,6 +47,11 @@ import json
 import os
 import pathlib
 import re
+
+try:  # OV-22: raucle ships the ML-DSA-65 primitive; PQ checks fail visibly without it
+    import raucle.pq as _rqpq
+except ModuleNotFoundError:  # pragma: no cover - dependency-dependent
+    _rqpq = None
 
 SHA256_PREFIX = "sha256:"
 PACKET_KIND = "agent_assurance_packet"
@@ -289,6 +298,65 @@ def rederive_packet_from_inputs(
     return packet
 
 
+def _verify_pq_signature_field(packet: dict) -> None:
+    """OV-22: verify an optional ML-DSA-65 packet signature; fail-visible.
+
+    The field (when present) signs the ``packet_content_sha256`` stamp
+    bytes with raucle's quantum-ready primitive (raucle/pq1, ML-DSA-65).
+    Verified inline before re-derivation: a bad signature fails the whole
+    run, and the field is excluded from the body comparison like the
+    digest stamp it covers.
+    """
+    field = packet.get("packet_pq_signature")
+    if not isinstance(field, dict):
+        raise _Fail("packet_pq_signature must be an object")
+    if field.get("algorithm") != "ml-dsa-65":
+        raise _Fail("packet_pq_signature.algorithm must be 'ml-dsa-65'")
+    if _rqpq is None:
+        raise _Fail(
+            "packet carries packet_pq_signature but raucle (the ML-DSA-65"
+            " primitive) is not available in this runtime"
+        )
+    if not _rqpq.pq_available():
+        raise _Fail(
+            "packet carries packet_pq_signature but this runtime cannot"
+            " verify ML-DSA-65 (raucle PQ backend unavailable)"
+        )
+
+    key_id = field.get("key_id")
+    pub_hex = field.get("public_key_hex")
+    sig_b64 = field.get("signature_b64")
+    if not isinstance(key_id, str) or len(key_id) != 16 or not key_id.isalnum():
+        raise _Fail("packet_pq_signature.key_id is not a 16-char key id")
+    if not isinstance(pub_hex, str) or len(pub_hex) % 2 or not pub_hex.isalnum():
+        raise _Fail("packet_pq_signature.public_key_hex is not hex")
+    if not isinstance(sig_b64, str):
+        raise _Fail("packet_pq_signature.signature_b64 is not a base64 string")
+    try:
+        sig = base64.b64decode(sig_b64, validate=True)
+    except (ValueError, base64.binascii.Error) as exc:
+        raise _Fail(f"packet_pq_signature.signature_b64 does not decode ({exc})") from exc
+    try:
+        pub = _rqpq.pq_public_key_from_hex(pub_hex)
+    except Exception as exc:
+        raise _Fail(f"packet_pq_signature.public_key_hex is not an ML-DSA-65 key ({exc})") from exc
+    derived_key_id = _rqpq.pq_key_id_from_public_key(pub)
+    if key_id != derived_key_id:
+        raise _Fail(
+            f"packet_pq_signature.key_id {key_id!r} does not match the"
+            f" supplied public key ({derived_key_id!r})"
+        )
+    stamp = packet.get("packet_content_sha256")
+    if not isinstance(stamp, str):
+        raise _Fail("packet_content_sha256 is not a digest string")
+    try:
+        pub.verify(sig, stamp.encode("ascii"))
+    except Exception as exc:
+        raise _Fail(
+            f"packet_pq_signature failed ML-DSA-65 verification over the packet digest ({exc})"
+        ) from exc
+
+
 def _diff(a: dict, b: dict, prefix: str = "") -> list[str]:
     out: list[str] = []
     for key in sorted(set(a) | set(b)):
@@ -347,6 +415,7 @@ def main(argv: list[str] | None = None) -> int:
     # 1. envelope integrity
     body = dict(packet)
     stamp = body.pop("packet_content_sha256", None)
+    body.pop("packet_pq_signature", None)  # added after the digest; outside the body
     recomputed = SHA256_PREFIX + hashlib.sha256(canonical_json(body).encode()).hexdigest()
     if stamp != recomputed:
         return fail(
@@ -354,6 +423,19 @@ def main(argv: list[str] | None = None) -> int:
             " (tampered or mis-stamped packet)"
         )
     checks.append(("PASS", "packet digest re-derives from the packet body"))
+
+    # 1b. optional quantum-ready packet signature (OV-22)
+    if "packet_pq_signature" in packet:
+        try:
+            _verify_pq_signature_field(packet)
+        except _Fail as exc:
+            return fail(str(exc))
+        checks.append(
+            (
+                "PASS",
+                "ML-DSA-65 packet signature verifies over the packet digest",
+            )
+        )
 
     # 2. trust anchor
     try:
@@ -400,6 +482,9 @@ def main(argv: list[str] | None = None) -> int:
             "every receipt re-derives its recorded sha256 from its envelope bytes",
         )
     )
+    # The PQ signature covers the digest and sits outside the digest body,
+    # so like the stamp itself it is excluded from the body comparison.
+    packet.pop("packet_pq_signature", None)
     diffs = _diff(packet, rederived)
     if diffs:
         for d in diffs:

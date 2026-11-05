@@ -111,6 +111,33 @@ def _review_revalidation_report(evidence: dict) -> dict | None:
     }
 
 
+def _indicator_findings(indicators: dict) -> tuple[list[dict], list[dict]]:
+    """(concerns, positives) derived from the packet's prebind indicator counts."""
+    concerns: list[dict] = []
+    positives: list[dict] = []
+    for state in ("unresolved",):
+        if indicators.get(state, 0) > 0:
+            concerns.append(
+                {
+                    "code": "UNRESOLVED_BOUNDARY_OUTCOMES",
+                    "count": indicators[state],
+                    "citation": f"counts.{state} > 0",
+                }
+            )
+    for state in ("held", "narrowed", "escalated", "quarantined", "no_bind"):
+        if indicators.get(state, 0) == 0:
+            concerns.append(
+                {
+                    "code": "STATE_NOT_EVIDENCED",
+                    "count": 0,
+                    "citation": f"counts.{state} == 0 (honest zero)",
+                }
+            )
+        else:
+            positives.append({"code": "STATE_EVIDENCED", "citation": f"counts.{state} > 0"})
+    return concerns, positives
+
+
 def review(evidence: dict) -> dict:
     """Emit a review opinion over an evidence document.
 
@@ -127,34 +154,18 @@ def review(evidence: dict) -> dict:
 
     indicators = evidence.get("counts") or evidence.get("indicators", {}).get("counts")
     if isinstance(indicators, dict):
-        for state in ("unresolved",):
-            if indicators.get(state, 0) > 0:
-                concerns.append(
-                    {
-                        "code": "UNRESOLVED_BOUNDARY_OUTCOMES",
-                        "count": indicators[state],
-                        "citation": f"counts.{state} > 0",
-                    }
-                )
-        for state in ("held", "narrowed", "escalated", "quarantined", "no_bind"):
-            if indicators.get(state, 0) == 0:
-                concerns.append(
-                    {
-                        "code": "STATE_NOT_EVIDENCED",
-                        "count": 0,
-                        "citation": f"counts.{state} == 0 (honest zero)",
-                    }
-                )
-            else:
-                positives.append({"code": "STATE_EVIDENCED", "citation": f"counts.{state} > 0"})
+        indicator_concerns, indicator_positives = _indicator_findings(indicators)
+        concerns.extend(indicator_concerns)
+        positives.extend(indicator_positives)
     if schema is None:
         concerns.append({"code": "NO_SCHEMA_DECLARED", "count": 1, "citation": "schema missing"})
 
-    verdict = (
-        FAIL
-        if any(c["code"] == "NO_SCHEMA_DECLARED" for c in concerns)
-        else (CONCERN if concerns else PASS)
-    )
+    if any(c["code"] == "NO_SCHEMA_DECLARED" for c in concerns):
+        verdict = FAIL
+    elif concerns:
+        verdict = CONCERN
+    else:
+        verdict = PASS
     return {
         "schema": OPINION_SCHEMA,
         "evidence_schema": schema,

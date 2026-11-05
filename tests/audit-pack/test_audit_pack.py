@@ -586,3 +586,30 @@ def test_key_snapshot_coverage_guard():
 def test_chain_graph_resolver_path_requires_opt_in(monkeypatch):
     monkeypatch.delenv("RAUCLE_OSS_HOME", raising=False)
     assert pack._chain_graph_resolver_path() is None
+
+
+def test_policy_staging_tolerates_undecodable_store_entry(tmp_path: pathlib.Path) -> None:
+    """External report (Perch Scan, 5 Nov): a null entry in the evidence store
+    crashed policy staging with an unhandled JSONDecodeError while receipt
+    selection skipped the same line. Policy staging must go through the same
+    guarded reader (_store_hash_map) and complete the pack."""
+    store = tmp_path / "evidence_store.jsonl"
+    store.write_text(
+        "\n".join(
+            [
+                json.dumps({"receipt_hash": "sha256:aaa", "jws": "header.payload.sig"}),
+                "null",
+                json.dumps({"receipt_hash": "sha256:bbb", "jws": "h.p.s"}),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    pol = tmp_path / "policy_receipts.jsonl"
+    pol.write_text("sha256:bbb\n", encoding="utf-8")
+    pol_dir = tmp_path / "policies"
+    pol_dir.mkdir()
+    pack._stage_policy_receipts(pol_dir, store, ["sha256:bbb"])
+    staged = (pol_dir / "deployment_chain_receipts.jsonl").read_text(encoding="utf-8")
+    assert "sha256:bbb" in staged
+    assert "null" not in staged

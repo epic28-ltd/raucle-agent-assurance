@@ -263,32 +263,37 @@ def test_blank_store_line_fails_visible() -> None:
 
 
 def test_all_blank_store_reports_no_lines(tmp_path: pathlib.Path) -> None:
+    store = _store_from("\n\n", tmp_path)
     with pytest.raises(ValueError, match="has no receipt lines"):
-        ap_mod.read_store(_store_from("\n\n", tmp_path))
+        ap_mod.read_store(store)
 
 
 def test_non_json_store_line_fails(tmp_path: pathlib.Path) -> None:
+    store = _store_from("not json\n", tmp_path)
     with pytest.raises(ValueError, match="not a JSON object line"):
-        ap_mod.read_store(_store_from("not json\n", tmp_path))
+        ap_mod.read_store(store)
 
 
 def test_non_object_store_line_fails(tmp_path: pathlib.Path) -> None:
+    store = _store_from("[1, 2]\n", tmp_path)
     with pytest.raises(ValueError, match="not an object"):
-        ap_mod.read_store(_store_from("[1, 2]\n", tmp_path))
+        ap_mod.read_store(store)
 
 
 def test_bad_receipt_hash_form_fails(tmp_path: pathlib.Path) -> None:
     line = json.loads(DEMO_STORE.read_text().splitlines()[0])
     line["receipt_hash"] = "not-canonical"
+    store = _store_from(json.dumps(line) + "\n", tmp_path)
     with pytest.raises(ValueError, match="not canonical sha256"):
-        ap_mod.read_store(_store_from(json.dumps(line) + "\n", tmp_path))
+        ap_mod.read_store(store)
 
 
 def test_broken_jws_envelope_fails(tmp_path: pathlib.Path) -> None:
     line = json.loads(DEMO_STORE.read_text().splitlines()[0])
     line["jws"] = "ey.no-dots"
+    store = _store_from(json.dumps(line) + "\n", tmp_path)
     with pytest.raises(ValueError, match="not a compact JWS"):
-        ap_mod.read_store(_store_from(json.dumps(line) + "\n", tmp_path))
+        ap_mod.read_store(store)
 
 
 def test_unreadable_envelope_payload_fails(tmp_path: pathlib.Path) -> None:
@@ -296,8 +301,9 @@ def test_unreadable_envelope_payload_fails(tmp_path: pathlib.Path) -> None:
     parts = line["jws"].split(".")
     line["jws"] = f"{parts[0]}.@@@not-base64@@@.{parts[2]}"
     line["receipt_hash"] = "sha256:" + hashlib.sha256(line["jws"].encode()).hexdigest()
+    store = _store_from(json.dumps(line) + "\n", tmp_path)
     with pytest.raises(ValueError, match="unreadable envelope payload"):
-        ap_mod.read_store(_store_from(json.dumps(line) + "\n", tmp_path))
+        ap_mod.read_store(store)
 
 
 def _relit(line: dict, mutate) -> str:
@@ -356,5 +362,6 @@ def test_bad_governance_payload_fails(tmp_path: pathlib.Path) -> None:
 
 
 def test_bad_refs_payload_fails(tmp_path: pathlib.Path) -> None:
+    path = str(_store_from("[1]", tmp_path))
     with pytest.raises(ValueError, match="capability-refs must be a list of strings"):
-        ap_mod._optional_json_list(str(_store_from("[1]", tmp_path)), "capability-refs")
+        ap_mod._optional_json_list(path, "capability-refs")

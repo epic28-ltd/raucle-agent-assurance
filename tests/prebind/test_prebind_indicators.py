@@ -16,6 +16,7 @@ from oaa_prebind.derive import (
     DERIVABLE_STATES,
     PREBIND_ENFORCEMENT_WEAKNESS_RULES,
     PREBIND_STATES,
+    RED_DERIVABLE_STATES,
     derive_receipt_state_from_runs,
     load_receipt_index,
     prebind_indicators,
@@ -52,7 +53,8 @@ def test_state_vocabulary_is_the_cage1_set() -> None:
 def test_demo_receipts_cover_allowed_denied_and_legacy_rows() -> None:
     rows = _receipts()
     decisions = {r["decision"] for r in rows}
-    assert "allow" in decisions and "deny" in decisions
+    assert "allow" in decisions
+    assert "deny" in decisions
     assert any(r["decision"] is None for r in rows)
 
 
@@ -115,11 +117,83 @@ def test_red_findings_map_to_enforcement_weaknesses() -> None:
     assert set(joined) <= committed
 
 
+def test_no_bind_counter_is_evidence_backed_from_red019() -> None:
+    indicators = prebind_indicators(_receipts(), red_findings=_findings())
+    counts = indicators["counts"]
+    # RED-019 verifies cross-server/unconfigured MCP tool names denied on
+    # policy grounds: nothing resolves to a binding -> a real no_bind outcome.
+    assert counts["no_bind"] > 0
+    assert indicators["red_evidence"]["no_bind"]
+    committed = {f["finding_id"] for f in _findings()}
+    assert set(indicators["red_evidence"]["no_bind"]) <= committed
+    assert any(
+        a.startswith("no_bind: evidence-backed from red findings")
+        for a in indicators["annotations"]
+    )
+    # no annotation claims no_bind is no longer derivable-with-evidence
+    assert not any(a.startswith("no_bind: not derivable") for a in indicators["annotations"])
+
+
+def test_narrowed_counter_is_evidence_backed_from_red004() -> None:
+    indicators = prebind_indicators(_receipts(), red_findings=_findings())
+    counts = indicators["counts"]
+    # RED-004's documented weaker class landed on matched_degraded: trust
+    # attenuated (narrowed), not refused and not full-strength admission.
+    assert counts["narrowed"] > 0
+    assert indicators["red_evidence"]["narrowed"]
+    committed = {f["finding_id"] for f in _findings()}
+    assert set(indicators["red_evidence"]["narrowed"]) <= committed
+    assert any(
+        a.startswith("narrowed: evidence-backed from red findings")
+        for a in indicators["annotations"]
+    )
+
+
+def test_states_without_evidence_remain_honest_annotated_zeros() -> None:
+    indicators = prebind_indicators(_receipts(), runs=_runs(), red_findings=_findings())
+    counts = indicators["counts"]
+    # held, escalated and quarantined have no red-finding class supporting
+    # them in the committed corpus: they must stay honest zeros, annotated.
+    for state in ("held", "escalated", "quarantined"):
+        assert counts[state] == 0, state
+        assert any(
+            a.startswith(f"{state}: not derivable from receipts, committed ")
+            for a in indicators["annotations"]
+        ), state
+    assert indicators["annotation_count"] == len(indicators["annotations"])
+
+
+def test_red_derived_states_declared_in_output() -> None:
+    indicators = prebind_indicators(_receipts(), red_findings=_findings())
+    assert set(indicators["red_derived_states"]) == set(RED_DERIVABLE_STATES)
+    assert set(indicators["red_derived_states"]) <= {"narrowed", "no_bind"}
+
+
+def test_no_bind_and_narrowed_are_zero_without_findings() -> None:
+    # evidence-backed counters fall back to (annotated) zeros when no
+    # findings are supplied: the receipt evidence alone cannot derive them.
+    indicators = prebind_indicators(_receipts())
+    assert indicators["counts"]["narrowed"] == 0
+    assert indicators["counts"]["no_bind"] == 0
+    assert indicators["red_evidence"] == {}
+    assert any(a.startswith("no_bind: not derivable") for a in indicators["annotations"])
+    assert any(a.startswith("narrowed: not derivable") for a in indicators["annotations"])
+
+
+def test_weak_and_evidence_backed_findings_do_not_double_count() -> None:
+    # a finding lands in exactly one bucket: weak, narrowed, no-bind, held
+    indicators = prebind_indicators(_receipts(), red_findings=_findings())
+    weak_ids = [fid for ids in indicators["enforcement_weaknesses"].values() for fid in ids]
+    evidence_ids = [fid for ids in indicators["red_evidence"].values() for fid in ids]
+    assert not set(weak_ids) & set(evidence_ids)
+    assert indicators["counts"]["narrowed"] == len(indicators["red_evidence"]["narrowed"])
+    assert indicators["counts"]["no_bind"] == len(indicators["red_evidence"]["no_bind"])
+
+
 def test_no_bind_counter_is_honest_zero_with_annotation() -> None:
     indicators = prebind_indicators(_receipts())
     assert indicators["counts"]["no_bind"] == 0
     assert indicators["annotation_count"] == len(indicators["annotations"])
-    assert any(a.startswith("no_bind: not derivable") for a in indicators["annotations"])
 
 
 def test_indicator_output_is_deterministic() -> None:
