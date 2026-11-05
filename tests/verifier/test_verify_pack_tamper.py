@@ -32,7 +32,8 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 _vspec = importlib.util.spec_from_file_location(
     "oaa_verify_pack_tamper", REPO_ROOT / "tools" / "verifier" / "verify_pack.py"
 )
-assert _vspec and _vspec.loader
+assert _vspec
+assert _vspec.loader
 verify_pack = importlib.util.module_from_spec(_vspec)
 sys.modules.setdefault("oaa_verify_pack_tamper", verify_pack)
 _vspec.loader.exec_module(verify_pack)
@@ -556,7 +557,8 @@ def test_bundle_valid_chain_receipts_pass_with_count(tmp_path: pathlib.Path) -> 
     report = verify_pack.verify_pack(d)
     assert not report.failed
     check = next(c for c in report.checks if c.name == "signature-bundle")
-    assert "receipt_hash re-derived" in check.message and "1 of 1" in check.message
+    assert "receipt_hash re-derived" in check.message
+    assert "1 of 1" in check.message
 
 
 def test_shipped_set_undecodable_envelope_fails_chain_graph_check(
@@ -697,5 +699,6 @@ def test_red_verdict_tells_the_auditor_not_to_rely_on_it(tmp_path: pathlib.Path)
 def test_amber_verdict_when_only_warnings(tmp_path: pathlib.Path) -> None:
     d = _pack(tmp_path)
     report = verify_pack.verify_pack(d)  # no claims.md -> warning only
-    assert not report.failed and report.warned
+    assert not report.failed
+    assert report.warned
     assert "OVERALL VERDICT: AMBER" in report.render()

@@ -238,7 +238,8 @@ def test_ingest_happy_is_idempotent(client: TestClient) -> None:
     # re-posting a run changes nothing (idempotent merge)
     assert again.json().get("added", first.json().get("added")) in (0, None)
     reds = client.get("/api/findings/red").json()
-    assert reds["findings"] and reds["source"]
+    assert reds["findings"]
+    assert reds["source"]
 
 
 # ----------------------------------------------------------- live traces ----
@@ -322,4 +323,5 @@ def test_findings_age_seconds_none_without_detected_at(monkeypatch) -> None:
     assert _findings_age_seconds({"id": "x"}) is None
     monkeypatch.setenv("TZ", "UTC")
     val = _findings_age_seconds({"id": "x", "detected_at": "2026-11-05T00:00:00+00:00"})
-    assert val is not None and val >= 0
+    assert val is not None
+    assert val >= 0

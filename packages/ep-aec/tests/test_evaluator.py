@@ -37,7 +37,7 @@ class TestVerdicts:
     )
     def test_cases(self, req, want):
         v, _ = evaluate_requirement(req, PRESENT)
-        assert v == want
+        assert want == v
 
     def test_precedence_and_binds_tighter(self):
         # a AND missing-b OR c must read (a AND b) OR c
