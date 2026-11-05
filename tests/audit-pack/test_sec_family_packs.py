@@ -92,9 +92,7 @@ def _mint_family_receipt(
         .decode()
     )
     pp = (
-        base64.urlsafe_b64encode(
-            json.dumps(body, separators=(",", ":"), sort_keys=True).encode()
-        )
+        base64.urlsafe_b64encode(json.dumps(body, separators=(",", ":"), sort_keys=True).encode())
         .rstrip(b"=")
         .decode()
     )
