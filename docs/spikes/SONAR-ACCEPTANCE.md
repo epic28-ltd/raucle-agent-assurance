@@ -229,3 +229,52 @@ order. The competing linter rule ruff SIM300 forbids exactly the expected-first
 constant order Sonar expects, so the two tools are mutually contradictory on
 this file. Flipping further merely trades one false report for another while
 weakening the tests readability. Tests: 85 passed (ep-aec), suite green.
+
+## pythonsecurity:S8707 (path traversal from CLI arguments) — tools/verifier/revalidate_packet.py (5 sinks)
+Accepted 5 Nov 2026, decision owner Craig. Per-path, not a blanket NOSONAR.
+
+The five flagged sinks, each of which opens an artefact path supplied as a CLI
+argument by the operator running the verifier:
+
+1. `_load_json_file()` line 114 — optional reference payloads
+   (`--capability-refs`, `--policy-proof-refs`, `--governance`,
+   `--risk-annotations`), JSON text mode.
+2. `_store_records()` line 170 — `--evidence-store`, binary read for the
+   store digest.
+3. `_store_records()` line 175 — same path, text mode for line validation.
+4. `main()` line 391 — `--packet`, the packet under re-validation.
+5. `main()` line 427 — `--evidence-store`, binary read for the trust-anchor
+   digest check.
+
+**Why honest confinement was examined and rejected for every sink:** the
+tool's contract is to re-validate arbitrary operator-chosen artefacts
+(packets, stores, reference bundles) living outside any fixed tree — that is
+the whole point of an independent offline verifier, and the committed demo/CI
+flows pass repo-relative paths that no single roots set covers. Confinement
+to an explicit roots set would either break every legitimate invocation
+(single root) or make the allowlist itself operator-supplied (no
+confinement gain). Note also that Sonar's taint engine does not credit
+os.path.realpath containment checks as sanitising for S8707, so a containment
+re-implementation would keep the finding while genuinely weakening the CLI —
+the worst of both outcomes, which is why no code change accompanies this
+acceptance.
+
+**Compensating properties (the honest controls beyond path confinement):**
+
+- The CLI process is read-only: no paths feed a write, exec, or directory
+  traversal sink; a malicious path can only be read by the operator's own
+  account running the tool deliberately against it.
+- Every read is bound by content, not location: `packet_content_sha256` must
+  re-derive from the packet body, the store digest recorded inside the packet
+  must match the supplied store bytes, and every receipt line must re-derive
+  its `receipt_hash` from its JWS bytes. A traversal-tampered or swapped
+  artefact fails as a named FAIL instead of passing silently.
+- All failure paths are fail-visible `_Fail`/named-FAIL outcomes; no content
+  is logged from the artefacts (log-injection-safe).
+
+**Verification:** pytest suite for the OV-3 revalidate tests green at
+inclusion; findings remain open-by-acceptance in SonarCloud until the rule's
+scope excludes offline read-only verifier CLIs.
+
+**Decision owner:** Craig. **Status:** accepted November 2026; revisit if the
+verifier ever gains a write, exec or network surface driven by these paths.
