@@ -51,6 +51,11 @@ import sys
 from cryptography.hazmat.primitives import serialization as ser
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
+CLAIMS_MD = "claims.md"
+CLAIMS_MD_SIG = "claims.md.sig"
+CLAIMS_SIGNING_PUB = "claims-signing-key.pub"
+VERIFY_PACK_PY = "verify_pack.py"
+
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 _spec = importlib.util.spec_from_file_location(
@@ -158,7 +163,7 @@ def _probe_network_isolation(prefix) -> dict | None:
 def _verify_green(prefix, laptop_dir: pathlib.Path, laptop_pack: pathlib.Path) -> str:
     """Verify the pack as shipped; a GREEN verdict is mandatory."""
     green_run = _run_offline(
-        prefix, [sys.executable, str(laptop_dir / "verify_pack.py"), str(laptop_pack)]
+        prefix, [sys.executable, str(laptop_dir / VERIFY_PACK_PY), str(laptop_pack)]
     )
     if green_run.returncode != 0 or "OVERALL VERDICT: GREEN" not in green_run.stdout:
         raise RolePlayError(
@@ -178,7 +183,7 @@ def _tamper_expect_red(
     receipts = tampered_pack / "receipts.jsonl"
     receipts.write_bytes(receipts.read_bytes() + b"\n")
     tamper_run = _run_offline(
-        prefix, [sys.executable, str(laptop_dir / "verify_pack.py"), str(tampered_pack)]
+        prefix, [sys.executable, str(laptop_dir / VERIFY_PACK_PY), str(tampered_pack)]
     )
     if tamper_run.returncode != 1 or "OVERALL VERDICT: RED" not in tamper_run.stdout:
         raise RolePlayError(
@@ -231,10 +236,10 @@ def _sign_claim_sheet(laptop_dir: pathlib.Path, rendered_stdout: str) -> tuple[s
     pack itself is unchanged. No compliance claim is made or implied."""
     signing_key = Ed25519PrivateKey.generate()
     signature = signing_key.sign(rendered_stdout.encode("utf-8"))
-    (laptop_dir / "claims.md.sig").write_text(
+    (laptop_dir / CLAIMS_MD_SIG).write_text(
         base64.b64encode(signature).decode("ascii") + "\n", encoding="utf-8"
     )
-    pub_path = laptop_dir / "claims-signing-key.pub"
+    pub_path = laptop_dir / CLAIMS_SIGNING_PUB
     pub_path.write_bytes(
         signing_key.public_key().public_bytes(
             encoding=ser.Encoding.Raw,
@@ -250,8 +255,8 @@ def _sign_claim_sheet(laptop_dir: pathlib.Path, rendered_stdout: str) -> tuple[s
             "pub = Ed25519PublicKey.from_public_bytes(open(sys.argv[1],'rb').read());"
             "pub.verify(base64.b64decode(open(sys.argv[2]).read().strip()), open(sys.argv[3],'rb').read())",
             str(pub_path),
-            str(laptop_dir / "claims.md.sig"),
-            str(laptop_dir / "claims.md"),
+            str(laptop_dir / CLAIMS_MD_SIG),
+            str(laptop_dir / CLAIMS_MD),
         ],
         capture_output=True,
         text=True,
@@ -259,7 +264,7 @@ def _sign_claim_sheet(laptop_dir: pathlib.Path, rendered_stdout: str) -> tuple[s
     )
     if verify_sig.returncode != 0:
         raise RolePlayError(f"claim-sheet signature did not verify:\n{verify_sig.stderr}")
-    return str(laptop_dir / "claims.md.sig"), str(pub_path)
+    return str(laptop_dir / CLAIMS_MD_SIG), str(pub_path)
 
 
 def _roleplay_notes(built: dict, isolation_note: str, net_probe: dict | None) -> str:
@@ -315,12 +320,12 @@ def run_second_laptop_role_play(
     ev, tr = _second_laptop_inputs(evidence_store, trust_roots)
     built = pack.build_pack(ev, tr, build_dir, clock=clock)
     src_pack = pathlib.Path(built["pack_dir"])
-    claims_text = (src_pack / "claims.md").read_text(encoding="utf-8")
+    claims_text = (src_pack / CLAIMS_MD).read_text(encoding="utf-8")
 
     # (2) The handover: only the pack and the verifier CLI cross over.
     laptop_pack = laptop_dir / src_pack.name
     shutil.copytree(src_pack, laptop_pack)
-    shutil.copy2(REPO_ROOT / "tools" / "verifier" / "verify_pack.py", laptop_dir / "verify_pack.py")
+    shutil.copy2(REPO_ROOT / "tools" / "verifier" / VERIFY_PACK_PY, laptop_dir / VERIFY_PACK_PY)
 
     # (3) Prove the namespace denies network before trusting it.
     prefix, isolation_note = _find_network_prefix()
@@ -348,7 +353,7 @@ def run_second_laptop_role_play(
         raise RolePlayError("re-rendered claim sheet differs from the pack's claims.md")
     pack.assert_no_compliance_claims(rendered.stdout)
     assert pack.GUARD_HEADER in rendered.stdout and pack.GUARD_SENTINEL in rendered.stdout
-    (laptop_dir / "claims.md").write_text(rendered.stdout, encoding="utf-8")
+    (laptop_dir / CLAIMS_MD).write_text(rendered.stdout, encoding="utf-8")
 
     claim_sig, claim_pub = _sign_claim_sheet(laptop_dir, rendered.stdout)
 

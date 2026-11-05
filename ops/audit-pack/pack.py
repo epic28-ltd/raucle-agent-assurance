@@ -43,6 +43,8 @@ import shutil
 import sys
 import zipfile
 
+README_MD = "README.md"
+
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
@@ -350,7 +352,7 @@ def build_signature_bundle(
         if line is None:
             # the resolver cannot resolve it either; the graph already
             # records it as unknown - state it in the bundle, never fake it
-            (sig_dir / "README.md").write_text(
+            (sig_dir / README_MD).write_text(
                 "# Signature bundle\n\n"
                 "Some receipts referenced by the resolved chain graphs were\n"
                 "not present in the evidence store at pack time. The graphs\n"
@@ -364,7 +366,7 @@ def build_signature_bundle(
     if extra:
         (sig_dir / "chain_receipts.jsonl").write_text("\n".join(extra) + "\n", encoding="utf-8")
     if not extra and not missing:
-        (sig_dir / "README.md").write_text(
+        (sig_dir / README_MD).write_text(
             "# Signature bundle\n\nEvery receipt the resolved chain graphs\n"
             "reference is already carried in `receipts.jsonl`. Nothing extra\n"
             "was needed; this directory exists so the contract stays stable.\n",
@@ -432,7 +434,7 @@ def _stage_timestamps(pack: pathlib.Path, envelopes: list[str]) -> int:
             (ts_dir / f"{rh}.token").write_bytes(token)
             token_count += 1
     if token_count == 0:
-        (ts_dir / "README.md").write_text(
+        (ts_dir / README_MD).write_text(
             "# Timestamps\n\n"
             "No receipt in this window carries an RFC 3161 timestamp anchor.\n"
             "This is an honest absence, not a failure: receipts verified at\n"
@@ -490,7 +492,7 @@ def _stage_policies(
             f"{len(copied_policies)} policy file(s) under `policies/`; deployment-chain"
             " receipts were not accessible at pack time — this is stated, not hidden"
         )
-        (pol_dir / "README.md").write_text(
+        (pol_dir / README_MD).write_text(
             "# Policies\n\nDeployment-chain receipts from the gate audit were not\n"
             "accessible at pack time. Policy files are included verbatim; the\n"
             "deployment chain for them is unverified — treated honestly as a gap,\n"
@@ -502,7 +504,7 @@ def _stage_policies(
             "not included — the policy set and its deployment-chain receipts were"
             " not accessible at pack time; coverage here is unverified"
         )
-        (pol_dir / "README.md").write_text(
+        (pol_dir / README_MD).write_text(
             "# Policies\n\nNot included: no policy file or deployment-chain receipt\n"
             "was accessible at pack time. The pack does not claim policy coverage\n"
             "it cannot show. Obtain the current policy set from the operator\n"

@@ -44,6 +44,10 @@ from dataclasses import dataclass, field
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
+RECEIPTS_JSONL = "receipts.jsonl"
+JSONL_GLOB = "*.jsonl"
+SHA256_PREFIX = "sha256:"
+
 GUARD_HEADER = "## Mandatory no-claim guard"
 GUARD_SENTINEL = (
     "This pack records what was cryptographically observed inside a"
@@ -203,7 +207,7 @@ def check_manifest(pack: pathlib.Path, report: Report) -> None:
 def load_key_snapshot(pack: pathlib.Path) -> tuple[dict[str, dict], list[str]]:
     keys: dict[str, dict] = {}
     problems: list[str] = []
-    for p in sorted((pack / "keys").glob("*.jsonl")):
+    for p in sorted((pack / "keys").glob(JSONL_GLOB)):
         for line in p.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if not line:
@@ -249,7 +253,7 @@ def _verify_one_envelope(line: str, label: str, keys: dict[str, dict]) -> str | 
         payload = json.loads(_b64d(payload_b64))
     except Exception as exc:
         return f"{label}: unreadable envelope ({exc})"
-    want = "sha256:" + hashlib.sha256(rec["jws"].encode()).hexdigest()
+    want = SHA256_PREFIX + hashlib.sha256(rec["jws"].encode()).hexdigest()
     if rec["receipt_hash"] != want:
         return f"{label}: receipt_hash does not re-derive from the receipt bytes (tampered)"
     kid = header_d.get("kid")
@@ -273,10 +277,10 @@ def _verify_one_envelope(line: str, label: str, keys: dict[str, dict]) -> str | 
 def _envelope_files(pack: pathlib.Path) -> list[pathlib.Path]:
     """Every envelope file in the pack: receipts.jsonl plus the full
     signature bundle under signatures/."""
-    files = [pack / "receipts.jsonl"]
+    files = [pack / RECEIPTS_JSONL]
     sig_dir = pack / "signatures"
     if sig_dir.is_dir():
-        files += sorted(sig_dir.glob("*.jsonl"))
+        files += sorted(sig_dir.glob(JSONL_GLOB))
     return files
 
 
@@ -287,7 +291,7 @@ def check_signature_bundle(pack: pathlib.Path, report: Report, keys: dict[str, d
     sig_dir = pack / "signatures"
     if not sig_dir.is_dir():
         return  # packs built before P1.1c carry no signatures/ directory
-    bundle_files = sorted(sig_dir.glob("*.jsonl"))
+    bundle_files = sorted(sig_dir.glob(JSONL_GLOB))
     if not bundle_files:
         report.checks.append(
             Check(
@@ -338,7 +342,7 @@ def _check_one_receipt(line: str, label: str, keys: dict[str, dict]) -> str | No
     except Exception as exc:
         return f"{label}: unreadable envelope ({exc})"
     try:
-        want = "sha256:" + hashlib.sha256(rec["jws"].encode()).hexdigest()
+        want = SHA256_PREFIX + hashlib.sha256(rec["jws"].encode()).hexdigest()
         if rec["receipt_hash"] != want:
             return f"{label}: receipt_hash does not re-derive from the receipt bytes (tampered)"
     except (KeyError, TypeError, AttributeError) as exc:
@@ -377,7 +381,7 @@ def check_receipts(
         )
     )
 
-    receipts_path = pack / "receipts.jsonl"
+    receipts_path = pack / RECEIPTS_JSONL
     lines = [ln for ln in receipts_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
     failures = []
     ok_count = 0
@@ -402,9 +406,7 @@ def check_receipts(
 def check_timestamps(pack: pathlib.Path, report: Report) -> None:
     ts_dir = pack / "timestamps"
     lines = [
-        ln
-        for ln in (pack / "receipts.jsonl").read_text(encoding="utf-8").splitlines()
-        if ln.strip()
+        ln for ln in (pack / RECEIPTS_JSONL).read_text(encoding="utf-8").splitlines() if ln.strip()
     ]
     claimed: list[tuple[str, bytes]] = []
     for line in lines:
@@ -541,7 +543,7 @@ def check_chain_graph(pack: pathlib.Path, report: Report) -> None:
             for node in (g or {}).get("nodes", []):
                 if isinstance(node, dict) and node.get("kind") == "receipt":
                     rid = node.get("id", "")
-                    if rid.startswith("sha256:") and rid not in shipped:
+                    if rid.startswith(SHA256_PREFIX) and rid not in shipped:
                         holes.append(
                             f"{rh[:24]}… depends on {rid[:24]}… which is not shipped in the pack"
                         )

@@ -35,6 +35,8 @@ from dataclasses import dataclass, field
 
 SUPPORTED_SOURCES = ("aws_cloudtrail", "github_audit")
 
+ISO_Z_SUFFIX = "+00:00"
+
 _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 
 
@@ -94,14 +96,14 @@ def _utc_iso(raw: object, source: str, event_id: str) -> str:
             f"{source} event {event_id!r} has no parsable timestamp field "
             "(exports must retain event time)"
         )
-    text = raw.replace("Z", "+00:00")
+    text = raw.replace("Z", ISO_Z_SUFFIX)
     try:
         parsed = dt.datetime.fromisoformat(text)
     except ValueError as exc:  # pragma: no cover - message only
         raise ValueError(f"{source} event {event_id!r} has unparsable timestamp {raw!r}") from exc
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=dt.UTC)
-    return parsed.astimezone(dt.UTC).isoformat().replace("+00:00", "Z")
+    return parsed.astimezone(dt.UTC).isoformat().replace(ISO_Z_SUFFIX, "Z")
 
 
 @dataclass(frozen=True)
@@ -137,7 +139,7 @@ class AuditCandidate:
         if not self.source_event_id:
             raise ValueError("source_event_id is required")
         # round-trip check guards the UTC-ISO contract
-        dt.datetime.fromisoformat(self.event_time.replace("Z", "+00:00"))
+        dt.datetime.fromisoformat(self.event_time.replace("Z", ISO_Z_SUFFIX))
 
 
 def _cloudtrail_actor(user_identity: dict[str, object]) -> tuple[str | None, str | None]:

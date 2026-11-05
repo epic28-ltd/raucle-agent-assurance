@@ -47,6 +47,8 @@ from oaa_investigation_ui.data import UNKNOWN_STATES, VERIFICATION_STATES, DemoD
 
 from oaa_raucle_adapter.evidence_plane import TRUST_POLICY_VERSION  # noqa: E402
 
+MD_SEPARATOR_2COL = "| --- | --- |"
+
 CORRELATION_STATES = (
     "matched",
     "receipt_missing",
@@ -117,7 +119,7 @@ def load_tool_audit(path: pathlib.Path) -> list[dict]:
 
 
 def _counts_table(label: str, states: tuple[str, ...], counts: dict[str, int]) -> list[str]:
-    out = [f"### {label}", "", "| state | count |", "| --- | --- |"]
+    out = [f"### {label}", "", "| state | count |", MD_SEPARATOR_2COL]
     for st in states:
         out.append(f"| `{st}` | {counts.get(st, 0)} |")
     out.append("")
@@ -192,7 +194,7 @@ def _reconciliation_section(rows: list[dict] | None) -> list[str]:
     for r in rows:
         by_tool[r.get("tool") or "unknown"] = by_tool.get(r.get("tool") or "unknown", 0) + 1
     out.append(f"Tool-side audit records: **{total}** (from the provided audit event file).\n")
-    out += ["| tool | audit records |", "| --- | --- |"]
+    out += ["| tool | audit records |", MD_SEPARATOR_2COL]
     for tool in sorted(by_tool):
         out.append(f"| `{tool}` | {by_tool[tool]} |")
     out.append("")
@@ -256,7 +258,7 @@ def _limits_section(data: DemoData, coverage: dict[str, str]) -> list[str]:
     ]
     out.append("### Coverage per tool (custody coverage map, default `unverified`)")
     out.append("")
-    out += ["| tool | coverage |", "| --- | --- |"]
+    out += ["| tool | coverage |", MD_SEPARATOR_2COL]
     for tool in sorted(tools):
         out.append(f"| `{tool}` | {coverage.get(tool, 'unverified')} |")
     out.append("")

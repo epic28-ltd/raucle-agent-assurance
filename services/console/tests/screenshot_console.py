@@ -18,6 +18,9 @@ import urllib.request
 
 import websocket
 
+CDP_METRICS_OVERRIDE = "Emulation.setDeviceMetricsOverride"
+CDP_EVALUATE = "Runtime.evaluate"
+
 PREVIEW = pathlib.Path(__file__).resolve().parents[1] / "static" / "preview"
 PORT = 9223
 # Console origin to shoot; keep production on 3412, scratch shots on 3414
@@ -55,7 +58,7 @@ def shot(http, out_path, theme):
 
     # fixed light-theme desktop viewport, then fit-to-content below
     conn.send(
-        "Emulation.setDeviceMetricsOverride",
+        CDP_METRICS_OVERRIDE,
         width=1440,
         height=900,
         deviceScaleFactor=2,
@@ -68,20 +71,20 @@ def shot(http, out_path, theme):
     # wait for boot: data-bs-theme set and overview populated
     for _ in range(40):
         expr = "window.overview !== undefined"
-        v = conn.send("Runtime.evaluate", expression=expr, returnByValue=True)
+        v = conn.send(CDP_EVALUATE, expression=expr, returnByValue=True)
         if v.get("result", {}).get("result", {}).get("value"):
             break
         time.sleep(0.5)
     time.sleep(1.5)
 
     if theme == "dark":
-        conn.send("Runtime.evaluate", expression="localStorage.setItem('rc-theme','dark')")
+        conn.send(CDP_EVALUATE, expression="localStorage.setItem('rc-theme','dark')")
         conn.send("Page.reload")
         time.sleep(2.5)
 
     height = (
         conn.send(
-            "Runtime.evaluate",
+            CDP_EVALUATE,
             expression="document.documentElement.scrollHeight",
             returnByValue=True,
         )
@@ -91,7 +94,7 @@ def shot(http, out_path, theme):
         + 4
     )
     conn.send(
-        "Emulation.setDeviceMetricsOverride",
+        CDP_METRICS_OVERRIDE,
         width=1440,
         height=int(height),
         deviceScaleFactor=2,
@@ -101,7 +104,7 @@ def shot(http, out_path, theme):
     time.sleep(2.5)
     height = (
         conn.send(
-            "Runtime.evaluate",
+            CDP_EVALUATE,
             expression="document.documentElement.scrollHeight",
             returnByValue=True,
         )
@@ -111,7 +114,7 @@ def shot(http, out_path, theme):
         + 80
     )
     conn.send(
-        "Emulation.setDeviceMetricsOverride",
+        CDP_METRICS_OVERRIDE,
         width=1440,
         height=int(height),
         deviceScaleFactor=2,

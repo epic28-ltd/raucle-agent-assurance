@@ -35,6 +35,8 @@ OUT = _out_dir(sys.argv)
 import oaa_raucle_adapter.evidence_plane as ep
 from oaa_raucle_adapter import fixture_gen as fg
 
+ROT_VALID_FROM = "2026-11-04T12:00:00+00:00"
+
 OUT.mkdir(parents=True, exist_ok=True)
 
 # ------------------------------------------------- 1. conformance fixture sweep
@@ -136,12 +138,12 @@ rot_registry.add(
 
 # mint v2 identity and retire v1 (retired, never deleted)
 v2b = ep._demo_identity_v2()
-rot_registry.retire(key_id=rot_kid, valid_until="2026-11-04T12:00:00+00:00")
+rot_registry.retire(key_id=rot_kid, valid_until=ROT_VALID_FROM)
 rot_registry.add(
     ep.TrustRoot(
         key_id=v2b.key_id,
         public_key_pem=v2b.public_key_pem(),
-        valid_from="2026-11-04T12:00:00+00:00",
+        valid_from=ROT_VALID_FROM,
         valid_until=None,
     )
 )
@@ -179,7 +181,7 @@ reg_forget.add(
     ep.TrustRoot(
         key_id=v2b.key_id,
         public_key_pem=v2b.public_key_pem(),
-        valid_from="2026-11-04T12:00:00+00:00",
+        valid_from=ROT_VALID_FROM,
         valid_until=None,
     )
 )

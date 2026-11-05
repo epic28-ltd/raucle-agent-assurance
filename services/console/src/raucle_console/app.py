@@ -35,6 +35,8 @@ import httpx
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+ADDIN_OFFLINE = "add-in offline"
+
 _static_dir = pathlib.Path(__file__).resolve().parents[2] / "static"
 
 # Shared counting module (UI-05 coherence pass): the console NEVER computes
@@ -395,7 +397,7 @@ def create_app() -> fastapi.FastAPI:
             return JSONResponse(r.json())
         except Exception as exc:  # explicit degradation, never a blank
             return JSONResponse(
-                {"error": "add-in offline", "detail": type(exc).__name__},
+                {"error": ADDIN_OFFLINE, "detail": type(exc).__name__},
                 status_code=503,
             )
 
@@ -410,7 +412,7 @@ def create_app() -> fastapi.FastAPI:
             return JSONResponse(r.json())
         except Exception as exc:  # explicit degradation, never a blank
             return JSONResponse(
-                {"error": "add-in offline", "detail": type(exc).__name__},
+                {"error": ADDIN_OFFLINE, "detail": type(exc).__name__},
                 status_code=503,
             )
 
@@ -426,7 +428,7 @@ def create_app() -> fastapi.FastAPI:
             return JSONResponse(r.json())
         except Exception as exc:  # explicit degradation, never a blank
             return JSONResponse(
-                {"error": "add-in offline", "detail": type(exc).__name__},
+                {"error": ADDIN_OFFLINE, "detail": type(exc).__name__},
                 status_code=503,
             )
 
@@ -528,7 +530,7 @@ def create_app() -> fastapi.FastAPI:
             return JSONResponse(r.json(), status_code=r.status_code)
         except Exception as exc:  # explicit degradation, never a blank
             return JSONResponse(
-                {"error": "add-in offline", "detail": type(exc).__name__},
+                {"error": ADDIN_OFFLINE, "detail": type(exc).__name__},
                 status_code=503,
             )
 
@@ -557,7 +559,7 @@ def create_app() -> fastapi.FastAPI:
             return JSONResponse(detail, status_code=exc.response.status_code)
         except Exception as exc:  # explicit degradation, never a blank
             return JSONResponse(
-                {"error": "add-in offline", "detail": type(exc).__name__},
+                {"error": ADDIN_OFFLINE, "detail": type(exc).__name__},
                 status_code=503,
             )
 

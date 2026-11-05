@@ -55,6 +55,8 @@ from .red_intake import (
 )
 from .verify import verify_offline
 
+TABLE_CLOSE = "</table>"
+
 DATA_DIR = default_data_dir()
 _static_dir = pathlib.Path(__file__).resolve().parents[2] / "static"
 
@@ -445,7 +447,7 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
         return _page(
             "Runs",
             "<table><tr><th>run</th><th>agent</th><th>release</th><th>spans</th>"
-            "<th>verification</th><th>correlation</th></tr>" + "".join(rows) + "</table>",
+            "<th>verification</th><th>correlation</th></tr>" + "".join(rows) + TABLE_CLOSE,
         )
 
     @app.get("/view/run/{run_id}", response_class=HTMLResponse)
@@ -499,7 +501,7 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
                     f"<td><span class='badge {cc}'>{esc(c['state'])}</span></td>"
                     f"</tr><tr class='note'><td colspan='6'>note: {note}</td></tr>"
                 )
-            parts.append("</table>")
+            parts.append(TABLE_CLOSE)
         findings = "".join(
             "<tr>"
             f"<td>{esc(f['rule_id'])}</td><td>{esc(f['severity'])}</td>"
@@ -510,7 +512,7 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
         )
         parts.append(
             "<h2>findings</h2><table><tr><th>rule</th><th>severity</th><th>confidence</th>"
-            "<th>suppressed</th><th>suppression_reason</th></tr>" + findings + "</table>"
+            "<th>suppressed</th><th>suppression_reason</th></tr>" + findings + TABLE_CLOSE
         )
         parts.append("<p><a href='/view/runs'>&larr; runs</a></p>")
         return _page(esc(run["run_id"]), "".join(parts))
@@ -542,7 +544,7 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
             f"<tr><th>policy_ref</th><td>{esc(meta['policy_ref'])}</td></tr>"
             f"<tr><th>tool</th><td>{esc(meta['tool'])}</td></tr>"
             f"<tr><th>trace_id</th><td>{esc(meta['trace_id'])}</td></tr>"
-            "</table>"
+            f"{TABLE_CLOSE}"
             "<h2>verification</h2>"
             f"<p>status at ingest: <span class='badge"
             f" {'badge-unknown' if v['explicit_unknown'] else 'badge-ok'}'>"
