@@ -119,83 +119,66 @@ def _run_offline(
 # -------------------------------------------------------------------- flow
 
 
-def run_second_laptop_role_play(
-    work_dir: pathlib.Path,
-    *,
-    clock: dt.datetime | None = None,
-    evidence_store: pathlib.Path | None = None,
-    trust_roots: pathlib.Path | None = None,
-) -> dict:
-    """Run the full P1.7V role-play; return a summary dict of artefacts."""
-    work_dir = work_dir.resolve()
-    build_dir = work_dir / "build"
-    laptop_dir = work_dir / "second-laptop"
-    tamper_dir = work_dir / "tamper-check"
-    if work_dir.exists():
-        shutil.rmtree(work_dir)
-    for d in (build_dir, laptop_dir, tamper_dir):
-        d.mkdir(parents=True)
-
-    # (1) Fresh real pack, existing builder, honest-report generator path.
-    ev = (
+def _second_laptop_inputs(
+    evidence_store: pathlib.Path | None, trust_roots: pathlib.Path | None
+) -> tuple[pathlib.Path, pathlib.Path]:
+    """(1) Fresh real pack inputs: explicit paths or the demo corpus."""
+    return (
         evidence_store
-        or REPO_ROOT / "services" / "investigation-ui" / "demo_data" / "evidence_store.jsonl"
-    )
-    tr = (
+        or REPO_ROOT / "services" / "investigation-ui" / "demo_data" / "evidence_store.jsonl",
         trust_roots
-        or REPO_ROOT / "services" / "investigation-ui" / "demo_data" / "trust_roots.jsonl"
+        or REPO_ROOT / "services" / "investigation-ui" / "demo_data" / "trust_roots.jsonl",
     )
-    built = pack.build_pack(ev, tr, build_dir, clock=clock)
-    src_pack = pathlib.Path(built["pack_dir"])
-    claims_text = (src_pack / "claims.md").read_text(encoding="utf-8")
 
-    # (2) The handover: only the pack and the verifier CLI cross over.
-    laptop_pack = laptop_dir / src_pack.name
-    shutil.copytree(src_pack, laptop_pack)
-    shutil.copy2(REPO_ROOT / "tools" / "verifier" / "verify_pack.py", laptop_dir / "verify_pack.py")
 
-    # (3) Prove the namespace denies network before trusting it.
-    prefix, isolation_note = _find_network_prefix()
-    net_probe = None
-    if prefix is not None:
-        probe = _run_offline(
-            prefix,
-            [
-                sys.executable,
-                "-c",
-                "import urllib.request;urllib.request.urlopen('http://127.0.0.1:1',timeout=2)",
-            ],
-        )
-        net_probe = {
-            "command": "python urllib.urlopen in-namespace",
-            "expectedly_failed": probe.returncode != 0,
-            "detail": (probe.stderr or probe.stdout).strip(),
-        }
-        if not net_probe["expectedly_failed"]:
-            raise RolePlayError(
-                "network namespace did not deny network; refusing to continue as 'no network'"
-            )
-
-    green_run = _run_offline(
+def _probe_network_isolation(prefix) -> dict | None:
+    """(3) Prove the namespace denies network before trusting it."""
+    if prefix is None:
+        return None
+    probe = _run_offline(
         prefix,
-        [sys.executable, str(laptop_dir / "verify_pack.py"), str(laptop_pack)],
+        [
+            sys.executable,
+            "-c",
+            "import urllib.request;urllib.request.urlopen('http://127.0.0.1:1',timeout=2)",
+        ],
+    )
+    net_probe = {
+        "command": "python urllib.urlopen in-namespace",
+        "expectedly_failed": probe.returncode != 0,
+        "detail": (probe.stderr or probe.stdout).strip(),
+    }
+    if not net_probe["expectedly_failed"]:
+        raise RolePlayError(
+            "network namespace did not deny network; refusing to continue as 'no network'"
+        )
+    return net_probe
+
+
+def _verify_green(prefix, laptop_dir: pathlib.Path, laptop_pack: pathlib.Path) -> str:
+    """Verify the pack as shipped; a GREEN verdict is mandatory."""
+    green_run = _run_offline(
+        prefix, [sys.executable, str(laptop_dir / "verify_pack.py"), str(laptop_pack)]
     )
     if green_run.returncode != 0 or "OVERALL VERDICT: GREEN" not in green_run.stdout:
         raise RolePlayError(
             f"offline verification did not come back green (exit {green_run.returncode}):\n{green_run.stdout}\n{green_run.stderr}"
         )
     (laptop_dir / "verification-green.txt").write_text(green_run.stdout, encoding="utf-8")
+    return green_run.stdout
 
-    # (4) Deliberate tamper, same network-denied namespace, expect RED.
-    tampered_pack = tamper_dir / src_pack.name
+
+def _tamper_expect_red(
+    prefix, laptop_dir: pathlib.Path, tamper_dir: pathlib.Path, laptop_pack: pathlib.Path
+) -> str:
+    """(4) Deliberate tamper (one trailing newline on receipts.jsonl), in the
+    same network-denied namespace; RED with exit 1 is mandatory."""
+    tampered_pack = tamper_dir / laptop_pack.name
     shutil.copytree(laptop_pack, tampered_pack)
     receipts = tampered_pack / "receipts.jsonl"
-    receipts.write_bytes(
-        receipts.read_bytes() + b"\n"
-    )  # one byte class of change: fails the manifest
+    receipts.write_bytes(receipts.read_bytes() + b"\n")
     tamper_run = _run_offline(
-        prefix,
-        [sys.executable, str(laptop_dir / "verify_pack.py"), str(tampered_pack)],
+        prefix, [sys.executable, str(laptop_dir / "verify_pack.py"), str(tampered_pack)]
     )
     if tamper_run.returncode != 1 or "OVERALL VERDICT: RED" not in tamper_run.stdout:
         raise RolePlayError(
@@ -204,8 +187,13 @@ def run_second_laptop_role_play(
     if "RED" not in tamper_run.stdout:
         raise RolePlayError("tamper run must render a RED verdict line")
     (laptop_dir / "verification-tamper-RED.txt").write_text(tamper_run.stdout, encoding="utf-8")
+    return tamper_run.stdout
 
-    # (5) Claim sheet: re-render from raw inputs (operator side, repo CLI),
+
+def _claims_render_command(
+    ev: pathlib.Path, tr: pathlib.Path, clock: dt.datetime | None
+) -> list[str]:
+    """(5) Claim sheet re-render command (operator side, repo CLI)."""
     cmd = [
         sys.executable,
         str(REPO_ROOT / "scripts" / "render_claim_sheet.py"),
@@ -216,47 +204,38 @@ def run_second_laptop_role_play(
     ]
     if clock is not None:
         cmd += ["--clock", clock.isoformat()]
-    rendered = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
-    if rendered.returncode != 0:
-        raise RolePlayError(f"render_claim_sheet.py failed:\n{rendered.stderr}")
-    # Byte-identical re-render requires the same clock the pack used. When
-    # the caller pins a clock we pass it through; otherwise we derive it
-    # from the pack's own "Generated:" line rather than the wall clock,
-    # which would make every unpinned run flakily differ by microseconds.
-    if clock is None:
-        generated = next(
-            (
-                line.split("Generated: ", 1)[1].strip()
-                for line in claims_text.splitlines()
-                if line.startswith("Generated: ")
-            ),
-            None,
-        )
-        if generated is None:
-            raise RolePlayError(
-                "pack claims.md has no 'Generated:' line to pin the re-render clock"
-            )
-        cmd += ["--clock", generated]
-    rendered = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
-    if rendered.returncode != 0:
-        raise RolePlayError(f"render_claim_sheet.py failed:\n{rendered.stderr}")
-    if rendered.stdout != claims_text:
-        raise RolePlayError("re-rendered claim sheet differs from the pack's claims.md")
-    pack.assert_no_compliance_claims(rendered.stdout)
-    assert pack.GUARD_HEADER in rendered.stdout and pack.GUARD_SENTINEL in rendered.stdout
-    (laptop_dir / "claims.md").write_text(rendered.stdout, encoding="utf-8")
+    return cmd
 
-    # Auditor signature: ephemeral Ed25519 key generated on the laptop itself,
-    # signs the exact claims.md bytes. This is the auditor's attestation of
-    # the verdict observed; the pack itself is unchanged. No compliance
-    # claim is not made or implied by the signature.
 
+def _pack_generated_clock(claims_text: str) -> str:
+    """Byte-identical re-render requires the same clock the pack used. When
+    the caller pins no clock we derive it from the pack's own "Generated:"
+    line rather than the wall clock, which would make every unpinned run
+    flakily differ by microseconds."""
+    generated = next(
+        (
+            line.split("Generated: ", 1)[1].strip()
+            for line in claims_text.splitlines()
+            if line.startswith("Generated: ")
+        ),
+        None,
+    )
+    if generated is None:
+        raise RolePlayError("pack claims.md has no 'Generated:' line to pin the re-render clock")
+    return generated
+
+
+def _sign_claim_sheet(laptop_dir: pathlib.Path, rendered_stdout: str) -> tuple[str, str]:
+    """Auditor signature: ephemeral Ed25519 key generated on the laptop itself,
+    signing the exact claims.md bytes. This attests the verdict observed; the
+    pack itself is unchanged. No compliance claim is made or implied."""
     signing_key = Ed25519PrivateKey.generate()
-    signature = signing_key.sign(rendered.stdout.encode("utf-8"))
+    signature = signing_key.sign(rendered_stdout.encode("utf-8"))
     (laptop_dir / "claims.md.sig").write_text(
         base64.b64encode(signature).decode("ascii") + "\n", encoding="utf-8"
     )
-    (laptop_dir / "claims-signing-key.pub").write_bytes(
+    pub_path = laptop_dir / "claims-signing-key.pub"
+    pub_path.write_bytes(
         signing_key.public_key().public_bytes(
             encoding=ser.Encoding.Raw,
             format=ser.PublicFormat.Raw,
@@ -270,7 +249,7 @@ def run_second_laptop_role_play(
             "from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey;"
             "pub = Ed25519PublicKey.from_public_bytes(open(sys.argv[1],'rb').read());"
             "pub.verify(base64.b64decode(open(sys.argv[2]).read().strip()), open(sys.argv[3],'rb').read())",
-            str(laptop_dir / "claims-signing-key.pub"),
+            str(pub_path),
             str(laptop_dir / "claims.md.sig"),
             str(laptop_dir / "claims.md"),
         ],
@@ -280,9 +259,12 @@ def run_second_laptop_role_play(
     )
     if verify_sig.returncode != 0:
         raise RolePlayError(f"claim-sheet signature did not verify:\n{verify_sig.stderr}")
+    return str(laptop_dir / "claims.md.sig"), str(pub_path)
 
-    # (6) Honest notes pinned to the artefacts.
-    notes = f"""# P1.7V second-laptop role-play notes
+
+def _roleplay_notes(built: dict, isolation_note: str, net_probe: dict | None) -> str:
+    """(6) Honest notes pinned to the artefacts."""
+    return f"""# P1.7V second-laptop role-play notes
 
 Generated by scripts/second_laptop_roleplay.py (the audit pack builder and
 verifier do the real work; this directory only holds what the auditor gets).
@@ -310,6 +292,68 @@ verifier do the real work; this directory only holds what the auditor gets).
 - Verification time used the pack's embedded key snapshot; no external
   trust anchor was consulted.
 """
+
+
+def run_second_laptop_role_play(
+    work_dir: pathlib.Path,
+    *,
+    clock: dt.datetime | None = None,
+    evidence_store: pathlib.Path | None = None,
+    trust_roots: pathlib.Path | None = None,
+) -> dict:
+    """Run the full P1.7V role-play; return a summary dict of artefacts."""
+    work_dir = work_dir.resolve()
+    build_dir = work_dir / "build"
+    laptop_dir = work_dir / "second-laptop"
+    tamper_dir = work_dir / "tamper-check"
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    for d in (build_dir, laptop_dir, tamper_dir):
+        d.mkdir(parents=True)
+
+    # (1) Fresh real pack, existing builder, honest-report generator path.
+    ev, tr = _second_laptop_inputs(evidence_store, trust_roots)
+    built = pack.build_pack(ev, tr, build_dir, clock=clock)
+    src_pack = pathlib.Path(built["pack_dir"])
+    claims_text = (src_pack / "claims.md").read_text(encoding="utf-8")
+
+    # (2) The handover: only the pack and the verifier CLI cross over.
+    laptop_pack = laptop_dir / src_pack.name
+    shutil.copytree(src_pack, laptop_pack)
+    shutil.copy2(REPO_ROOT / "tools" / "verifier" / "verify_pack.py", laptop_dir / "verify_pack.py")
+
+    # (3) Prove the namespace denies network before trusting it.
+    prefix, isolation_note = _find_network_prefix()
+    net_probe = _probe_network_isolation(prefix)
+    green_run = _verify_green(prefix, laptop_dir, laptop_pack)
+    tamper_run = _tamper_expect_red(prefix, laptop_dir, tamper_dir, laptop_pack)
+
+    # (5) Claim sheet: re-run from raw inputs (operator side, repo CLI).
+    def _render(cmd):
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+        if out.returncode != 0:
+            raise RolePlayError(f"render_claim_sheet.py failed:\n{out.stderr}")
+        return out
+
+    rendered = _render(_claims_render_command(ev, tr, clock))
+    if clock is None:
+        # unpinned: the CLI first runs without a clock, then re-runs pinned
+        # to the pack's own Generated line (behaviour preserved verbatim).
+        rendered = _render(
+            _claims_render_command(
+                ev, tr, dt.datetime.fromisoformat(_pack_generated_clock(claims_text))
+            )
+        )
+    if rendered.stdout != claims_text:
+        raise RolePlayError("re-rendered claim sheet differs from the pack's claims.md")
+    pack.assert_no_compliance_claims(rendered.stdout)
+    assert pack.GUARD_HEADER in rendered.stdout and pack.GUARD_SENTINEL in rendered.stdout
+    (laptop_dir / "claims.md").write_text(rendered.stdout, encoding="utf-8")
+
+    claim_sig, claim_pub = _sign_claim_sheet(laptop_dir, rendered.stdout)
+
+    # (6) Honest notes pinned to the artefacts.
+    notes = _roleplay_notes(built, isolation_note, net_probe)
     (laptop_dir / "role-play-notes.md").write_text(notes, encoding="utf-8")
 
     return {
@@ -317,11 +361,11 @@ verifier do the real work; this directory only holds what the auditor gets).
         "pack_zip": str(built["zip"]),
         "laptop_dir": str(laptop_dir),
         "laptop_pack": str(laptop_pack),
-        "verification_green": green_run.stdout,
-        "verification_tamper": tamper_run.stdout,
+        "verification_green": green_run,
+        "verification_tamper": tamper_run,
         "network_probe": net_probe,
         "isolation_note": isolation_note,
-        "claim_sheet_signed": str(laptop_dir / "claims.md.sig"),
-        "signing_key_pub": str(laptop_dir / "claims-signing-key.pub"),
+        "claim_sheet_signed": claim_sig,
+        "signing_key_pub": claim_pub,
         "counts": built["counts"],
     }
