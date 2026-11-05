@@ -168,3 +168,37 @@ def test_dangling_case_binding_is_refused():
     raw["case_bindings"] = {"gate-allow-stable": ["does-not-exist"]}
     with pytest.raises(ValueError):
         _c.validate_run_set(raw)
+
+
+def test_determinism_same_inputs_byte_identical_output():
+    first = _compile()
+    second = _compile()
+    assert json.dumps(first, indent=2, sort_keys=False) == json.dumps(
+        second, indent=2, sort_keys=False
+    )
+
+
+def test_unwritable_output_path_is_clean_error(tmp_path, capsys):
+    out = tmp_path / "no-such-dir" / "comparison.json"
+    rc = _c.main(
+        [
+            "--expectations",
+            str(EXPECTATIONS),
+            "--baseline",
+            str(BASELINE),
+            "--candidate",
+            str(CANDIDATE),
+            "--output",
+            str(out),
+        ]
+    )
+    assert rc == 1
+    captured = capsys.readouterr()
+    assert captured.err.startswith("error: ")
+    assert not out.exists()
+
+
+def test_docstring_documents_conditional_tool_scope_checks():
+    docstring = (_c.__doc__ or "").lower()
+    assert "tool-scope checks run only where" in docstring
+    assert "boundaries.tools" in docstring
