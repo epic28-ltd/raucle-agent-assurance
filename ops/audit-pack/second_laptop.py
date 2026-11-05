@@ -219,6 +219,27 @@ def run_second_laptop_role_play(
     rendered = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
     if rendered.returncode != 0:
         raise RolePlayError(f"render_claim_sheet.py failed:\n{rendered.stderr}")
+    # Byte-identical re-render requires the same clock the pack used. When
+    # the caller pins a clock we pass it through; otherwise we derive it
+    # from the pack's own "Generated:" line rather than the wall clock,
+    # which would make every unpinned run flakily differ by microseconds.
+    if clock is None:
+        generated = next(
+            (
+                line.split("Generated: ", 1)[1].strip()
+                for line in claims_text.splitlines()
+                if line.startswith("Generated: ")
+            ),
+            None,
+        )
+        if generated is None:
+            raise RolePlayError(
+                "pack claims.md has no 'Generated:' line to pin the re-render clock"
+            )
+        cmd += ["--clock", generated]
+    rendered = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    if rendered.returncode != 0:
+        raise RolePlayError(f"render_claim_sheet.py failed:\n{rendered.stderr}")
     if rendered.stdout != claims_text:
         raise RolePlayError("re-rendered claim sheet differs from the pack's claims.md")
     pack.assert_no_compliance_claims(rendered.stdout)
