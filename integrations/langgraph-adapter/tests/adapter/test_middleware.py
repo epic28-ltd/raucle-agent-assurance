@@ -99,11 +99,13 @@ def test_allow_with_receipt_runs_tool_and_attaches_span_attrs():
 
     assert out == "ran:{'path': '/var/oaa-demo/synthetic/x'}"
     assert len(ex.calls) == 1  # tool body ran exactly once
+    assert spans.attrs, "expected one span"
     attrs = spans.attrs["call-1"]
     assert attrs["oaa.receipt_hash"] == "sha256:abc"
     assert attrs["oaa.verification"] == "signed"
     assert attrs["oaa.policy"] == "read_file.yaml"
     assert attrs["oaa.trace_id"] == "call-1"
+    assert len(audits.events) == 1
     assert audits.events[0]["decision"] == "allow"
     assert audits.events[0]["fail_open"] is False
 
@@ -152,6 +154,7 @@ def test_table_deny_paths_never_run_tool(fail_open, decision):
     assert "denied by Raucle Agent Trust gate" in out["content"]
     assert decision.reason in out["content"]
     assert out["tool_call_id"] == "call-1"
+    assert len(audits.events) == 1
     assert audits.events[0]["decision"] == "deny"
     assert audits.events[0]["tool"] == "read_file"
 
@@ -193,6 +196,7 @@ def test_gate_error_fail_open_runs_tool_without_receipt():
     assert out == "ran:{'path': '/var/oaa-demo/synthetic/x'}"  # fail_open lets the call through
     assert ex.calls
     assert len(ex.calls) == 1
+    assert len(spans.attrs) == 1
     assert spans.attrs["call-1"]["oaa.verification"] == "unverified"
     assert "oaa.receipt_hash" not in spans.attrs["call-1"]
 
@@ -205,6 +209,7 @@ def test_correlation_id_passed_to_gate_call_id_as_trace_id_fallback():
     mw = RaucleGateMiddleware(gate)
     mw.wrap_tool_call(make_request(call_id="call-42"), StubExecutor())
 
+    assert len(gate.requests) == 1
     req = gate.requests[0]
     assert req["call_id"] == "call-42"
     assert req["trace_id"] == "call-42"  # call id used when no trace context
@@ -217,6 +222,7 @@ def test_trace_id_from_context_wins_over_call_id():
     request["state"] = {"trace_id": "trace-7"}
     mw.wrap_tool_call(request, StubExecutor())
 
+    assert len(gate.requests) == 1
     assert gate.requests[0]["trace_id"] == "trace-7"
 
 
@@ -230,6 +236,7 @@ def test_custom_trace_context_getter_used():
     )
     mw.wrap_tool_call(make_request(), StubExecutor())
 
+    assert len(gate.requests) == 1
     req = gate.requests[0]
     assert req["trace_id"] == "t-9"
     assert req["agent_id"] == "agent:ctx"
@@ -242,6 +249,7 @@ def test_latency_recorded_in_audit_event():
     mw = RaucleGateMiddleware(gate, audit_sink=audits)
     mw.wrap_tool_call(make_request(), StubExecutor())
 
+    assert len(audits.events) == 1
     ev = audits.events[0]
     assert ev["gate_latency_us"] == ALLOW.latency_us
     assert ev["adapter_latency_us"] >= 0  # adapter overhead measured, no retries
@@ -253,6 +261,7 @@ def test_args_forwarded_verbatim_to_gate():
     args = {"path": "/var/oaa-demo/evd-allow.txt", "nested": {"k": [1, 2]}}
     mw.wrap_tool_call(make_request(args=args), StubExecutor())
 
+    assert len(gate.requests) == 1
     assert gate.requests[0]["args"] == args
 
 
@@ -261,6 +270,7 @@ def test_agent_id_and_source_defaults_forwarded():
     mw = RaucleGateMiddleware(gate, agent_id="agent:cfg", source="cli")
     mw.wrap_tool_call(make_request(), StubExecutor())
 
+    assert len(gate.requests) == 1
     req = gate.requests[0]
     assert req["agent_id"] == "agent:cfg"
     assert req["source"] == "cli"
