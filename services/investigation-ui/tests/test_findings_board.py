@@ -165,7 +165,8 @@ def test_column_counts_match_findings_by_state(client: TestClient):
 def test_suppressed_column_retains_reason(client: TestClient):
     board = client.get("/api/findings/board").json()
     sup = [f for f in board["findings"] if f["state"] == "suppressed"]
-    assert sup and all(f["suppression_reason"] for f in sup)
+    assert sup
+    assert all(f["suppression_reason"] for f in sup)
 
 
 # ------------------------------------------------------- guidance note (XSS)
@@ -179,7 +180,8 @@ def test_board_note_rendering_is_escaped_by_construction():
     assert 'el("div", null, "Suggested action: " + g.actions[0])' in html
     assert "t.textContent = msg" in html or "toast.textContent" in html
     # the guidance note carries no raw markup template with interpolation
-    assert "finding-note" in html and "note-body" in html
+    assert "finding-note" in html
+    assert "note-body" in html
 
 
 def test_board_api_never_echoes_audit_content(client: TestClient):
@@ -195,14 +197,16 @@ def test_state_cycle_persists_to_index_sidecar(tmp_client: TestClient, tmp_path:
     board = tmp_client.get("/api/findings/board").json()
     target = next(f for f in board["findings"] if f["state"] == "new")
     r = tmp_client.post(f"/api/findings/{target['id']}/triage", json={"state": "investigating"})
-    assert r.status_code == 200 and r.json()["state"] == "investigating"
+    assert r.status_code == 200
+    assert r.json()["state"] == "investigating"
     board2 = tmp_client.get("/api/findings/board").json()
     after = next(f for f in board2["findings"] if f["id"] == target["id"])
     assert after["state"] == "investigating"
     # the sidecar index (demo-data sibling, never the canonical store) gets
     # the triage row
     sidecar = tmp_path / "demo" / "triage_state.json"
-    assert sidecar.is_file() and target["id"] in json.loads(sidecar.read_text())
+    assert sidecar.is_file()
+    assert target["id"] in json.loads(sidecar.read_text())
     assert (tmp_path / "demo" / "evidence_store.jsonl").read_text() == (
         (DATA_DIR / "evidence_store.jsonl").read_text()
     )
@@ -302,10 +306,14 @@ def test_rule_action_buttons_and_stubs():
 
 def test_age_pill_thresholds():
     html = INDEX_HTML.read_text()
-    assert "86400" in html and "3600" in html  # stale > 24h red, > 1h amber
-    assert "tok-clock" in html and "stale" in html and "warm" in html
+    assert "86400" in html
+    assert "3600" in html
+    assert "tok-clock" in html
+    assert "stale" in html
+    assert "warm" in html
 
 
 def test_empty_and_allclear_variants():
     html = INDEX_HTML.read_text()
-    assert "allclear" in html and "summary-card" in html
+    assert "allclear" in html
+    assert "summary-card" in html

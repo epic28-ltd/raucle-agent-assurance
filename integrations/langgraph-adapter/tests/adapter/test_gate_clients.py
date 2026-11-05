@@ -84,7 +84,8 @@ def test_http_unreachable_failmodes():
     bad = HttpGateClient("http://127.0.0.1:1/nope", timeout_s=0.02, fail_open=True)
     d = bad.check_tool_call(tool="t", args={}, call_id="c", trace_id="", agent_id="", source="")
     assert d.decision == "allow"
-    assert d.error and d.receipt_hash is None
+    assert d.error
+    assert d.receipt_hash is None
 
 
 def test_pin_constant_is_distribution_not_version():

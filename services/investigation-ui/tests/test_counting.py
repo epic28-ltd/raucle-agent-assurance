@@ -68,7 +68,8 @@ def test_correlation_states_materialised_with_zeros():
     states = counts["correlation"]["states"]
     assert sum(states.values()) == counts["verification"]["total"]
     assert all(s in states for s in CORRELATION_STATES)
-    assert states["matched_degraded"] >= 1 and states["trace_missing"] >= 1
+    assert states["matched_degraded"] >= 1
+    assert states["trace_missing"] >= 1
 
 
 def test_findings_reconcile_open_closed_suppressed():

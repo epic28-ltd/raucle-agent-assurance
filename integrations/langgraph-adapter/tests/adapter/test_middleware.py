@@ -190,7 +190,8 @@ def test_gate_error_fail_open_runs_tool_without_receipt():
     out = mw.wrap_tool_call(make_request(), ex)
 
     assert out == "ran:{'path': '/var/oaa-demo/synthetic/x'}"  # fail_open lets the call through
-    assert ex.calls and len(ex.calls) == 1
+    assert ex.calls
+    assert len(ex.calls) == 1
     assert spans.attrs["call-1"]["oaa.verification"] == "unverified"
     assert "oaa.receipt_hash" not in spans.attrs["call-1"]
 

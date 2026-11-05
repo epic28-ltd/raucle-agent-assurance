@@ -233,7 +233,8 @@ def test_spa_chart_tooltip_layer():
     app_css = (STATIC / "app.css").read_text()
     assert 'id="tip" class="tip"' in html
     assert "function hookTip" in html
-    assert "pointerenter" in html and "pointermove" in html
+    assert "pointerenter" in html
+    assert "pointermove" in html
     assert ".tip{position:fixed" in app_css
 
 
@@ -246,7 +247,8 @@ def test_spa_font_vendored_no_external_urls():
     for forbidden in ("fonts.googleapis", "fonts.gstatic", "https://fonts"):
         assert forbidden not in html
     font = STATIC / "vendor" / "fonts" / "inter-latin-var.woff2"
-    assert font.is_file() and font.stat().st_size > 10_000
+    assert font.is_file()
+    assert font.stat().st_size > 10_000
     licence_txt = STATIC / "vendor" / "fonts" / "licence-Inter-OFL.txt"
     assert licence_txt.is_file()
     assert "Open Font License" in licence_txt.read_text()
@@ -259,12 +261,15 @@ def test_spa_tokens_layer_and_dark_mode():
     app_css = STATIC / "app.css"
     shell = STATIC / "vendor" / "tabler"
     html = (STATIC / "index.html").read_text()
-    assert "--r-card:16px" in tokens and "--bg:#FAFAF8" in tokens
+    assert "--r-card:16px" in tokens
+    assert "--bg:#FAFAF8" in tokens
     assert 'data-theme="dark"' in tokens  # dark equivalents
-    assert "--bg:#15161A" in tokens and "--card:#1D1E23" in tokens
+    assert "--bg:#15161A" in tokens
+    assert "--card:#1D1E23" in tokens
     assert app_css.is_file()
     assert not shell.exists()  # Tabler removed for a clean tree
-    assert "/static/tokens.css" in html and "/static/app.css" in html
+    assert "/static/tokens.css" in html
+    assert "/static/app.css" in html
     assert "tabler" not in html.lower()
 
 
@@ -320,7 +325,8 @@ def test_spa_dark_mode_toggle_persists():
     """Theme + sidebar collapse persist in localStorage; toggle swaps data-theme."""
     html = (STATIC / "index.html").read_text()
     assert "localStorage.setItem('rc-theme'" in html
-    assert "data-theme" in html and "rc-collapsed" in html
+    assert "data-theme" in html
+    assert "rc-collapsed" in html
     assert 'data-theme="light"' in html  # shell boots in light
 
 
@@ -339,7 +345,8 @@ def test_assurance_counts_proxy(client: TestClient):
     r = client.get("/api/assurance/counts")
     if r.status_code == 200:
         body = r.json()
-        assert "verification" in body and "findings" in body
+        assert "verification" in body
+        assert "findings" in body
         buckets = body["verification"]["buckets"]
         assert sum(buckets.values()) == body["verification"]["total"]
     else:
@@ -404,7 +411,8 @@ def test_api_trends_never_echoes_env(client: TestClient):
 
 def test_spa_trends_card_honest_labels():
     html = (STATIC / "index.html").read_text()
-    assert "'Trends'" in html and "trendsCard" in html
+    assert "'Trends'" in html
+    assert "trendsCard" in html
     assert "/api/trends" in html
     # honest per-run labelling: the demo set has no aligned windows
     assert "per run" in html
@@ -413,7 +421,8 @@ def test_spa_trends_card_honest_labels():
 
 def test_spa_rule_coverage_strip():
     html = (STATIC / "index.html").read_text()
-    assert "ruleCoverageCard" in html and "Rule coverage" in html
+    assert "ruleCoverageCard" in html
+    assert "Rule coverage" in html
     for rid in ("SEC-001", "SEC-002", "SEC-003", "SEC-004", "SEC-005", "SEC-006"):
         assert rid in html
     assert "chip-exempt rule-chip" in html  # silent rules show grey
@@ -423,7 +432,8 @@ def test_spa_rule_coverage_strip():
 def test_spa_red_preview_card_and_roadmap_link():
     html = (STATIC / "index.html").read_text()
     assert "add-in preview - coming soon" in html
-    assert "Gate fuzzer findings" in html and "Tamper attempts" in html
+    assert "Gate fuzzer findings" in html
+    assert "Tamper attempts" in html
     assert "docs/agent-red-roadmap.md" in html
     roadmap = pathlib.Path(CONSOLE_DIR).resolve().parents[1] / "docs" / "agent-red-roadmap.md"
     assert roadmap.is_file()
@@ -432,7 +442,8 @@ def test_spa_red_preview_card_and_roadmap_link():
 
 def test_spa_per_rule_drill_view():
     html = (STATIC / "index.html").read_text()
-    assert "viewRule" in html and "RULE_GUIDANCE" in html
+    assert "viewRule" in html
+    assert "RULE_GUIDANCE" in html
     # router parses #/rules/<id>
     assert "rules/" in html
     for rid in ("SEC-001", "SEC-009", "SEC-011"):
@@ -579,9 +590,12 @@ def test_red_status_results_orchestration_mock_flow(client: TestClient):
         s1 = c.get("/api/red/status").json()
         assert s1["state"] == "idle"
         s2 = c.get("/api/red/status").json()
-        assert s2["state"] == "running" and s2["allow"] == 1 and s2["deny"] == 2
+        assert s2["state"] == "running"
+        assert s2["allow"] == 1
+        assert s2["deny"] == 2
         s3 = c.get("/api/red/status").json()
-        assert s3["state"] == "complete" and s3["receipts"] == 8
+        assert s3["state"] == "complete"
+        assert s3["receipts"] == 8
         res = c.get("/api/red/results").json()
         assert res["receipts"] == 8
         assert [f["rule"] for f in res["findings"]] == ["RED-006", "RED-011"]
@@ -644,7 +658,8 @@ def test_spa_red_ops_marks_present_and_honest():
     ):
         assert marker in html
     # poll loop is 2000ms and cleared when idle/complete
-    assert "setInterval" in html and "clearInterval" in html
+    assert "setInterval" in html
+    assert "clearInterval" in html
     assert "2000" in html
     # state chips map to the semantic tints
     assert "aborted: ['Aborted', 'tok-act']" in html
@@ -667,7 +682,8 @@ def test_docs_console_red_ops_findings_spike():
     doc = CONSOLE_DIR.parents[1] / "docs" / "spikes" / "console-red-ops-findings.md"
     assert doc.is_file()
     text = doc.read_text()
-    assert "idempoten" in text.lower() and "3415" in text
+    assert "idempoten" in text.lower()
+    assert "3415" in text
     em_dash = chr(0x2014)
     assert em_dash not in text
 

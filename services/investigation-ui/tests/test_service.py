@@ -43,7 +43,8 @@ def client() -> TestClient:
 def test_runs_list_fields(client: TestClient):
     runs = client.get("/api/runs").json()
     ids = [r["run_id"] for r in runs]
-    assert "run-obs01-01" in ids and "run-sim-02" in ids
+    assert "run-obs01-01" in ids
+    assert "run-sim-02" in ids
     for r in runs:
         for field in (
             "agent",
@@ -149,7 +150,8 @@ def test_findings_include_suppressed_with_reason(client: TestClient):
     sec001 = [f for f in findings if f["rule_id"] == "SEC-001"]
     assert sec001
     suppressed = [f for f in sec001 if f["suppressed"]]
-    assert suppressed and suppressed[0]["suppression_reason"]
+    assert suppressed
+    assert suppressed[0]["suppression_reason"]
     # suppressed findings are RETAINED with all fields, not dropped
     assert all(
         k in suppressed[0]

@@ -175,7 +175,8 @@ class TestReplayRecord:
         assert c["trust_snapshot_digest"].startswith("sha256:")
         assert c["result"] == "VERIFIED"
         assert "caid_mapping_verdict" in c
-        assert "freshness" in c and "status_checks" in c
+        assert "freshness" in c
+        assert "status_checks" in c
 
     def test_unsatisfied_recorded_not_raised(self):
         env = assemble_aec(_build(), [_fact()], "custody-audit")
