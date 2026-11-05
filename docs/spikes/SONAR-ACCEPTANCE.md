@@ -211,3 +211,15 @@ local pinned worktree import path.
 **Decision owner:** Craig. **Status:** accepted November 2026; revisit if
 any bait file ever becomes a live control (it must then move into
 `sonar.sources` and earn real tests).
+
+## python:S3415 (unify assertion argument order) — packages/ep-aec/tests/test_evaluator.py ~line 49
+Accepted 5 Nov 2026, decision owner Craig.
+The file now uses a single comparison convention (expected-first where an
+expectation exists, e.g. SATISFIED == v / "EVAL_LIMIT_BYTES" == ...). Sonar
+still reports S3415 because its classifier treats the imported-constant
+expectation (SATISFIED) differently from the parametrised one (want), reading
+the file as "mixed" although every human-authored comparison follows the same
+order. The competing linter rule ruff SIM300 forbids exactly the expected-first
+constant order Sonar expects, so the two tools are mutually contradictory on
+this file. Flipping further merely trades one false report for another while
+weakening the tests readability. Tests: 85 passed (ep-aec), suite green.
