@@ -12,3 +12,8 @@ _repo = _tests.parents[2]
 _adapter_src = _repo / "packages" / "raucle-adapter" / "src"
 if _adapter_src.is_dir():
     sys.path.insert(0, str(_adapter_src))
+# Own package too: the suite must import oaa_epaec even where the package is
+# not installed (bare CI checkouts only rely on repo layout).
+_src = _repo / "packages" / "ep-aec" / "src"
+if _src.is_dir():
+    sys.path.insert(0, str(_src))
