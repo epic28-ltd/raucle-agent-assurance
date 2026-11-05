@@ -422,9 +422,7 @@ def _claimed_timestamp_tokens(lines: list[str]) -> list[tuple[str, bytes]]:
     return claimed
 
 
-def _timestamp_token_failures(
-    claimed: list[tuple[str, bytes]], ts_dir: pathlib.Path
-) -> list[str]:
+def _timestamp_token_failures(claimed: list[tuple[str, bytes]], ts_dir: pathlib.Path) -> list[str]:
     """Receipts whose claimed anchor has no matching token file (tampered)."""
     failures: list[str] = []
     for rh, token in claimed:
@@ -508,9 +506,7 @@ def check_claim_sheet(pack: pathlib.Path, report: Report) -> None:
         )
 
 
-def _shipped_receipt_hashes(
-    pack: pathlib.Path, report: Report
-) -> set[str] | None:
+def _shipped_receipt_hashes(pack: pathlib.Path, report: Report) -> set[str] | None:
     """Every receipt_hash shipped in the pack's envelope files.
 
     Returns None (with a FAIL check recorded) on an undecodable envelope.
