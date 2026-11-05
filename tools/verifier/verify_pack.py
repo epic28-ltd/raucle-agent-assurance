@@ -129,8 +129,14 @@ def load_pack(target: pathlib.Path) -> tuple[pathlib.Path, bool]:
 
 
 def check_manifest(pack: pathlib.Path, report: Report) -> None:
-    manifest = json.loads((pack / MANIFEST_NAME).read_text(encoding="utf-8"))
-    files: dict[str, str] = manifest.get("files", {})
+    try:
+        manifest = json.loads((pack / MANIFEST_NAME).read_text(encoding="utf-8"))
+        files: dict[str, str] = manifest.get("files", {})
+    except Exception as exc:
+        report.checks.append(
+            Check("manifest-integrity", "FAIL", f"manifest.json is not readable JSON ({exc}) — the pack's inventory is damaged")
+        )
+        return
     problems: list[str] = []
     for rel, digest in sorted(files.items()):
         p = pack / rel
@@ -161,8 +167,12 @@ def load_key_snapshot(pack: pathlib.Path) -> tuple[dict[str, dict], list[str]]:
             line = line.strip()
             if not line:
                 continue
-            row = json.loads(line)
-            kid = str(row.get("key_id"))
+            try:
+                row = json.loads(line)
+                kid = str(row.get("key_id"))
+            except Exception as exc:
+                problems.append(f"unreadable row in {p.name}: {exc}")
+                continue
             if kid in keys:
                 problems.append(f"duplicate key_id {kid!r} in key snapshot")
             keys[kid] = row
@@ -284,9 +294,13 @@ def check_receipts(pack: pathlib.Path, report: Report, keys: dict[str, dict], ke
         except Exception as exc:
             failures.append(f"{label}: unreadable envelope ({exc})")
             continue
-        want = "sha256:" + hashlib.sha256(rec["jws"].encode()).hexdigest()
-        if rec["receipt_hash"] != want:
-            failures.append(f"{label}: receipt_hash does not re-derive from the receipt bytes (tampered)")
+        try:
+            want = "sha256:" + hashlib.sha256(rec["jws"].encode()).hexdigest()
+            if rec["receipt_hash"] != want:
+                failures.append(f"{label}: receipt_hash does not re-derive from the receipt bytes (tampered)")
+                continue
+        except (KeyError, TypeError, AttributeError) as exc:
+            failures.append(f"{label}: malformed envelope, missing envelope fields ({exc})")
             continue
         kid = header_d.get("kid")
         if kid not in keys:
@@ -321,11 +335,19 @@ def check_timestamps(pack: pathlib.Path, report: Report) -> None:
     lines = [ln for ln in (pack / "receipts.jsonl").read_text(encoding="utf-8").splitlines() if ln.strip()]
     claimed: list[tuple[str, bytes]] = []
     for line in lines:
-        payload = json.loads(_b64d(json.loads(line)["jws"].split(".")[1]))
-        x_ts = payload.get("x_timestamp") if isinstance(payload, dict) else None
-        if isinstance(x_ts, dict) and x_ts.get("token"):
-            claimed.append((json.loads(line)["receipt_hash"], _b64d(str(x_ts["token"]))))
-    failures = []
+        try:
+            rec = json.loads(line)
+        except Exception:
+            # the receipts check names undecodable lines; nothing to claim here
+            continue
+        try:
+            payload = json.loads(_b64d(rec["jws"].split(".")[1]))
+            x_ts = payload.get("x_timestamp") if isinstance(payload, dict) else None
+            if isinstance(x_ts, dict) and x_ts.get("token"):
+                claimed.append((rec["receipt_hash"], _b64d(str(x_ts["token"]))))
+        except Exception:
+            continue
+    failures: list[str] = []
     for rh, token in claimed:
         p = ts_dir / f"{rh.replace(':', '-')}.token"
         if not p.is_file():
@@ -386,7 +408,11 @@ def check_chain_graph(pack: pathlib.Path, report: Report) -> None:
     if not p.is_file():
         report.checks.append(Check("chain-graph-slot", "PASS", "chain_graph.json absent — the slot is additive and its absence is noted, not concealed."))
         return
-    data = json.loads(p.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except Exception as exc:
+        report.checks.append(Check("chain-graph-slot", "FAIL", f"chain_graph.json is not readable JSON ({exc}) — damaged pack"))
+        return
     status = data.get("status", "")
     # P1.1c self-containment: every receipt a RESOLVED graph depends on
     # must be shipped inside the pack (receipts.jsonl or signatures/).
@@ -427,7 +453,13 @@ def check_pinned_key_snapshot(pack: pathlib.Path, report: Report) -> None:
     m = pack / MANIFEST_NAME
     if not m.is_file():
         return  # already failed as manifest missing
-    block = json.loads(m.read_text(encoding="utf-8")).get("pinned_key_snapshot")
+    try:
+        block = json.loads(m.read_text(encoding="utf-8")).get("pinned_key_snapshot")
+    except Exception as exc:
+        report.checks.append(
+            Check("pinned-key-snapshot", "FAIL", f"manifest.json is not readable JSON ({exc}) — the pinned-key-snapshot block cannot be checked")
+        )
+        return
     if not block:
         report.checks.append(
             Check(
