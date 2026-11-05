@@ -23,6 +23,14 @@ ROOT = Path(__file__).resolve().parents[3] / "raucle-cloud"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(ROOT / "tests"))
 
+# The raucle wheel pinned into the raucle-cloud venv predates
+# raucle.chain_graph, which raucle_cloud.portal.replay imports. Put the
+# checked-out raucle repo first on sys.path so the beat runs against the
+# same open-core sources as the working tree instead of the stale wheel.
+RAUCLE = Path(__file__).resolve().parents[3] / "raucle"
+if (RAUCLE / "raucle" / "chain_graph.py").is_file():
+    sys.path.insert(0, str(RAUCLE))
+
 _spec = importlib.util.spec_from_file_location(
     "w3_phase5", ROOT / "tests" / "test_phase5_push.py"
 )

@@ -1,0 +1,301 @@
+
+===== W3 demo run-through started 2026-11-05T04:36:14+00:00 =====
+
+===== Beat 0: prerequisites =====
+
+$ test -x /home/craigamcw/Projects/open-agent-assurance/.venv/bin/python
+
+===== Beat 1 (F7 hero): auditor export pack, offline verification, tamper RED =====
+
+$ /home/craigamcw/Projects/open-agent-assurance/.venv/bin/python /home/craigamcw/Projects/open-agent-assurance/scripts/build_audit_pack.py --evidence-store /home/craigamcw/Projects/open-agent-assurance/services/investigation-ui/demo_data/evidence_store.jsonl --trust-roots /home/craigamcw/Projects/open-agent-assurance/services/investigation-ui/demo_data/trust_roots.jsonl --from 2026-10-01 --to 2026-12-31 --out /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/pack
+{
+  "counts": {
+    "chain_receipts": 0,
+    "keys": 1,
+    "policy_files": 0,
+    "receipts": 2,
+    "timestamp_tokens": 0
+  },
+  "manifest_files": 8,
+  "pack_dir": "/home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/pack/audit-pack",
+  "window": {
+    "from": "2026-10-01T00:00:00+00:00",
+    "receipt_hash": null,
+    "to": "2026-12-31T00:00:00+00:00"
+  },
+  "zip": "/home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/pack/audit-pack.zip"
+}
+
+$ /home/craigamcw/Projects/open-agent-assurance/.venv/bin/python /home/craigamcw/Projects/open-agent-assurance/tools/verifier/verify_pack.py /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/pack/audit-pack.zip
+[PASS] manifest-integrity
+    8 file(s) all match their recorded sha256 digests.
+[PASS] key-snapshot
+    1 public key(s) in the embedded snapshot (public halves only).
+[PASS] receipt-signatures
+    2 of 2 receipt(s): receipt_hash re-derived, signature valid against the key snapshot, event time within the key's validity window.
+[PASS] signature-bundle
+    No chain receipts beyond the query window were needed; the bundle directory states this rather than implying a gap.
+[PASS] timestamp-tokens
+    No receipt in this pack claims an RFC 3161 timestamp anchor, so there is nothing to check — this is the pack's stated scope, not a failure.
+[PASS] claim-sheet-guard
+    The claim sheet carries its mandatory no-claim guard: it records what was observed and disclaims legal or regulatory conclusions.
+[PASS] chain-graph-slot
+    Chain-graph slot is 'pending P1.1a wire-up': the pack ships without receipt-chain resolution; individual receipts fully verify, but the pack does not yet assert how chains connect.
+[PASS] pinned-key-snapshot
+    The declared pinned key snapshot keys/trust_roots.jsonl matches its recorded digest (1 key id(s)); verification depends on nothing outside the pack.
+
+OVERALL VERDICT: GREEN — the pack matches its manifest, and every receipt in it verified against the key snapshot.
+
+
+$ /home/craigamcw/Projects/open-agent-assurance/.venv/bin/python /home/craigamcw/Projects/open-agent-assurance/tools/verifier/verify_pack.py /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/pack/audit-pack
+[PASS] manifest-integrity
+    8 file(s) all match their recorded sha256 digests.
+[PASS] key-snapshot
+    1 public key(s) in the embedded snapshot (public halves only).
+[PASS] receipt-signatures
+    2 of 2 receipt(s): receipt_hash re-derived, signature valid against the key snapshot, event time within the key's validity window.
+[PASS] signature-bundle
+    No chain receipts beyond the query window were needed; the bundle directory states this rather than implying a gap.
+[PASS] timestamp-tokens
+    No receipt in this pack claims an RFC 3161 timestamp anchor, so there is nothing to check — this is the pack's stated scope, not a failure.
+[PASS] claim-sheet-guard
+    The claim sheet carries its mandatory no-claim guard: it records what was observed and disclaims legal or regulatory conclusions.
+[PASS] chain-graph-slot
+    Chain-graph slot is 'pending P1.1a wire-up': the pack ships without receipt-chain resolution; individual receipts fully verify, but the pack does not yet assert how chains connect.
+[PASS] pinned-key-snapshot
+    The declared pinned key snapshot keys/trust_roots.jsonl matches its recorded digest (1 key id(s)); verification depends on nothing outside the pack.
+
+OVERALL VERDICT: GREEN — the pack matches its manifest, and every receipt in it verified against the key snapshot.
+
+tamper applied: 4 trailing JWS bytes flipped on receipt 1 (copy only, original untouched)
+
+$ /home/craigamcw/Projects/open-agent-assurance/.venv/bin/python /home/craigamcw/Projects/open-agent-assurance/tools/verifier/verify_pack.py /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/tamper
+[FAIL] manifest-integrity
+    manifest integrity FAILED for: receipts.jsonl — recorded sha256 0afe93c937b96c30… but the file hashes to ebd7a61381728a75… (tampered after export)
+[PASS] key-snapshot
+    1 public key(s) in the embedded snapshot (public halves only).
+[FAIL] receipt-signatures
+    1 of 2 receipt(s) FAILED: receipt 1: receipt_hash does not re-derive from the receipt bytes (tampered)
+[PASS] signature-bundle
+    No chain receipts beyond the query window were needed; the bundle directory states this rather than implying a gap.
+[PASS] timestamp-tokens
+    No receipt in this pack claims an RFC 3161 timestamp anchor, so there is nothing to check — this is the pack's stated scope, not a failure.
+[PASS] claim-sheet-guard
+    The claim sheet carries its mandatory no-claim guard: it records what was observed and disclaims legal or regulatory conclusions.
+[PASS] chain-graph-slot
+    Chain-graph slot is 'pending P1.1a wire-up': the pack ships without receipt-chain resolution; individual receipts fully verify, but the pack does not yet assert how chains connect.
+[PASS] pinned-key-snapshot
+    The declared pinned key snapshot keys/trust_roots.jsonl matches its recorded digest (1 key id(s)); verification depends on nothing outside the pack.
+
+OVERALL VERDICT: RED — verification failed. The pack above is not trustworthy as shipped; do not rely on it until the named failures are explained by the operator.
+
+   (exit 1 expected: the tampered pack must verify RED with a named failure)
+
+===== Beat 2 (F2 partial): regression baseline run against the current gate =====
+
+$ /home/craigamcw/Projects/raucle-agent-red/.venv/bin/python /home/craigamcw/Projects/raucle-agent-red/scripts/red_scheduler.py run --trigger manual
+run 5edecaed-4f28-5205-9ab3-74b4e0c8b592 trigger=manual counts={'pass': 337, 'violation': 0, 'drift': 0, 'unverified': 3, 'unexpected': 1}
+regression: reopened=0 resolved=0 new=0 gone=0
+
+$ /home/craigamcw/Projects/raucle-agent-red/.venv/bin/python /home/craigamcw/Projects/open-agent-assurance/demo/w3/board_summary_beat.py /home/craigamcw/Projects/raucle-agent-red/runs/history.jsonl
+board: run=5edecaed-4f28-5205-9ab3-74b4e0c8b592 trigger=manual pass=337 violation=0 drift=0 unverified=3 unexpected=1
+board: regression reopened=0 resolved=0 new=0 gone=0
+board: no violations to receipt; green board on violations and drift
+
+===== Beat 3 (F3): one-time canary, deterministic verdict, reuse denied =====
+
+$ /home/craigamcw/Projects/raucle/.venv/bin/python -m raucle.cli canary mint --run-id w3-demo-run --store /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/canary/agents.json --ledger /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/canary/ledger.jsonl --receipts /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/canary/canary-receipts.jsonl
+
+$ /home/craigamcw/Projects/raucle/.venv/bin/python -m raucle.cli canary mint --run-id w3-demo-run --store /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/canary/agents.json --ledger /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/canary/ledger.jsonl --receipts /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/canary/canary-receipts.jsonl
+canary minted for run w3-demo-run (shown once, stored hashed):
+rak_6a81d09bb606f72fc2ed8440a8707a2516c8a6068aac934ef03f3a10bdcbcab6
+mint_id: canary:f6f4affed745bd56
+canary minted for run w3-demo-run (shown once, stored hashed):
+rak_6a81d09bb606f72fc2ed8440a8707a2516c8a6068aac934ef03f3a10bdcbcab6
+mint_id: canary:f6f4affed745bd56
+
+$ /home/craigamcw/Projects/raucle/.venv/bin/python -m raucle.cli canary observe --value rak_6a81d09bb606f72fc2ed8440a8707a2516c8a6068aac934ef03f3a10bdcbcab6 --store /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/canary/agents.json --ledger /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/canary/ledger.jsonl --receipts /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/canary/canary-receipts.jsonl
+{"key_fingerprint":"2af1c0f354970b9e","mint_id":"canary:f6f4affed745bd56","reason":"observed","run_id":"w3-demo-run","status":"observed"}
+
+$ /home/craigamcw/Projects/raucle/.venv/bin/python -m raucle.cli canary observe --value rak_6a81d09bb606f72fc2ed8440a8707a2516c8a6068aac934ef03f3a10bdcbcab6 --store /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/canary/agents.json --ledger /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/canary/ledger.jsonl --receipts /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/canary/canary-receipts.jsonl
+{"key_fingerprint":"2af1c0f354970b9e","mint_id":"canary:f6f4affed745bd56","reason":"denied:already-consumed","run_id":"w3-demo-run","status":"denied"}
+   (nonzero exit expected on reuse: denied:already-consumed)
+
+===== Beat 4 (F6): blast-radius delta report on a policy change =====
+
+$ /home/craigamcw/Projects/raucle/.venv/bin/python /home/craigamcw/Projects/open-agent-assurance/demo/w3/delta_beat.py /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime
+== policy rule diff ==
+{
+  "opened": [],
+  "closed": [],
+  "changed": [
+    {
+      "rule_id": "r-opened",
+      "tool": "read_email",
+      "agent_id": "agent:mail",
+      "changed_constraint_fields": [
+        "allowed_values"
+      ],
+      "receipt_ids": []
+    }
+  ]
+}
+{
+  "policy_versions": {
+    "baseline": "PolicyFile with 3 rules",
+    "candidate": "PolicyFile with 4 rules"
+  },
+  "flipped_decisions": {
+    "count": 3,
+    "receipt_ids": [
+      "sha256:e8c7c65d574b71c501ef2a38600045019c34025e154c8d463e934ce58c7f9fbd",
+      "sha256:e8c7c65d574b71c501ef2a38600045019c34025e154c8d463e934ce58c7f9fbd",
+      "sha256:e8c7c65d574b71c501ef2a38600045019c34025e154c8d463e934ce58c7f9fbd"
+    ],
+    "decisions": [
+      {
+        "receipt_id": "sha256:e8c7c65d574b71c501ef2a38600045019c34025e154c8d463e934ce58c7f9fbd",
+        "input_hash": "sha256:97355fa9d3f7932dd1a57b3544d70d5e3f7d6f895439760d68b2e7a3e522335c",
+        "original_action": "ALERT",
+        "counterfactual_action": "BLOCK",
+        "explanation": "technique=instruction_override rules=PI-001 confidence=0.54"
+      },
+      {
+        "receipt_id": "sha256:e8c7c65d574b71c501ef2a38600045019c34025e154c8d463e934ce58c7f9fbd",
+        "input_hash": "sha256:97355fa9d3f7932dd1a57b3544d70d5e3f7d6f895439760d68b2e7a3e522335c",
+        "original_action": "ALERT",
+        "counterfactual_action": "BLOCK",
+        "explanation": "technique=instruction_override rules=PI-001 confidence=0.54"
+      },
+      {
+        "receipt_id": "sha256:e8c7c65d574b71c501ef2a38600045019c34025e154c8d463e934ce58c7f9fbd",
+        "input_hash": "sha256:97355fa9d3f7932dd1a57b3544d70d5e3f7d6f895439760d68b2e7a3e522335c",
+        "original_action": "ALERT",
+        "counterfactual_action": "BLOCK",
+        "explanation": "technique=instruction_override rules=PI-001 confidence=0.54"
+      }
+    ]
+  },
+  "would_have_denied": {
+    "count": 3,
+    "receipt_ids": [
+      "sha256:e8c7c65d574b71c501ef2a38600045019c34025e154c8d463e934ce58c7f9fbd",
+      "sha256:e8c7c65d574b71c501ef2a38600045019c34025e154c8d463e934ce58c7f9fbd",
+      "sha256:e8c7c65d574b71c501ef2a38600045019c34025e154c8d463e934ce58c7f9fbd"
+    ]
+  },
+  "authority_paths": {
+    "opened": [],
+    "closed": [],
+    "changed": [
+      {
+        "rule_id": "r-opened",
+        "tool": "read_email",
+        "agent_id": "agent:mail",
+        "changed_constraint_fields": [
+          "allowed_values"
+        ],
+        "receipt_ids": []
+      }
+    ],
+    "widened_tools": []
+  },
+  "delegation_hop_impact": [],
+  "invariant_diff": {
+    "mode": "heuristic invariant diff (z3 not invoked)",
+    "z3_invoked": false,
+    "invariants": [
+      {
+        "invariant": "threshold-tightening",
+        "tool": "read_email",
+        "baseline_rule_id": "r-opened",
+        "candidate_rule_id": "r-opened",
+        "holds_in_both": true,
+        "mode": "heuristic invariant diff (z3 not invoked)",
+        "notes": [],
+        "receipt_ids": []
+      },
+      {
+        "invariant": "deny-list-superset",
+        "tool": "read_email",
+        "baseline_rule_id": "r-opened",
+        "candidate_rule_id": "r-opened",
+        "holds_in_both": true,
+        "mode": "heuristic invariant diff (z3 not invoked)",
+        "notes": [],
+        "receipt_ids": []
+      },
+      {
+        "invariant": "threshold-tightening",
+        "tool": "transfer_money",
+        "baseline_rule_id": "r-kept",
+        "candidate_rule_id": "r-kept",
+        "holds_in_both": true,
+        "mode": "heuristic invariant diff (z3 not invoked)",
+        "notes": [],
+        "receipt_ids": []
+      },
+      {
+        "invariant": "deny-list-superset",
+        "tool": "transfer_money",
+        "baseline_rule_id": "r-kept",
+        "candidate_rule_id": "r-kept",
+        "holds_in_both": true,
+        "mode": "heuristic invariant diff (z3 not invoked)",
+        "notes": [],
+        "receipt_ids": []
+      },
+      {
+        "invariant": "threshold-tightening",
+        "tool": "wipe_disk",
+        "baseline_rule_id": "r-closed",
+        "candidate_rule_id": "r-closed",
+        "holds_in_both": true,
+        "mode": "heuristic invariant diff (z3 not invoked)",
+        "notes": [],
+        "receipt_ids": []
+      },
+      {
+        "invariant": "deny-list-superset",
+        "tool": "wipe_disk",
+        "baseline_rule_id": "r-closed",
+        "candidate_rule_id": "r-closed",
+        "holds_in_both": true,
+        "mode": "heuristic invariant diff (z3 not invoked)",
+        "notes": [],
+        "receipt_ids": []
+      }
+    ]
+  },
+  "register_sentence": "this change would have denied 3 of 3 flipped receipts, invariant deny-list-superset and threshold-tightening preserved (heuristic invariant diff (z3 not invoked))",
+  "gaps": [
+    "z3 not installed: invariant section is heuristic, not a proof",
+    "no chain graphs supplied: delegation-hop impact not evaluated"
+  ]
+}
+written: /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/delta-report.json
+
+===== Beat 5 (P1.9a, demonstration only): portal phase 5 push outcome =====
+
+$ /home/craigamcw/Projects/raucle-cloud/.venv/bin/python /home/craigamcw/Projects/open-agent-assurance/demo/w3/phase5_beat.py /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime
+/home/craigamcw/Projects/raucle-cloud/.venv/lib/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+gate auth mode is 'off': declared agent_id is TRUSTED. Suitable only for trusted internal networks; set RAUCLE_GATE_AUTH=apikey or token for authenticated deployment.
+{
+  "beat": "P1.9a phase 5 portal push",
+  "policy_id": "b2476fb7daef44b6b8a759abee5d8ebf",
+  "deployment_row": {
+    "receipt_hash": "sha256:870e4796f04d2a84557887624e94f2068eb8e2b7d5d69da47b3358664963491c",
+    "action": "activate",
+    "stage": "active",
+    "version_no": 1,
+    "actor": "portal:admin:testco-admin",
+    "iat": 1793853377,
+    "push_status": "accepted",
+    "remote_receipt_hash": "sha256:d6ed62c6eebaa9f780bc241fbc4d86f9e359466d917270dcbaf2c6dac33087a0"
+  },
+  "chained": true
+}
+phase 5 beat OK: push_status=accepted, remote receipt hash sha256:d6ed62c6eebaa9f780bc241fbc4d86f9e... (full row: /home/craigamcw/Projects/open-agent-assurance/demo/w3/runtime/phase5-beat.json)
+
+===== Run-through finished 2026-11-05T04:36:17+00:00 =====

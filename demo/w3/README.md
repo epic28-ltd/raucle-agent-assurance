@@ -2,8 +2,8 @@
 
 Home for the W3 demo artefacts: this directory. One clean run-through was
 executed end to end on 5 November 2026; the recorded transcript of that
-run is trans-20261105-010748.txt (runtime outputs land in runtime/, which
-is gitignored).
+run is transcript-20261105-010748.txt. The failover plan lives in
+failover-plan.md. Runtime outputs land in runtime/, which is gitignored.
 
 Framing line, say it in the session:
 
