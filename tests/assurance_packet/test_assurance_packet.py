@@ -76,18 +76,17 @@ def test_packet_carries_guard_and_schema_version(built) -> None:
     packet = json.loads(built[1])
     assert packet["schema_version"] == 1
     assert packet["kind"] == "agent_assurance_packet"
-    assert "GUARD" in packet["guard"] or packet["guard"] == ap_mod.GUARD_SENTENCE
-    assert packet["receipt_chain"]["line_count"] == 2
-    assert (
-        packet["gate_coverage"]["admitted"]
-        + (
-            packet["gate_coverage"]["refused"]
-            + packet["gate_coverage"]["held"]
-            + packet["gate_coverage"]["other"]
-            + packet["gate_coverage"]["without_gate"]
-        )
-        == 2
+    assert packet["guard"] == ap_mod.GUARD_SENTENCE
+    coverage = packet["gate_coverage"]
+    total = (
+        coverage["admitted"]
+        + coverage["refused"]
+        + coverage["held"]
+        + coverage["other"]
+        + coverage["without_gate"]
     )
+    assert packet["receipt_chain"]["line_count"] == 2
+    assert total == 2
 
 
 def test_governance_slots_tolerate_empty_and_accept_ids() -> None:
@@ -190,10 +189,13 @@ def test_html_summary_is_textcontent_only(built) -> None:
     lower = html.lower()
     assert "<script" not in lower
     assert "javascript:" not in lower
-    assert "onload=" not in lower and "onclick=" not in lower
-    assert "innerHTML" not in html and "document.write" not in html
+    assert "onload=" not in lower
+    assert "onclick=" not in lower
+    assert "innerHTML" not in html
+    assert "document.write" not in html
     assert ap_mod.GUARD_SENTENCE in html
-    assert html.startswith("<!doctype html>") and html.endswith("</html>\n")
+    assert html.startswith("<!doctype html>")
+    assert html.endswith("</html>\n")
 
 
 def test_html_summary_writes_from_cli(built, tmp_path: pathlib.Path) -> None:

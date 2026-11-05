@@ -32,7 +32,13 @@ import pathlib
 import re
 from typing import cast
 
+SHA256_PREFIX = "sha256:"
 PACKET_SCHEMA_VERSION = 1
+
+_CLOSE_UL = "</ul>"
+_EMPTY = "none"
+_EMPTY_DECLARED = "none declared"
+_UNSUPPORTED = "unsupported (no crosswalk ids supplied)"
 
 # Governance mapping slots (OV-4 crosswalk ids land here; empty is honest).
 GOVERNANCE_SLOTS = (
@@ -95,7 +101,7 @@ def _validated_line(raw: str, label: str) -> tuple[str, dict]:
         raise ValueError(f"{label}: receipt_hash {rh!r} is not canonical sha256:<64 hex>")
     if not isinstance(jws, str) or jws.count(".") != 2:
         raise ValueError(f"{label}: jws envelope is missing or not a compact JWS")
-    want = "sha256:" + hashlib.sha256(jws.encode()).hexdigest()
+    want = SHA256_PREFIX + hashlib.sha256(jws.encode()).hexdigest()
     if rh.strip().lower() != want:
         raise ValueError(
             f"{label}: receipt_hash does not re-derive from the receipt bytes (tampered)"
@@ -165,20 +171,11 @@ def _decision(payload: dict) -> str | None:
     return str(verdict) if verdict else None
 
 
-def build_packet(
-    evidence_store: pathlib.Path,
-    *,
-    capability_refs: list[str] | None = None,
-    policy_proof_refs: list[str] | None = None,
-    governance_mapping: dict[str, list[str]] | None = None,
-    risk_annotations: list[str] | None = None,
-) -> dict:
-    """Compile the versioned packet. Deterministic; fail-visible on bad input."""
-    if not evidence_store.is_file():
-        raise ValueError(f"evidence store not found: {evidence_store}")
-    store_file_sha = "sha256:" + hashlib.sha256(evidence_store.read_bytes()).hexdigest()
-    lines = read_store(evidence_store)
+# ------------------------------------------------------------ summaries ---
 
+
+def _store_summary(lines: list[tuple[str, dict]]) -> dict:
+    """Aggregate counts and identity sets over validated store lines."""
     agents: set[str] = set()
     issuers: set[str] = set()
     operations: dict[str, int] = {}
@@ -201,27 +198,60 @@ def build_packet(
         rsh = payload.get("ruleset_hash")
         if isinstance(rsh, str) and rsh:
             ruleset_hashes.add(rsh)
-        decision = _decision(payload)
-        if _gate(payload) is None:
+        gate = _gate(payload)
+        if gate is None:
             counts["without_gate"] += 1
             continue
-        policies.add(str(_gate(payload).get("policy", "")))  # type: ignore[union-attr]
-        rid = _gate(payload).get("rule_id", "")  # type: ignore[union-attr]
+        pol = gate.get("policy", "")
+        if pol:
+            policies.add(str(pol))
+        rid = gate.get("rule_id", "")
         if rid:
             rule_ids.add(str(rid))
-        label = _DECISION_LABELS.get(decision or "", "other")
-        counts[label] = counts.get(label, 0) + 1
+        counts[_DECISION_LABELS.get(_decision(payload) or "", "other")] += 1
 
+    return {
+        "agents": agents,
+        "issuers": issuers,
+        "operations": operations,
+        "policies": policies,
+        "rule_ids": rule_ids,
+        "ruleset_hashes": ruleset_hashes,
+        "receipt_hashes": receipt_hashes,
+        "counts": counts,
+        "event_times": event_times,
+    }
+
+
+def _governance_slots(governance_mapping: dict[str, list[str]] | None) -> dict[str, list[str]]:
+    """Slot dict over GOVERNANCE_SLOTS plus any unknown framework names.
+
+    Empty is honest and expected; an unknown framework name is kept,
+    never discarded.
+    """
+    gov = {slot: [] for slot in GOVERNANCE_SLOTS}
     if governance_mapping is None:
-        gov = {slot: [] for slot in GOVERNANCE_SLOTS}
-    else:
-        gov = {slot: [] for slot in GOVERNANCE_SLOTS}
-        for name, ids in sorted(governance_mapping.items()):
-            if name in GOVERNANCE_SLOTS:
-                gov[name] = _sorted_str_list(ids, f"governance/{name}")
-            else:
-                # An unknown framework name is kept honestly, never discarded.
-                gov[name] = _sorted_str_list(ids, f"governance/{name}")
+        return gov
+    for name, ids in sorted(governance_mapping.items()):
+        gov[name] = _sorted_str_list(ids, f"governance/{name}")
+    return gov
+
+
+def build_packet(
+    evidence_store: pathlib.Path,
+    *,
+    capability_refs: list[str] | None = None,
+    policy_proof_refs: list[str] | None = None,
+    governance_mapping: dict[str, list[str]] | None = None,
+    risk_annotations: list[str] | None = None,
+) -> dict:
+    """Compile the versioned packet. Deterministic; fail-visible on bad input."""
+    if not evidence_store.is_file():
+        raise ValueError(f"evidence store not found: {evidence_store}")
+    store_file_sha = SHA256_PREFIX + hashlib.sha256(evidence_store.read_bytes()).hexdigest()
+    lines = read_store(evidence_store)
+    s = _store_summary(lines)
+    gov = _governance_slots(governance_mapping)
 
     packet = {
         "kind": PACKET_KIND,
@@ -230,25 +260,25 @@ def build_packet(
         "inputs": {"evidence_store_sha256": store_file_sha},
         "packet_content_sha256": "",
         "agent_identity": {
-            "agents": sorted(a for a in agents if a),
-            "issuers": sorted(i2 for i2 in issuers if i2),
+            "agents": sorted(a for a in s["agents"] if a),
+            "issuers": sorted(i2 for i2 in s["issuers"] if i2),
         },
         "receipt_chain": {
             "line_count": len(lines),
-            "receipt_hashes": sorted(receipt_hashes),
-            "operations": dict(sorted(operations.items())),
-            "ruleset_hashes": sorted(ruleset_hashes),
-            "first_event_time": min(event_times) if event_times else None,
-            "last_event_time": max(event_times) if event_times else None,
+            "receipt_hashes": sorted(s["receipt_hashes"]),
+            "operations": dict(sorted(s["operations"].items())),
+            "ruleset_hashes": sorted(s["ruleset_hashes"]),
+            "first_event_time": min(s["event_times"]) if s["event_times"] else None,
+            "last_event_time": max(s["event_times"]) if s["event_times"] else None,
         },
         "gate_coverage": {
-            "admitted": counts["admitted"],
-            "held": counts["held"],
-            "refused": counts["refused"],
-            "other": counts["other"],
-            "without_gate": counts["without_gate"],
-            "distinct_policies": sorted(p for p in policies if p),
-            "distinct_rule_ids": sorted(rule_ids),
+            "admitted": s["counts"]["admitted"],
+            "held": s["counts"]["held"],
+            "refused": s["counts"]["refused"],
+            "other": s["counts"]["other"],
+            "without_gate": s["counts"]["without_gate"],
+            "distinct_policies": sorted(s["policies"]),
+            "distinct_rule_ids": sorted(s["rule_ids"]),
         },
         "capability_refs": sorted(set(capability_refs or [])),
         "policy_proof_refs": sorted(set(policy_proof_refs or [])),
@@ -258,7 +288,7 @@ def build_packet(
     body = dict(packet)
     body.pop("packet_content_sha256", None)
     packet["packet_content_sha256"] = (
-        "sha256:" + hashlib.sha256(canonical_json(body).encode()).hexdigest()
+        SHA256_PREFIX + hashlib.sha256(canonical_json(body).encode()).hexdigest()
     )
     return packet
 
@@ -266,11 +296,25 @@ def build_packet(
 # ------------------------------------------------------------------ html ---
 
 
+def _esc(s: object) -> str:
+    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _list_items(values: list[str], fallback: str) -> list[str]:
+    if not values:
+        return [f"<li>{_esc(fallback)}</li>"]
+    return [f"<li>{_esc(v)}</li>" for v in values]
+
+
 def html_summary(packet: dict) -> str:
     """textContent-only HTML summary. No scripting, no inline handlers."""
-    e = lambda s: (  # noqa: E731 - tiny local escaping helper
-        str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    )
+    identity = packet["agent_identity"]
+    gov_items = [
+        f"<li>{_esc(k)}: {_esc(', '.join(v) or _UNSUPPORTED)}</li>"
+        for k, v in packet["governance_mapping"].items()
+    ]
+    coverage_items = [f"<li>{_esc(k)}: {_esc(v)}</li>" for k, v in packet["gate_coverage"].items()]
+    risk_items = _list_items(packet["risk_annotations"], "none annotated")
     lines = [
         "<!doctype html>",
         '<html lang="en">',
@@ -280,38 +324,35 @@ def html_summary(packet: dict) -> str:
         "</head>",
         "<body>",
         "<h1>Agent Assurance Packet</h1>",
-        "<p>Schema version: " + e(packet["schema_version"]) + "</p>",
-        "<p>" + e(packet["guard"]) + "</p>",
+        "<p>Schema version: " + _esc(packet["schema_version"]) + "</p>",
+        "<p>" + _esc(packet["guard"]) + "</p>",
         "<h2>Agent identity</h2>",
-        "<p>Agents: " + e(", ".join(packet["agent_identity"]["agents"]) or "none") + "</p>",
-        "<p>Issuers: " + e(", ".join(packet["agent_identity"]["issuers"]) or "none") + "</p>",
+        "<p>Agents: " + _esc(", ".join(identity["agents"]) or _EMPTY) + "</p>",
+        "<p>Issuers: " + _esc(", ".join(identity["issuers"]) or _EMPTY) + "</p>",
         "<h2>Receipt chain</h2>",
-        "<p>Line count: " + e(packet["receipt_chain"]["line_count"]) + "</p>",
+        "<p>Line count: " + _esc(packet["receipt_chain"]["line_count"]) + "</p>",
         "<p>Receipt hashes:</p><ul>",
-        *[f"<li>{e(h)}</li>" for h in packet["receipt_chain"]["receipt_hashes"]],
-        "</ul>",
+        *_list_items(packet["receipt_chain"]["receipt_hashes"], _EMPTY),
+        _CLOSE_UL,
         "<h2>Gate coverage</h2>",
         "<ul>",
-        *[f"<li>{e(k)}: {e(v)}</li>" for k, v in packet["gate_coverage"].items()],
-        "</ul>",
+        *coverage_items,
+        _CLOSE_UL,
         "<h2>Capability refs</h2>",
-        "<p>" + e(", ".join(packet["capability_refs"]) or "none declared") + "</p>",
+        "<p>" + _esc(", ".join(packet["capability_refs"]) or _EMPTY_DECLARED) + "</p>",
         "<h2>Policy-proof refs</h2>",
-        "<p>" + e(", ".join(packet["policy_proof_refs"]) or "none declared") + "</p>",
+        "<p>" + _esc(", ".join(packet["policy_proof_refs"]) or _EMPTY_DECLARED) + "</p>",
         "<h2>Governance mapping</h2>",
         "<ul>",
-        *[
-            f"<li>{e(k)}: {e(', '.join(v) or 'unsupported (no crosswalk ids supplied)')}</li>"
-            for k, v in packet["governance_mapping"].items()
-        ],
-        "</ul>",
+        *gov_items,
+        _CLOSE_UL,
         "<h2>Risk annotations</h2>",
         "<ul>",
-        *[f"<li>{e(r)}</li>" for r in packet["risk_annotations"]],
-        "</ul>",
+        *risk_items,
+        _CLOSE_UL,
         "<h2>Integrity</h2>",
-        "<p>Packet content sha256: " + e(packet["packet_content_sha256"]) + "</p>",
-        "<p>Inputs: " + e(canonical_json(packet["inputs"])) + "</p>",
+        "<p>Packet content sha256: " + _esc(packet["packet_content_sha256"]) + "</p>",
+        "<p>Inputs: " + _esc(canonical_json(packet["inputs"])) + "</p>",
         "</body>",
         "</html>",
     ]
@@ -319,6 +360,32 @@ def html_summary(packet: dict) -> str:
 
 
 # ------------------------------------------------------------------- cli ---
+
+
+def _optional_json_list(path_str: str | None, label: str) -> list[str] | None:
+    """Named JSON list file as an optional CLI input."""
+    if path_str is None:
+        return None
+    return _sorted_str_list(
+        _load_named_json(pathlib.Path(path_str).expanduser().resolve(), label), label
+    )
+
+
+def _load_cli_refs(args: argparse.Namespace) -> dict:
+    """Operator-supplied reference files for the packet build."""
+    governance = None
+    gov_path = getattr(args, "governance", None)
+    if gov_path is not None:
+        loaded = _load_named_json(pathlib.Path(gov_path).expanduser().resolve(), "governance")
+        if not isinstance(loaded, dict):
+            raise ValueError("governance must be a JSON object of framework -> id list")
+        governance = cast("dict[str, list[str]]", loaded)
+    return {
+        "capability_refs": _optional_json_list(args.capability_refs, "capability-refs"),
+        "policy_proof_refs": _optional_json_list(args.policy_proof_refs, "policy-proof-refs"),
+        "governance_mapping": governance,
+        "risk_annotations": _optional_json_list(args.risk_annotations, "risk-annotations"),
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -331,48 +398,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out-dir", required=True)
     args = ap.parse_args(argv)
     try:
-        packet = build_packet(
-            pathlib.Path(args.evidence_store).expanduser().resolve(),
-            capability_refs=_sorted_str_list(
-                _load_named_json(
-                    pathlib.Path(args.capability_refs).expanduser().resolve(), "capability-refs"
-                )
-                if args.capability_refs
-                else None,
-                "capability-refs",
-            )
-            if args.capability_refs
-            else None,
-            policy_proof_refs=_sorted_str_list(
-                _load_named_json(
-                    pathlib.Path(args.policy_proof_refs).expanduser().resolve(),
-                    "policy-proof-refs",
-                )
-                if args.policy_proof_refs
-                else None,
-                "policy-proof-refs",
-            )
-            if args.policy_proof_refs
-            else None,
-            governance_mapping=cast(
-                "dict[str, list[str]] | None",
-                _load_named_json(pathlib.Path(args.governance).expanduser().resolve(), "governance")
-                if args.governance
-                else None,
-            ),
-            risk_annotations=_sorted_str_list(
-                _load_named_json(
-                    pathlib.Path(args.risk_annotations).expanduser().resolve(),
-                    "risk-annotations",
-                )
-                if args.risk_annotations
-                else None,
-                "risk-annotations",
-            )
-            if args.risk_annotations
-            else None,
-        )
-    except (ValueError, json.JSONDecodeError) as exc:
+        refs = _load_cli_refs(args)
+        packet = build_packet(pathlib.Path(args.evidence_store).expanduser().resolve(), **refs)
+    except ValueError as exc:
         print(f"rauckle-assurance-packet: FAIL: {exc}", flush=True)
         return 1
     out_dir = pathlib.Path(args.out_dir).expanduser().resolve()
