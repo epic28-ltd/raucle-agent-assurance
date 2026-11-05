@@ -605,24 +605,38 @@ def test_assurance_ingest_proxy_offline_and_passthrough(client: TestClient, monk
     assert r.status_code == 503
     assert r.json()["error"] == "add-in offline"
 
-    def fake_addin_post(*args, **kwargs):
-        req = httpx.Request("POST", "http://127.0.0.1:3411/api/findings/ingest")
-        resp = httpx.Response(
-            422, request=req, json={"error": "severity not in ['info', 'low', 'medium']"}
-        )
-        return resp
-
     import raucle_console.app as app_mod  # noqa: PLC0415 (test-local patch target)
 
-    orig_post = app_mod.httpx.post
-    app_mod.httpx.post = fake_addin_post
+    class _FakeAddInAsyncClient:
+        """AsyncClient stub so the proxy's schema-rejection passthrough is
+        exercised without a live add-in (the app awaits httpx.AsyncClient)."""
+
+        def __init__(self, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc_info):
+            return False
+
+        async def post(self, url, **kwargs):
+            req = httpx.Request("POST", url)
+            return httpx.Response(
+                422,
+                request=req,
+                json={"error": "severity not in ['info', 'low', 'medium']"},
+            )
+
+    orig_async = app_mod.httpx.AsyncClient
+    app_mod.httpx.AsyncClient = _FakeAddInAsyncClient
     try:
         c2 = TestClient(create_app())
         r2 = c2.post("/api/assurance/findings/ingest", json={"findings": []})
         assert r2.status_code == 422
         assert "severity" in r2.json()["error"]
     finally:
-        app_mod.httpx.post = orig_post
+        app_mod.httpx.AsyncClient = orig_async
 
 
 def test_spa_red_ops_marks_present_and_honest():

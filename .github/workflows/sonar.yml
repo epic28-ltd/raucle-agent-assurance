@@ -25,8 +25,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pytest-cov cryptography pyyaml fastapi httpx \
             opentelemetry-sdk opentelemetry-exporter-otlp-proto-http
+      # All suites: repo-root tests/ plus each package's own suite. The
+      # per-package suites were previously uncollected anywhere, so their
+      # new-code lines showed zero coverage in Sonar.
       - name: Run tests with coverage
-        run: pytest --cov --cov-report=xml:coverage.xml --tb=no -q
+        run: >-
+          pytest tests/ packages/ep-aec/tests services/console/tests
+          services/investigation-ui/tests integrations/audit-sources/tests
+          integrations/langgraph-adapter/tests
+          --cov --cov-report=xml:coverage.xml --tb=short -q
         env:
           PYTHONPATH: packages/raucle-adapter/src
       - name: Cache SonarQube packages
