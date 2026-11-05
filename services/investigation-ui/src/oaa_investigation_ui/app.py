@@ -359,8 +359,14 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
             current = json.loads(path.read_text()) if path.is_file() else {}
         except (OSError, ValueError):
             current = {}
+        known_ids = {f["id"] for f in data.findings}
+        current = {k: v for k, v in current.items() if isinstance(k, str) and k in known_ids}
         current[finding_id] = state
-        path.write_text(json.dumps(current, indent=2, sort_keys=True))
+        # noqa-rationale: read-modify-write of the sidecar itself. The path is
+        # confined by _triage_state_path and the only content written is this
+        # file's own JSON merged with one enum-valued key. See
+        # docs/spikes/SONAR-ACCEPTANCE.md (S2083).
+        path.write_text(json.dumps(current, indent=2, sort_keys=True))  # NOSONAR
         return {"id": finding_id, "state": state}
 
     @app.get("/api/receipts/{receipt_hash}")

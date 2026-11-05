@@ -121,3 +121,27 @@ generate and commit a lock and delete this entry.
 No HTTP connection is ever made to anything but localhost services in this
 path; HTTPS on loopback would be strictly worse (self-signed cert noise,
 no confidentiality gain on loopback).
+
+## pythonsecurity:S2083: "Path Traversal" (triage sidecar read-modify-write)
+
+### Suppressed with rationale (services/investigation-ui app.py, api_triage)
+
+The remaining finding is a file *content* taint, not a path taint: the handler
+reads `triage_state.json` (line ~359) and writes it back (line ~363) with one
+merged key, so the analytical engine sees the file's own content flow into the
+same sink. Genuine hardening is already in place or was added here:
+
+1. The path is confined by `_triage_state_path`: resolved and required to stay
+   inside the demo data dir; escapes raise honestly.
+2. The written sidecar is now filtered to keys that are known finding ids
+   before the write, so pre-existing junk cannot survive a round-trip.
+3. The user-supplied finding_id is charset-validated and never touches path
+   construction; the board state is enum-checked.
+
+Any read-modify-write of a confined file keeps the content taint by design,
+and restructuring (per-finding files, stateless rewrites) would change the
+persisted format for no security gain. The `NOSONAR` on the write line is the
+deliberate, documented acceptance of that trade-off.
+
+**Decision owner:** Craig. **Status:** accepted November 2026; if the sidecar
+format ever changes, revisit and remove the suppression.
