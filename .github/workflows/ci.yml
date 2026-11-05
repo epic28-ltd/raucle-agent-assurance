@@ -26,6 +26,7 @@ jobs:
           # TestClient, otel workflow test) and were previously missing,
           # which kept main red on the pytest step.
           pip install cryptography pyyaml fastapi httpx opentelemetry-sdk
+          pip install opentelemetry-exporter-otlp-proto-http
       - name: ruff format check
         run: ruff format --check .
       - name: ruff check
