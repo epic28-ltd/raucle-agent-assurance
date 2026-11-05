@@ -101,6 +101,28 @@
 
 'use strict';
 
+/* Shared one-shot response unwrap for this page's own API: 503 means the
+   runner/add-in is offline (honest state, never guessed); other non-OK
+   statuses raise with the status code. Always throws Error objects, never
+   null (S3696). */
+const fetchJson = (r) => {
+  if (r.status === 503) { throw new Error('offline'); }
+  if (!r.ok) { throw new Error(r.status); }
+  return r.json();
+};
+
+/* Tile tint by severity: red action needed, amber un-proven, grey suppressed */
+const sevTileTone = (f) => {
+  if (f.suppressed) return '';
+  return f.severity === 'high' || f.severity === 'critical' ? ' bad' : ' warn';
+};
+/* Reference shown as the drill banner's evidence pointer */
+const primaryRefOf = (f) => {
+  if (!f) return null;
+  if (f.primary_ref) return f.primary_ref;
+  return f.id ? String(f.id) : null;
+};
+
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
   if (cls) n.className = cls;
@@ -169,6 +191,14 @@ let trends = null;    /* per-run trend series from the console /api/trends */
 let portalPolicies = null; /* portal policy summary proxy; {pending:true} when offline/unauthorised */
 let config = { assurance_url: 'http://127.0.0.1:3411', trust_portal_url: 'http://127.0.0.1:8090', trust_gateway_url: 'https://demo.raucle.com/', trust_gate_env: 'RAUCLE_TRUST_GATE_CONFIG', coverage_target_pct: 95 };
 const COVERAGE_DEFAULT = 95;
+/* Gateway console base URL, trailing slashes trimmed. A plain slice loop
+   replaces the /\/+$/ regex (Sonar S8786 flags that pattern as capable of
+   super-linear backtracking). */
+const gatewayConsoleUrl = (u) => {
+  let s = u || 'https://demo.raucle.com/';
+  while (s.endsWith('/')) s = s.slice(0, -1);
+  return s;
+};
 
 const PILL_NAME = { connected: 'Connected', degraded: 'Degraded', not_purchased: 'Not purchased' };
 const PILL_TONE = { connected: 'tok-good', degraded: 'tok-look', not_purchased: 'tok-exempt' };
@@ -260,8 +290,6 @@ function gaugeCard(health) {
   const t = document.createElementNS(SVG_NS, 'title');
   t.textContent = health.valid + ' of ' + health.rows + ' receipts verify valid';
   svg.appendChild(t);
-  let wrapped = false;
-  svg.childNodes.forEach(() => { wrapped = true; });
   svg.insertBefore(arc, svg.childNodes[1]);
   svg.replaceChild(arc, svg.childNodes[1]);
   const g = el('div', 'gauge');
@@ -354,6 +382,64 @@ function statesCard(dist, total, target) {
 }
 
 /* ------------------------------------------------------------------ findings */
+function findingRow(c, f) {
+  const r = el('div', 'rowline');
+  const t = el('div', 'tile' + sevTileTone(f));
+  t.appendChild(iconEl(f.suppressed ? 'file' : 'alert', 13));
+  r.appendChild(t);
+  const main = el('div', 'grow');
+  const l1 = el('div');
+  l1.appendChild(el('b', null, f.rule_id));
+  if (f.subject) l1.appendChild(el('span', 'muted small', ' · ' + f.subject));
+  main.appendChild(l1);
+  if (f.explanation) main.appendChild(oneline(el('span', 'why', f.explanation)));
+  r.appendChild(main);
+  const meta = el('div', 'row-rail');
+  meta.appendChild(sevPill(f.severity));
+  if (f.suppressed) {
+    /* grey outline chip, not plain low-contrast text (UI-02.5 blocker 3) */
+    meta.appendChild(el('span', 'chip chip-exempt', 'suppressed with reason'));
+  }
+  r.appendChild(meta);
+  c.body.appendChild(r);
+  if (f.suppressed && f.suppression_reason) {
+    /* label/value mini-grid beneath the row, full width, aligned with it */
+    const sr = el('div', 'rowline supp-row');
+    sr.appendChild(el('span', 'supp-label', 'Suppression reason'));
+    sr.appendChild(el('span', 'supp-value muted small', f.suppression_reason));
+    c.body.appendChild(sr);
+  }
+}
+
+function findingsCountsFooter(counts, overview) {
+  /* counts footer from the SHARED counting module (via /api/assurance/counts
+     live, or the console's own overview fallback): open + closed =
+     suppressed reconciles everywhere; no local re-computation */
+  const fc = counts && counts.findings
+    ? counts.findings
+    : (overview && overview.trust && overview.trust.findings ? overview.trust.findings : null);
+  const footSpan = fc
+    ? spanCounts(fc)
+    : el('span', 'muted small', 'Counts unavailable: add-in offline.');
+  const boardLink = el('a', 'board-link', 'Open findings board');
+  boardLink.href = config.assurance_url.replace(/\/$/, '') + '/#/findings';
+  boardLink.target = '_blank';
+  boardLink.rel = 'noreferrer';
+  footSpan.appendChild(document.createTextNode(' · '));
+  footSpan.appendChild(boardLink);
+  return footSpan;
+}
+
+function spanCounts(fc) {
+  return el('span', 'muted small', 'Counts (shared module): open ' + fc.lens.open
+    + ' (needs investigation ' + fc.lens.needs_investigation
+    + ' · unproven ' + fc.lens.unproven
+    + ' · coverage gaps ' + fc.lens.coverage_gaps
+    + ') + suppressed ' + fc.suppressed
+    + (fc.closed ? ' + closed ' + fc.closed : '')
+    + ' = ' + fc.total + ' findings.');
+}
+
 function findingsCard(list, offline) {
   const c = card('Findings', offline ? 'add-in offline' : 'this demo window');
   if (offline || !list || !list.length) {
@@ -365,60 +451,13 @@ function findingsCard(list, offline) {
     return c.root;
   }
   for (const f of list) {
-    const r = el('div', 'rowline');
-    const t = el('div', 'tile' + (f.suppressed ? '' : (f.severity === 'high' || f.severity === 'critical' ? ' bad' : ' warn')));
-    t.appendChild(iconEl(f.suppressed ? 'file' : 'alert', 13));
-    r.appendChild(t);
-    const main = el('div', 'grow');
-    const l1 = el('div');
-    l1.appendChild(el('b', null, f.rule_id));
-    if (f.subject) l1.appendChild(el('span', 'muted small', ' · ' + f.subject));
-    main.appendChild(l1);
-    if (f.explanation) main.appendChild(oneline(el('span', 'why', f.explanation)));
-    r.appendChild(main);
-    const meta = el('div', 'row-rail');
-    meta.appendChild(sevPill(f.severity));
-    if (f.suppressed) {
-      /* grey outline chip, not plain low-contrast text (UI-02.5 blocker 3) */
-      meta.appendChild(el('span', 'chip chip-exempt', 'suppressed with reason'));
-    }
-    r.appendChild(meta);
-    c.body.appendChild(r);
-    if (f.suppressed && f.suppression_reason) {
-      /* label/value mini-grid beneath the row, full width, aligned with it */
-      const sr = el('div', 'rowline supp-row');
-      sr.appendChild(el('span', 'supp-label', 'Suppression reason'));
-      sr.appendChild(el('span', 'supp-value muted small', f.suppression_reason));
-      c.body.appendChild(sr);
-    }
+    findingRow(c, f);
   }
-  /* counts footer from the SHARED counting module (via /api/assurance/counts
-     live, or the console's own overview fallback): open + closed =
-     suppressed reconciles everywhere; no local re-computation */
-  const fc = counts && counts.findings ? counts.findings
-    : (overview && overview.trust && overview.trust.findings ? overview.trust.findings : null);
-  const footSpan = fc
-    ? el('span', 'muted small', 'Counts (shared module): open ' + fc.lens.open
-        + ' (needs investigation ' + fc.lens.needs_investigation
-        + ' · unproven ' + fc.lens.unproven
-        + ' · coverage gaps ' + fc.lens.coverage_gaps
-        + ') + suppressed ' + fc.suppressed
-        + (fc.closed ? ' + closed ' + fc.closed : '')
-        + ' = ' + fc.total + ' findings.')
-    : el('span', 'muted small', 'Counts unavailable: add-in offline.');
-  const boardLink = el('a', 'board-link', 'Open findings board');
-  boardLink.href = config.assurance_url.replace(/\/$/, '') + '/#/findings';
-  boardLink.target = '_blank';
-  boardLink.rel = 'noreferrer';
-  footSpan.appendChild(document.createTextNode(' · '));
-  footSpan.appendChild(boardLink);
-  c.footer(footSpan);
+  c.footer(findingsCountsFooter(counts, overview));
   c.explain('Active findings need an investigator. Suppressed findings are retained on purpose, each with its documented reason, so nothing disappears silently.');
   return c.root;
 }
 
-/* ------------------------------------------------------------------ activity */
-const FEED_ICONS = { index: 'apps', receipts: 'shield', shell: 'activity' };
 function activityCard(activity) {
   const c = card('Recent activity', 'across the suite');
   for (const item of activity) {
@@ -637,7 +676,7 @@ function viewRule(ruleId) {
   }
   for (const f of ruleFindings.slice(-10)) {
     const r = el('div', 'rowline');
-    const t = el('div', 'tile' + (f.suppressed ? '' : (f.severity === 'high' || f.severity === 'critical' ? ' bad' : ' warn')));
+    const t = el('div', 'tile' + sevTileTone(f));
     t.appendChild(iconEl(f.suppressed ? 'file' : 'alert', 13));
     r.appendChild(t);
     const main = el('div', 'grow');
@@ -720,51 +759,52 @@ function evidenceCard(dist, total) {
 }
 
 /* ------------------------------------------------------------------ guidance */
+const guidanceN = (vd, k) => vd && vd[k] || 0;
+const guidanceNCorr = (cd, k) => cd && cd[k] || 0;
+const guidanceRules = (flist) => new Set((flist || []).map(f => f.rule_id));
+const guidanceActiveExpl = (flist, id, s) => (flist || []).some(f => f.rule_id === id && !f.suppressed && (f.explanation || '').includes(s));
+const guidanceFirstRef = (flist, ruleId, substr) => {
+  const f = (flist || []).find((x) => x.rule_id === ruleId && !x.suppressed
+    && (substr === undefined || (x.explanation || "").includes(substr)));
+  return primaryRefOf(f);
+};
+const pluralForm = (n, singular, plural) => (n === 1 ? singular : plural);
+const pair = (tone, headline, detail, ref) => ({ tone, headline, detail, ref });
+
 function pickGuidance(vd, cd, flist, offline) {
-  const n = (k) => vd && vd[k] || 0;
-  const nCorr = (k) => cd && cd[k] || 0;
-  const rules = new Set((flist || []).map(f => f.rule_id));
-  const activeExpl = (id, s) => (flist || []).some(f => f.rule_id === id && !f.suppressed && (f.explanation || '').includes(s));
-  /* banner tint follows the severity of the priority finding (UI-02.5
-     blocker 1): red action needed, amber un-proven, mint green all clear */
-  const firstRef = (ruleId, substr) => {
-    const f = (flist || []).find((x) => x.rule_id === ruleId && !x.suppressed
-      && (substr === undefined || (x.explanation || "").includes(substr)));
-    return f && f.primary_ref ? f.primary_ref : (f && f.id ? String(f.id) : null);
-  };
-  const pair = (tone, headline, detail, ref) => ({ tone, headline, detail, ref });
+  const rules = guidanceRules(flist);
   if (offline) {
     return pair('look', 'Add-in offline: the Assurance add-in is not reachable right now.',
       'Start the add-in process; the console will then show live verification, correlation and findings here instead of the pinned demo figures.');
   }
-  if (n('invalid') || activeExpl('SEC-002', 'invalid')) {
+  if (guidanceN(vd, 'invalid') || guidanceActiveExpl(flist, 'SEC-002', 'invalid')) {
     return pair('act', 'At least one receipt verifies as invalid in the live window (SEC-002).',
       'Open the Assurance add-in, find the affected receipt and re-run verification before anything downstream relies on the record.',
-      firstRef('SEC-002', 'invalid'));
+      guidanceFirstRef(flist, 'SEC-002', 'invalid'));
   }
   if (rules.has('SEC-009')) {
     return pair('act', 'Bypass is suspected: a privileged tool appears to have executed with no gate receipt.',
       'Check the tool host the finding points at; every privileged execution should have left a gate receipt.',
-      firstRef('SEC-009'));
+      guidanceFirstRef(flist, 'SEC-009'));
   }
-  if (nCorr('receipt_missing') || rules.has('SEC-001')) {
+  if (guidanceNCorr(cd, 'receipt_missing') || rules.has('SEC-001')) {
     return pair('act', 'A privileged tool call is missing its gate receipt after the grace window (SEC-001).',
       'Confirm whether the tool call was gated at all, then re-record or document the gap so the trace is complete.',
-      firstRef('SEC-001'));
+      guidanceFirstRef(flist, 'SEC-001'));
   }
-  if (n('unsupported_schema') || rules.has('SEC-002')) {
+  if (guidanceN(vd, 'unsupported_schema') || rules.has('SEC-002')) {
     return pair('look', 'A receipt uses a schema this verifier does not support, so it cannot be verified.',
       'Bring the verifier schema set up to the receipt format in use, then verify again; nothing is proven until the schema is understood.',
-      firstRef('SEC-002'));
+      guidanceFirstRef(flist, 'SEC-002'));
   }
-  const amb = nCorr('ambiguous');
+  const amb = guidanceNCorr(cd, 'ambiguous');
   if (amb) {
-    return pair('look', amb + ' tool-call receipt' + (amb > 1 ? 's correlate' : ' correlates') + ' ambiguously: more matching receipts than trace items point at.',
+    return pair('look', amb + ' tool-call receipt' + pluralForm(amb, ' correlates', 's correlate') + ' ambiguously: more matching receipts than trace items point at.',
       'Resolve the ingest duplication before reporting on these traces, since the correlation cannot be proven either way yet.');
   }
-  if (nCorr('duplicate')) {
-    const d = nCorr('duplicate');
-    return pair('look', d + ' trace record' + (d > 1 ? 's are' : ' is') + ' marked as an ingest duplicate.',
+  const d = guidanceNCorr(cd, 'duplicate');
+  if (d) {
+    return pair('look', d + ' trace record' + pluralForm(d, ' is', 's are') + ' marked as an ingest duplicate.',
       'Deduplicate the ingest feed so the window reflects real tool calls, then re-open the affected traces.');
   }
   return pair('good', 'The suite is calm: no invalid or unsupported receipts and no missing receipts in the current window.',
@@ -797,39 +837,51 @@ function guidanceBanner() {
 }
 
 /* ------------------------------------------------------------------ overview */
-function vState() {
-  /* Live branch: the add-in dashboard (shared counting module output). */
-  const d = dash && dash.verification_distribution ? dash.verification_distribution : null;
-  if (d) {
-    const dist = { valid: 0, pending: 0, not_applicable: 0, unknown_key: 0, unsupported_schema: 0, unavailable: 0, ...(d || {}) };
-    const rows = dash.buckets ? dash.buckets.valid + dash.buckets.unproven + dash.buckets.unaccounted + dash.buckets.exempt
-      : Object.values(d).reduce((a, v) => a + v, 0);
-    return {
-      buckets: dash.buckets || null,
-      dist, rows,
-      valid: dist.valid, unproven: rows - dist.valid,
-      src: 'Shared counting module over the demo fixture set, fetched this session via the add-in.',
-      source_label: 'live add-in',
-      caption: 'verified',
-    };
-  }
+function vStateLive(d) {
+  const dist = { valid: 0, pending: 0, not_applicable: 0, unknown_key: 0, unsupported_schema: 0, unavailable: 0, ...d };
+  const rows = dash.buckets
+    ? dash.buckets.valid + dash.buckets.unproven + dash.buckets.unaccounted + dash.buckets.exempt
+    : Object.values(d).reduce((a, v) => a + v, 0);
+  return {
+    buckets: dash.buckets || null,
+    dist,
+    rows,
+    valid: dist.valid,
+    unproven: rows - dist.valid,
+    src: 'Shared counting module over the demo fixture set, fetched this session via the add-in.',
+    source_label: 'live add-in',
+    caption: 'verified',
+  };
+}
+
+function vStateOffline(t) {
   /* Offline branch falls back to the shared counting module output the
      console server derived into /api/overview - never pinned numbers, so
      the offline figures agree with the add-in's own /api/counts. */
-  const t = overview && overview.trust ? overview.trust : null;
-  const dist = { valid: 0, pending: 0, not_applicable: 0, unknown_key: 0, unsupported_schema: 0, unavailable: 0, ...((t && t.verification_distribution) || {}) };
+  const rawDist = t && t.verification_distribution ? t.verification_distribution : {};
+  const dist = { valid: 0, pending: 0, not_applicable: 0, unknown_key: 0, unsupported_schema: 0, unavailable: 0, ...rawDist };
   const rows = t && t.verification_buckets
     ? t.verification_buckets.valid + t.verification_buckets.unproven + t.verification_buckets.unaccounted + t.verification_buckets.exempt
     : 0;
   const valid = t && t.verification_buckets ? t.verification_buckets.valid : (dist.valid || 0);
   return {
     buckets: t && t.verification_buckets ? t.verification_buckets : null,
-    dist, rows,
-    valid, unproven: rows - valid,
+    dist,
+    rows,
+    valid,
+    unproven: rows - valid,
     src: 'Shared counting module over the pinned demo fixture set; the add-in is offline.',
     source_label: 'demo fixtures',
     caption: 'verified',
   };
+}
+
+function vState() {
+  /* Live branch: the add-in dashboard (shared counting module output). */
+  const d = dash && dash.verification_distribution ? dash.verification_distribution : null;
+  if (d) return vStateLive(d);
+  const t = overview && overview.trust ? overview.trust : null;
+  return vStateOffline(t);
 }
 
 function viewOverview() {
@@ -862,8 +914,7 @@ function viewOverview() {
 }
 
 /* ------------------------------------------------------------------ products */
-function viewTrust() {
-  const p = el('div');
+function trustIntroCard() {
   const c = card('Raucle Agent Trust', 'Gate and evidence core');
   const s = overview.addins.find(a => a.id === 'trust') || { status: 'connected' };
   c.body.appendChild(pill(s.status));
@@ -884,25 +935,27 @@ function viewTrust() {
   c.body.appendChild(ul);
   c.footer(el('span', 'muted small', 'Included with licence key - pricing tiers are not shown in product pages.'));
   c.explain('Connect it to your gate once; the console then shows live counts.');
-  p.appendChild(c.root);
-  const cc = card('Connect your gate', 'environment, never echoed');
-  cc.body.appendChild(el('p', null, 'Point the console at your gate configuration by setting the environment variable ' + config.trust_gate_env + ' (the path to your gate config). Restart the console after the change; the value itself is never displayed.'));
-  cc.explain('The gate config path is read from the environment; the console never displays or echoes the value itself.');
-  p.appendChild(cc.root);
+  return c.root;
+}
+
+function gatewayConsoleCard() {
   /* Manage policies (Trust-dashboard reconcile, 4 Nov): the H1 portal
      is the Trust add-in's management UI - one editor, one version
      history, one audit trail. This card narrates and links; it never
      renders a second editor. */
   const gc2 = card('Open the gateway console', 'live traffic, receipts and learn mode');
   const gwhere = el('p');
-  gwhere.textContent = 'The deployed gate\u2019s own console lives at ' + (config.trust_gateway_url || 'https://demo.raucle.com/').replace(/\/+$/, '') + ': live topology, the receipt stream as it is minted, policy files as deployed, learn mode drafting, and user administration. Open it in its own tab; the console narrates and here are the jumps to companion products below.';
+  gwhere.textContent = 'The deployed gate\u2019s own console lives at ' + gatewayConsoleUrl(config.trust_gateway_url) + ': live topology, the receipt stream as it is minted, policy files as deployed, learn mode drafting, and user administration. Open it in its own tab; the console narrates and here are the jumps to companion products below.';
   gc2.body.appendChild(gwhere);
   const gopen = el('a', 'pill tok-info', 'Open the gateway console');
-  gopen.href = ((config.trust_gateway_url || 'https://demo.raucle.com/').replace(/\/+$/, '')) + '/';
+  gopen.href = gatewayConsoleUrl(config.trust_gateway_url) + '/';
   gopen.target = '_blank';
   gopen.rel = 'noopener';
   gc2.body.appendChild(gopen);
-  cc.root.parentElement.insertBefore(gc2.root, cc.root.nextSibling);
+  return gc2.root;
+}
+
+function managePoliciesCard(sum) {
   const pc = card('Manage policies', 'the portal owns deep management');
   const where = el('p');
   where.textContent = 'Policy authoring lives in the operator portal (' + (config.trust_portal_url || 'http://127.0.0.1:8090') + '): the structured policy editor, the immutable version history with diffs, the Trust Ladder, manual activate/disable with signed deployment receipts, and filtered receipt search.';
@@ -912,7 +965,6 @@ function viewTrust() {
   open.target = '_blank';
   open.rel = 'noopener';
   pc.body.appendChild(open);
-  const sum = portalPolicies;
   if (sum && !sum.pending && sum.total !== undefined) {
     const chips = el('p');
     chips.appendChild(el('span', 'pill tok-good', 'active ' + (sum.active || 0)));
@@ -926,7 +978,19 @@ function viewTrust() {
     pc.body.appendChild(pend);
   }
   pc.explain('One editor, one version history, one audit trail: deep policy management happens in the portal, this page only narrates and links.');
-  p.appendChild(pc.root);
+  return pc.root;
+}
+
+function viewTrust() {
+  const p = el('div');
+  p.appendChild(trustIntroCard());
+  const cc = card('Connect your gate', 'environment, never echoed');
+  cc.body.appendChild(el('p', null, 'Point the console at your gate configuration by setting the environment variable ' + config.trust_gate_env + ' (the path to your gate config). Restart the console after the change; the value itself is never displayed.'));
+  cc.explain('The gate config path is read from the environment; the console never displays or echoes the value itself.');
+  p.appendChild(cc.root);
+  const gc2 = gatewayConsoleCard();
+  cc.root.parentElement.insertBefore(gc2, cc.root.nextSibling);
+  p.appendChild(managePoliciesCard(portalPolicies));
   return p;
 }
 
@@ -992,7 +1056,7 @@ const redChip = (state) => {
   return el('span', ['pill', row[1]].join(' '), row[0]);
 };
 function redLoadIngested(ing) {
-  fetch('/api/assurance/findings/red').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
+  fetch('/api/assurance/findings/red').then(fetchJson).then(d => {
     ing.textContent = '';
     const n = Object.values(d.by_severity).reduce((a, v) => a + v, 0);
     ing.appendChild(el('p', null, n ? 'Ingested into the findings board (source red-mvp): ' + n + ' findings. ' : 'No red findings ingested yet.'));
@@ -1013,27 +1077,22 @@ function redLoadIngested(ing) {
   }).catch(() => { ing.textContent = ''; ing.appendChild(el('p', 'muted', 'Ingested red findings unavailable (Assurance add-in offline; nothing guessed).')); });
 }
 
-function viewRed() {
-  const p = el('div');
-  const status = (config && config.addins && (config.addins.find(a => a.id === 'red') || {}).status) || 'not_purchased';
-  const c = card('Raucle Agent Red', PILL_NAME[status] || 'Not purchased');
-  c.body.appendChild(pill(status));
+function redDogfoodWrap() {
   // Dogfood strip: the red agent runs UNDER the gate, so its attack attempts
   // leave their own signed receipts. Shown here from the red repo corpora.
   const dog = el('div', 'card');
   dog.style.margin = '12px 0';
-  const dogTitle = el('div', 'card-title', 'Own receipts (dogfooding)');
-  dog.appendChild(dogTitle);
+  dog.appendChild(el('div', 'card-title', 'Own receipts (dogfooding)'));
   const dogWrap = el('p', 'muted', 'Reading the red agent receipt trail...');
   dog.appendChild(dogWrap);
-  c.body.appendChild(dog);
   fetch('/api/red/dogfood').then(r => r.json()).then(d => {
     if (!d || !d.available) { dogWrap.textContent = 'Red corpora not found locally: dogfood counters unavailable (nothing guessed).'; return; }
     dogWrap.textContent = 'Every attack this product makes is itself gated: ' + d.receipted + ' of ' + d.attempts + ' red attempts left a signed receipt (' + d.share + '%). Findings emitted: ' + d.findings_total + ' (by severity: ' + Object.entries(d.findings_by_severity).map(([k, v]) => k + ' ' + v).join(', ') + ').';
   });
-  const note = el('p'); note.style.margin = '10px 0';
-  note.textContent = 'Wave 2 in build. The gate fuzzer already runs against your policies; every attack it attempts is itself gated and receipted.';
-  c.body.appendChild(note);
+  return dog;
+}
+
+function redIngestedCard() {
   // Ingested red findings (RED-INTEGRATION): what the Red product has already
   // posted into the Assurance intake, read from the add-in this session.
   const ing = el('div', 'card');
@@ -1041,34 +1100,21 @@ function viewRed() {
   ing.appendChild(el('div', 'card-title', 'Ingested red findings'));
   const ingWrap = el('p', 'muted', 'Reading the Assurance intake...');
   ing.appendChild(ingWrap); /* placeholder node; redLoadIngested replace-fills */
-  c.body.appendChild(ing);
   redLoadIngested(ing);
   redIngestedReload = () => redLoadIngested(ing);
-  const ul = el('ul', 'quiet');
-  ['Adversarial tool-content scenarios', 'Policy edge-case sweeps', 'Reporting that pairs with Raucle Agent Assurance'].forEach(x => ul.appendChild(el('li', null, x)));
-  c.body.appendChild(ul);
-  c.footer(el('span', 'muted small', 'Included with licence key once available - pricing tiers are not shown in product pages.'));
-  c.explain('Raucle Agent Red will attack your agents the way a real caller would: hostile instructions, ambiguous inputs and policy edges. Not purchasable yet.');
-  p.appendChild(c.root);
+  return ing;
+}
 
-  /* ---------------- ops (wave 2.5): run a test, live results, gates ---------------- */
-  /* Any open run stops the poll when the view re-renders (navigating away
-     pauses the console's watching, not the runner itself); the status read
-     below re-attaches honest watching when the operator returns. */
-  redStopPoll();
-  redPollLive = null;
-
-  const runState = { active: false, lastState: 'idle', results: null };
-  const gateNames = new Map([['demo', 'Demo gateway']]);
-
+function redTargetSelector(ctx) {
   /* target selector + shared controls */
-  const selLabel = el('label', 'field-label', 'Target');
-  const sel = el('select', 'input');
-  const addOption = (value, text) => { const o = el('option', null, text); o.value = value; sel.appendChild(o); };
-  addOption('demo', gateNames.get('demo'));
-  const presetLabel = el('label', 'field-label', 'Preset');
-  const presetWrap = el('div');
-  const presets = [];
+  ctx.selLabel = el('label', 'field-label', 'Target');
+  ctx.sel = el('select', 'input');
+  ctx.gateNames = new Map([['demo', 'Demo gateway']]);
+  ctx.addOption = (value, text) => { const o = el('option', null, text); o.value = value; ctx.sel.appendChild(o); };
+  ctx.addOption('demo', ctx.gateNames.get('demo'));
+  ctx.presetLabel = el('label', 'field-label', 'Preset');
+  ctx.presetWrap = el('div');
+  ctx.presets = [];
   for (const key of Object.keys(RED_PRESETS)) {
     const wrap = el('label');
     wrap.style.marginRight = '14px';
@@ -1077,51 +1123,57 @@ function viewRed() {
     r.checked = key === 'quick';
     wrap.appendChild(r);
     wrap.appendChild(el('span', null, ' ' + RED_PRESETS[key].label));
-    presetWrap.appendChild(wrap);
-    presets.push(r);
+    ctx.presetWrap.appendChild(wrap);
+    ctx.presets.push(r);
   }
-  const preview = el('div', 'muted small');
-  preview.style.margin = '10px 0';
-  const chosenPreset = () => presets.find(r => r.checked);
-  const gateInfo = () => {
-    if (sel.value === 'demo') return 'Demo gateway: the bundled loopback gateway fixture.';
-    const g = runState.gates && runState.gates.find(t => (t.id || t.name) === sel.value);
-    return g && g.endpoint ? 'Endpoint: ' + g.endpoint + (g.policy_digest ? ' (policy digest ' + g.policy_digest + ')' : '') + '.' : null;
+  ctx.preview = el('div', 'muted small');
+  ctx.preview.style.margin = '10px 0';
+  ctx.chosenPreset = () => ctx.presets.find(r => r.checked);
+  ctx.gateInfo = () => {
+    if (ctx.sel.value === 'demo') return 'Demo gateway: the bundled loopback gateway fixture.';
+    const g = ctx.runState.gates && ctx.runState.gates.find(t => (t.id || t.name) === ctx.sel.value);
+    if (!g || !g.endpoint) return null;
+    const digest = g.policy_digest ? ' (policy digest ' + g.policy_digest + ')' : '';
+    return 'Endpoint: ' + g.endpoint + digest + '.';
   };
-  const renderPreview = () => {
-    const p = RED_PRESETS[chosenPreset().value];
-    preview.replaceChildren();
-    preview.appendChild(el('div', null, 'Scope preview - exactly what a start means:'));
-    preview.appendChild(el('div', null, 'Suites: ' + p.suites + '.'));
-    preview.appendChild(el('div', null, 'Budget: ' + p.budget + ' (the runner may finish earlier).'));
-    const g = gateInfo();
-    if (g) preview.appendChild(el('div', null, g));
+  ctx.renderPreview = () => {
+    const p = RED_PRESETS[ctx.chosenPreset().value];
+    ctx.preview.replaceChildren();
+    ctx.preview.appendChild(el('div', null, 'Scope preview - exactly what a start means:'));
+    ctx.preview.appendChild(el('div', null, 'Suites: ' + p.suites + '.'));
+    ctx.preview.appendChild(el('div', null, 'Budget: ' + p.budget + ' (the runner may finish earlier).'));
+    const g = ctx.gateInfo();
+    if (g) ctx.preview.appendChild(el('div', null, g));
     for (const line of [
       'Loopback only: the runner addresses 127.0.0.1 hosts.',
       'Synthetic data: probes replay corpora fixtures; no production traffic is generated.',
       'Every probe is itself gated and leaves a receipt (dogfooding).',
-    ]) preview.appendChild(el('div', null, line));
+    ]) ctx.preview.appendChild(el('div', null, line));
   };
-  sel.addEventListener('change', () => { renderPreview(); });
-  presets.forEach(r => r.addEventListener('change', renderPreview));
+  ctx.sel.addEventListener('change', () => { ctx.renderPreview(); });
+  ctx.presets.forEach(r => r.addEventListener('change', ctx.renderPreview));
+}
 
-  /* controls enable/disable while a run is in flight; only the stop button
-     stays live */
+function redSetControls(ctx) {
   const setControls = (enabled) => {
-    sel.disabled = !enabled && runState.active;
-    presets.forEach(r => { r.disabled = !enabled && runState.active; });
-    startB.disabled = !enabled || runState.active;
-    stopB.hidden = !runState.active;
-    ingestB.disabled = !enabled || runState.active;
+    ctx.sel.disabled = !enabled && ctx.runState.active;
+    ctx.presets.forEach(r => { r.disabled = !enabled && ctx.runState.active; });
+    ctx.startB.disabled = !enabled || ctx.runState.active;
+    ctx.stopB.hidden = !ctx.runState.active;
+    ctx.ingestB.disabled = !enabled || ctx.runState.active;
   };
+  ctx.setControls = setControls;
+  return setControls;
+}
 
+function redRunCard(ctx) {
   /* card 1: run a test */
   const rc = card('Run a test', 'red runner, via the console proxy');
-  rc.body.appendChild(selLabel);
-  rc.body.appendChild(sel);
-  rc.body.appendChild(presetLabel);
-  rc.body.appendChild(presetWrap);
-  rc.body.appendChild(preview);
+  rc.body.appendChild(ctx.selLabel);
+  rc.body.appendChild(ctx.sel);
+  rc.body.appendChild(ctx.presetLabel);
+  rc.body.appendChild(ctx.presetWrap);
+  rc.body.appendChild(ctx.preview);
   const btnRow = el('div');
   const startB = el('button', 'cta', 'Start');
   startB.type = 'button';
@@ -1137,12 +1189,16 @@ function viewRed() {
   rc.body.appendChild(runnerState);
   rc.footer(el('span', 'muted small', 'Nothing starts until Start is pressed; a stop request goes to the runner and its /status verdict is shown, not assumed.'));
   rc.explain('Drives the separate red runner process through the console proxy. Pick a gate and a preset, read the scope preview, then start. If the runner is down the offline line appears and no state is invented.');
+  ctx.startB = startB; ctx.stopB = stopB; ctx.runMsg = runMsg; ctx.runnerState = runnerState;
+  return rc;
+}
 
+function redLiveCard(ctx) {
   /* card 2: live results */
   const lc = card('Live results', 'polled every ' + (RED_POLL_MS / 1000) + 's while a run is watched');
   const liveTop = el('div', 'rowline');
   const chipHolder = el('span');
-  chipHolder.appendChild(redChip(runState.lastState));
+  chipHolder.appendChild(redChip(ctx.runState.lastState));
   const liveGrow = el('div', 'grow');
   const liveLine = el('span', 'why', 'Waiting: no run in flight from this page.');
   liveGrow.appendChild(liveLine);
@@ -1170,129 +1226,184 @@ function viewRed() {
   lc.body.appendChild(ingestBtnRow);
   lc.footer(el('span', 'muted small', 'Polling stops on tab hide and resumes when the tab is visible again and the runner still reports a run.'));
   lc.explain('The state chip and counters come from the runner status proxy while a run is watched; on completion the results proxy fills the per-rule summary and the ingest offer. A status failure keeps the last honest state and says so.');
+  Object.assign(ctx, {
+    chipHolder, liveLine, countersLine, suiteLine, receiptsLine, ruleWrap, ingestB, ingestMsg,
+  });
+  return lc;
+}
 
+function redSetLine(ctx) {
   const markChip = (state) => {
-    runState.lastState = state;
-    chipHolder.replaceChildren(redChip(state));
+    ctx.runState.lastState = state;
+    ctx.chipHolder.replaceChildren(redChip(state));
   };
-  const setLiveLine = (text) => { liveLine.textContent = text; };
-  const renderRules = (rows) => {
-    ruleWrap.replaceChildren();
-    ingestB.disabled = runState.active || !rows.length;
+  ctx.markChip = markChip;
+  ctx.setLiveLine = (text) => { ctx.liveLine.textContent = text; };
+  ctx.renderRules = (rows) => {
+    ctx.ruleWrap.replaceChildren();
+    ctx.ingestB.disabled = ctx.runState.active || !rows.length;
     if (!rows.length) {
-      ruleWrap.appendChild(el('p', 'muted small', 'No findings returned by /results (all probes contained, or the run wrote nothing yet; not guessed).'));
+      ctx.ruleWrap.appendChild(el('p', 'muted small', 'No findings returned by /results (all probes contained, or the run wrote nothing yet; not guessed).'));
       return;
     }
-    const byRule = new Map();
-    for (const row of rows) {
-      const rid = row.rule || row.rule_id || 'unknown rule';
-      const slot = byRule.get(rid) || { count: 0, worst: 'info' };
-      slot.count += 1;
-      if (RED_SEV_ORDER_SEEN.indexOf(row.severity) > RED_SEV_ORDER_SEEN.indexOf(slot.worst)) slot.worst = row.severity;
-      byRule.set(rid, slot);
-    }
-    for (const [rid, slot] of byRule) {
+    for (const [rid, slot] of redRulesByRule(rows)) {
       const r = el('div', 'rowline');
       const g = el('div', 'grow');
       g.appendChild(el('b', null, rid));
       g.appendChild(el('span', 'why', slot.count + ' finding(s) in this run'));
       r.appendChild(sevPill(slot.worst));
       r.appendChild(g);
-      ruleWrap.appendChild(r);
+      ctx.ruleWrap.appendChild(r);
     }
-    runState.results = rows;
+    ctx.runState.results = rows;
   };
+}
 
+function redRulesByRule(rows) {
+  const byRule = new Map();
+  for (const row of rows) {
+    const rid = row.rule || row.rule_id || 'unknown rule';
+    const slot = byRule.get(rid) || { count: 0, worst: 'info' };
+    slot.count += 1;
+    if (RED_SEV_ORDER_SEEN.indexOf(row.severity) > RED_SEV_ORDER_SEEN.indexOf(slot.worst)) slot.worst = row.severity;
+    byRule.set(rid, slot);
+  }
+  return byRule;
+}
+
+function redLiveHooks(ctx) {
   /* live poll hooks: one tick per RED_POLL_MS while watched */
-  const live = {
-    stillRuns: () => runState.active,
-    tick: () => {
-      fetch('/api/red/status').then(r => { if (r.status === 503) throw new Error('offline'); if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
-        const state = d.state || d.run_state || 'idle';
-        markChip(state);
-        if (state === 'running') {
-          runState.active = true;
-          setLiveLine('Runner reports a run in flight on ' + (d.target || d.gate || 'its target') + '.');
-          const attempts = redNum(d.attempts), allow = redNum(d.allow), deny = redNum(d.deny), found = redNum(d.findings);
-          countersLine.textContent = 'Attempts: ' + attempts + '. Allowed: ' + allow + '. Denied: ' + deny + '. Findings: ' + found + '.';
-          suiteLine.textContent = 'Current suite: ' + (d.suite || d.current_suite || 'starting') + '.';
-          const receiptsIn = d.receipts;
-          if (receiptsIn === undefined) {
-            /* dogfood tick-up while the receipt figure is not in /status yet */
-            fetch('/api/red/dogfood').then(r => r.json()).then(df => {
-              if (df && df.available) receiptsLine.textContent = 'Receipts minted (dogfooding): ' + redNum(df.receipted) + ' of ' + redNum(df.attempts) + ' attempts receipted.';
-            }).catch(() => { receiptsLine.textContent = 'Receipts counter unavailable this tick (nothing guessed).'; });
-          } else receiptsLine.textContent = 'Receipts minted: ' + redNum(receiptsIn) + '.';
-        } else if (runState.active) { /* was running, now complete or aborted */
-          runState.active = false;
-          redStopPoll();
-          setControls(true);
-          if (state === 'aborted') {
-            setLiveLine('Run aborted: the runner reports the run stopped; partial counters are below and /results may hold partial rows.');
-            countersLine.textContent = 'Partial - Attempts: ' + redNum(d.attempts) + '. Allowed: ' + redNum(d.allow) + '. Denied: ' + redNum(d.deny) + '. Findings: ' + redNum(d.findings) + '.';
-          } else {
-            setLiveLine('Run complete: fetching results for a per-rule summary.');
-            countersLine.textContent = 'Final - Attempts: ' + redNum(d.attempts) + '. Allowed: ' + redNum(d.allow) + '. Denied: ' + redNum(d.deny) + '. Findings: ' + redNum(d.findings) + '.';
-            fetch('/api/red/results').then(r => { if (r.status === 503) throw new Error('offline'); if (!r.ok) throw new Error(r.status); return r.json(); }).then(rd => {
-              const rows = Array.isArray(rd) ? rd : (rd.findings || rd.rows || []);
-              renderRules(rows);
-            }).catch(() => { ruleWrap.replaceChildren(el('p', 'muted small', 'Results unavailable (runner did not serve /results; nothing guessed).')); });
-          }
-        }
-      }).catch(() => setLiveLine('Status call failed (runner offline?); the last known chips and counters stay displayed; nothing is guessed.'));
+  return {
+    stillRuns: () => ctx.runState.active,
+    tick: async () => {
+      let d;
+      try {
+        d = await fetch('/api/red/status').then(fetchJson);
+      } catch {
+        ctx.setLiveLine('Status call failed (runner offline?); the last known chips and counters stay displayed; nothing is guessed.');
+        return;
+      }
+      ctx._lastStatus = d;
+      const state = d.state || d.run_state || 'idle';
+      ctx.markChip(state);
+      if (state === 'running') {
+        await redTickRunning(ctx, d);
+        return;
+      }
+      if (ctx.runState.active) {
+        redTickComplete(ctx, state);
+      }
     },
   };
+}
 
+async function redTickRunning(ctx, d) {
+  ctx.runState.active = true;
+  ctx.setLiveLine('Runner reports a run in flight on ' + (d.target || d.gate || 'its target') + '.');
+  ctx.countersLine.textContent = redCountersLine('Attempts', d);
+  ctx.suiteLine.textContent = 'Current suite: ' + (d.suite || d.current_suite || 'starting') + '.';
+  await redTickReceipts(ctx, d);
+}
+
+function redTickComplete(ctx, state) {
+  /* was running, now complete or aborted */
+  ctx.runState.active = false;
+  redStopPoll();
+  ctx.setControls(true);
+  if (state === 'aborted') {
+    redCompleteLine(ctx, 'Run aborted: the runner reports the run stopped; partial counters are below and /results may hold partial rows.', 'Partial', ctx._lastStatus || null);
+  } else {
+    redCompleteLine(ctx, 'Run complete: fetching results for a per-rule summary.', 'Final', ctx._lastStatus || null);
+    redFetchResults(ctx);
+  }
+}
+
+function redCountersLine(prefix, d) {
+  return prefix + ' - Attempts: ' + redNum(d.attempts) + '. Allowed: ' + redNum(d.allow)
+    + '. Denied: ' + redNum(d.deny) + '. Findings: ' + redNum(d.findings) + '.';
+}
+
+async function redTickReceipts(ctx, d) {
+  const receiptsIn = d.receipts;
+  if (receiptsIn !== undefined) {
+    ctx.receiptsLine.textContent = 'Receipts minted: ' + redNum(receiptsIn) + '.';
+    return;
+  }
+  /* dogfood tick-up while the receipt figure is not in /status yet */
+  try {
+    const df = await (await fetch('/api/red/dogfood')).json();
+    if (df && df.available) {
+      ctx.receiptsLine.textContent = 'Receipts minted (dogfooding): ' + redNum(df.receipted) + ' of ' + redNum(df.attempts) + ' attempts receipted.';
+    }
+  } catch {
+    ctx.receiptsLine.textContent = 'Receipts counter unavailable this tick (nothing guessed).';
+  }
+}
+f
+function redCompleteLine(ctx, line, prefix, d) {
+  ctx.setLiveLine(line);
+  ctx.countersLine.textContent = redCountersLine(prefix, d);
+}
+
+function redFetchResults(ctx) {
+  fetch('/api/red/results').then(fetchJson).then(rd => {
+    const rows = Array.isArray(rd) ? rd : (rd.findings || rd.rows || []);
+    ctx.renderRules(rows);
+  }).catch(() => { ctx.ruleWrap.replaceChildren(el('p', 'muted small', 'Results unavailable (runner did not serve /results; nothing guessed).')); });
+}
+
+function redWireRunControls(ctx) {
   /* start: never automatic */
-  startB.addEventListener('click', () => {
-    const preset = RED_PRESETS[chosenPreset().value];
-    runState.active = true;
-    runState.results = null;
-    ruleWrap.replaceChildren();
-    setControls(true);
-    setLiveLine('Starting ' + preset.label + '...');
+  ctx.startB.addEventListener('click', () => {
+    const preset = RED_PRESETS[ctx.chosenPreset().value];
+    ctx.runState.active = true;
+    ctx.runState.results = null;
+    ctx.ruleWrap.replaceChildren();
+    ctx.setControls(true);
+    ctx.setLiveLine('Starting ' + preset.label + '...');
     fetch('/api/red/run', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ preset: chosenPreset().value, target: sel.value }),
-    }).then(r => { if (r.status === 503) throw new Error('offline'); if (!r.ok) throw new Error(r.status); return r.json(); }).then(() => {
-      setLiveLine('Runner accepted the run; watching /status every ' + (RED_POLL_MS / 1000) + 's.');
-      redStartPoll(live);
+      body: JSON.stringify({ preset: ctx.chosenPreset().value, target: ctx.sel.value }),
+    }).then(fetchJson).then(() => {
+      ctx.setLiveLine('Runner accepted the run; watching /status every ' + (RED_POLL_MS / 1000) + 's.');
+      redStartPoll(ctx.live);
     }).catch(() => {
-      runState.active = false;
+      ctx.runState.active = false;
       redStopPoll();
-      setControls(true);
-      runMsg.textContent = RED_OFFLINE + ' (start rejected; nothing is running).';
+      ctx.setControls(true);
+      ctx.runMsg.textContent = RED_OFFLINE + ' (start rejected; nothing is running).';
     });
   });
-  stopB.addEventListener('click', () => {
-    fetch('/api/red/stop', { method: 'POST' }).then(r => { if (r.status === 503) throw new Error('offline'); if (!r.ok) throw new Error(r.status); return r.json(); }).then(() => {
-      runMsg.textContent = 'Stop request sent to the runner; /status verdict governs (the next poll shows it).';
-    }).catch(() => { runMsg.textContent = 'Stop request failed (runner offline?); the run state stays whatever /status last reported.'; });
+  ctx.stopB.addEventListener('click', () => {
+    fetch('/api/red/stop', { method: 'POST' }).then(fetchJson).then(() => {
+      ctx.runMsg.textContent = 'Stop request sent to the runner; /status verdict governs (the next poll shows it).';
+    }).catch(() => { ctx.runMsg.textContent = 'Stop request failed (runner offline?); the run state stays whatever /status last reported.'; });
   });
-
   /* ingest: posts the rows the results proxy fetched into the Assurance
      intake, then re-reads the ingested-findings summary */
-  ingestB.addEventListener('click', () => {
-    const rows = runState.results || [];
+  ctx.ingestB.addEventListener('click', () => {
+    const rows = ctx.runState.results || [];
     if (!rows.length) return;
-    ingestB.disabled = true;
-    ingestMsg.textContent = 'Ingesting ' + rows.length + ' row(s) into the Assurance intake...';
+    ctx.ingestB.disabled = true;
+    ctx.ingestMsg.textContent = 'Ingesting ' + rows.length + ' row(s) into the Assurance intake...';
     fetch('/api/assurance/findings/ingest', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ findings: rows }),
     }).then(r => r.json()).then(d => {
       if (d.ingested) {
-        ingestMsg.textContent = 'Ingested: ' + redNum(d.accepted) + ' accepted (' + redNum(d.new) + ' new, ' + redNum(d.replaced) + ' replaced by idempotent finding_id).';
+        ctx.ingestMsg.textContent = 'Ingested: ' + redNum(d.accepted) + ' accepted (' + redNum(d.new) + ' new, ' + redNum(d.replaced) + ' replaced by idempotent finding_id).';
         if (redIngestedReload) redIngestedReload();
       } else {
-        ingestB.disabled = false;
-        ingestMsg.textContent = 'The Assurance intake rejected the rows: ' + (d.error || 'unknown error') + ' (nothing ingested).';
+        ctx.ingestB.disabled = false;
+        ctx.ingestMsg.textContent = 'The Assurance intake rejected the rows: ' + (d.error || 'unknown error') + ' (nothing ingested).';
       }
-    }).catch(() => { ingestB.disabled = false; ingestMsg.textContent = 'Assurance add-in offline: findings not ingested; nothing guessed.'; });
+    }).catch(() => { ctx.ingestB.disabled = false; ctx.ingestMsg.textContent = 'Assurance add-in offline: findings not ingested; nothing guessed.'; });
   });
+}
 
+function redGatesCard(ctx) {
   /* card 3: gates for testing */
   const gc = card('Gates for testing', 'runner target registry');
   const gatesWrap = el('p', 'muted small', 'Reading the runner target registry...');
@@ -1302,51 +1413,98 @@ function viewRed() {
   gc.footer(el('span', 'muted small', 'Endpoints and policy digests are reported by the runner; the console does not invent them.'));
   gc.explain('Registered testing targets: the bundled demo gateway plus any named gate an operator registered. Test this gate pre-fills the target selector on the run card.');
   const selectGate = (id, name) => {
-    addOption(id, name);                     /* replaces/updates the option */
-    sel.value = id;
-    renderPreview();
+    ctx.addOption(id, name);                     /* replaces/updates the option */
+    ctx.sel.value = id;
+    ctx.renderPreview();
   };
+  Object.assign(ctx, { gatesWrap, gatesList, selectGate });
+  return gc;
+}
 
+function redGateRow(ctx, g) {
+  const id = g.id || g.name;
+  const name = g.name || g.id;
+  ctx.gateNames.set(id, name);
+  if (!ctx.sel.querySelector('option[value="' + id + '"]')) ctx.addOption(id, name);
+  const row = el('div', 'rowline');
+  const main = el('div', 'grow');
+  main.appendChild(el('b', null, name));
+  main.appendChild(el('span', 'why', (g.endpoint || 'endpoint not exposed') + (g.policy_digest ? ' (policy digest ' + g.policy_digest + ')' : '')));
+  const btn = el('button', 'btn-quiet', 'Test this gate');
+  btn.type = 'button';
+  btn.addEventListener('click', () => ctx.selectGate(id, name));
+  row.appendChild(main);
+  row.appendChild(btn);
+  return row;
+}
+
+function redProbeTargets(ctx) {
   /* probe the runner registry once on render; never blocks the page and
      never guesses: on failure every card shows the honest offline state */
-  fetch('/api/red/targets').then(r => { if (r.status === 503) throw new Error('offline'); if (!r.ok) throw null; return r.json(); }).then(d => {
+  fetch('/api/red/targets').then(fetchJson).then(d => {
     const gates = d.targets || d.gates || [];
-    runState.gates = gates;
-    gatesWrap.textContent = gates.length ? 'Registered targets reported by the runner this session.' : 'The runner reported no named gates yet: the demo gateway is always available.';
-    gatesList.replaceChildren();
+    ctx.runState.gates = gates;
+    ctx.gatesWrap.textContent = gates.length ? 'Registered targets reported by the runner this session.' : 'The runner reported no named gates yet: the demo gateway is always available.';
+    ctx.gatesList.replaceChildren();
     for (const g of gates) {
-      const id = g.id || g.name;
-      const name = g.name || g.id;
-      gateNames.set(id, name);
-      if (!sel.querySelector('option[value="' + id + '"]')) addOption(id, name);
-      const row = el('div', 'rowline');
-      const main = el('div', 'grow');
-      main.appendChild(el('b', null, name));
-      main.appendChild(el('span', 'why', (g.endpoint || 'endpoint not exposed') + (g.policy_digest ? ' (policy digest ' + g.policy_digest + ')' : '')));
-      const btn = el('button', 'btn-quiet', 'Test this gate');
-      btn.type = 'button';
-      btn.addEventListener('click', () => selectGate(id, name));
-      row.appendChild(main);
-      row.appendChild(btn);
-      gatesList.appendChild(row);
+      ctx.gatesList.appendChild(redGateRow(ctx, g));
     }
-    runnerState.textContent = 'Runner reachable; targets read this session.';
+    ctx.runnerState.textContent = 'Runner reachable; targets read this session.';
   }).catch((err) => {
-    if (err && err.message === 'offline') runnerState.textContent = RED_OFFLINE;
-    else runnerState.textContent = 'The runner did not serve /targets this session; demo gateway only (nothing guessed).';
-    gatesWrap.textContent = runnerState.textContent;
+    if (err && err.message === 'offline') ctx.runnerState.textContent = RED_OFFLINE;
+    else ctx.runnerState.textContent = 'The runner did not serve /targets this session; demo gateway only (nothing guessed).';
+    ctx.gatesWrap.textContent = ctx.runnerState.textContent;
   });
+}
 
+function redResumeWatching(ctx) {
   /* attach and re-attach honest watching: an in-flight run (started before
      this render or reported by the runner) resumes polling immediately */
-  fetch('/api/red/status').then(r => { if (r.status === 503) throw new Error('offline'); if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
-    if ((d.state || d.run_state) === 'running' || runState.active) {
-      runState.active = true;
-      setControls(true);
-      redStartPoll(live);
+  fetch('/api/red/status').then(fetchJson).then(d => {
+    if ((d.state || d.run_state) === 'running' || ctx.runState.active) {
+      ctx.runState.active = true;
+      ctx.setControls(true);
+      redStartPoll(ctx.live);
     }
   }).catch(() => { /* offline or idle: nothing to watch; the honest line stays */ });
-  setControls(true);
+}
+
+function viewRed() {
+  const p = el('div');
+  const status = (config && config.addins && (config.addins.find(a => a.id === 'red') || {}).status) || 'not_purchased';
+  const c = card('Raucle Agent Red', PILL_NAME[status] || 'Not purchased');
+  c.body.appendChild(pill(status));
+  c.body.appendChild(redDogfoodWrap());
+  const note = el('p'); note.style.margin = '10px 0';
+  note.textContent = 'Wave 2 in build. The gate fuzzer already runs against your policies; every attack it attempts is itself gated and receipted.';
+  c.body.appendChild(note);
+  c.body.appendChild(redIngestedCard());
+  const ul = el('ul', 'quiet');
+  ['Adversarial tool-content scenarios', 'Policy edge-case sweeps', 'Reporting that pairs with Raucle Agent Assurance'].forEach(x => ul.appendChild(el('li', null, x)));
+  c.body.appendChild(ul);
+  c.footer(el('span', 'muted small', 'Included with licence key once available - pricing tiers are not shown in product pages.'));
+  c.explain('Raucle Agent Red will attack your agents the way a real caller would: hostile instructions, ambiguous inputs and policy edges. Not purchasable yet.');
+  p.appendChild(c.root);
+
+  /* ---------------- ops (wave 2.5): run a test, live results, gates ---------------- */
+  /* Any open run stops the poll when the view re-renders (navigating away
+     pauses the console's watching, not the runner itself); the status read
+     below re-attaches honest watching when the operator returns. */
+  redStopPoll();
+  redPollLive = null;
+
+  const ctx = { runState: { active: false, lastState: 'idle', results: null } };
+  redTargetSelector(ctx);
+  redSetControls(ctx);
+  const rc = redRunCard(ctx);
+  const lc = redLiveCard(ctx);
+  redSetLine(ctx);
+  ctx.live = redLiveHooks(ctx);
+  redWireRunControls(ctx);
+  const gc = redGatesCard(ctx);
+  redProbeTargets(ctx);
+  redResumeWatching(ctx);
+  ctx.setControls(true);
 
   p.appendChild(rc.root);
   p.appendChild(lc.root);
@@ -1489,12 +1647,9 @@ function buildSidebar() {
       a.appendChild(iconHolder);
       a.appendChild(el('span', status ? dotCls(status.status) : 'side-dot dot-good'));
       a.appendChild(el('span', 'side-text', item.label));
-      if (item.id === 'notifications') {
-        /* unread count lives in the top bar only, so the count is not
-         duplicated in two surfaces */
-      } else if (item.group === 'products') {
-        /* honest small counters: run count only once, from the dashboard */
-      }
+      /* No per-item badge is duplicated in two surfaces: the unread count
+         lives in the top bar only, and the run counter comes from the
+         dashboard card once. */
       nav.appendChild(a);
     }
   }
@@ -1535,7 +1690,7 @@ const PAGE_DEF = {
 function go(route) {
   /* drill routes: #/rules/<rule-id> renders the per-rule drill view */
   const clean = route.replace(/^\//, '');
-  const ruleMatch = /^rules\/([A-Z]{3}-[0-9]{3})$/.exec(clean);
+  const ruleMatch = /^rules\/([A-Z]{3}-\d{3})$/.exec(clean);
   const v = ruleMatch
     ? (() => { return viewRule(ruleMatch[1]); })
     : (VIEWS[clean] || viewOverview);
@@ -1661,12 +1816,12 @@ function buildCollapse() {
 
 /* ------------------------------------------------------------------ theme */
 function applyTheme(t) {
-  document.documentElement.setAttribute('data-theme', t);
+  document.documentElement.dataset.theme = t;
   const btn = document.getElementById('theme-toggle');
   btn.replaceChildren(iconEl(t === 'dark' ? 'sun' : 'moon', 16));
   btn.setAttribute('aria-label', 'Switch to ' + (t === 'dark' ? 'light' : 'dark') + ' theme');
   btn.title = 'Switch to ' + (t === 'dark' ? 'light' : 'dark') + ' theme';
-  btn.setAttribute('data-icon', '');
+  btn.dataset.icon = '';
 }
 function buildTheme() {
   let t = 'light';
@@ -1676,41 +1831,46 @@ function buildTheme() {
   } catch { /* storage unavailable: keep light */ }
   applyTheme(t);
   document.getElementById('theme-toggle').addEventListener('click', () => {
-    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
     applyTheme(next);
     try { window.localStorage.setItem('rc-theme', next); } catch { /* keep session-only */ }
   });
 }
 
 /* ------------------------------------------------------------------ boot */
-async function boot() {
+async function bootLoadJSON(url, assign, fallback, opts) {
+  /* One honest load: on any failure the global keeps its honest fallback. */
+  try {
+    const r = await fetch(url);
+    if (r.ok) { assign(await r.json()); return; }
+    if (opts && opts.pendingOnNonOk) assign({ pending: true, status: r.status_code });
+  } catch { assign(fallback); }
+}
+
+async function bootLoads() {
   try { overview = await (await fetch('/api/overview')).json(); } catch { overview = null; }
   try { config = { ...config, ...(await (await fetch('/api/config')).json()) }; } catch { /* defaults kept */ }
-  try {
-    const r = await fetch('/api/assurance/dashboard');
-    if (r.ok) dash = await r.json();
-  } catch { dash = null; }
-  try {
-    const r = await fetch('/api/assurance/counts');
-    if (r.ok) counts = await r.json();
-  } catch { counts = null; }
-  try {
-    const r = await fetch('/api/assurance/findings');
-    if (r.ok) findings = await r.json();
-  } catch { findings = null; }
-  try {
-    const r = await fetch('/api/trends');
-    if (r.ok) trends = await r.json();
-  } catch { trends = null; }
-  try {
-    const r = await fetch('/api/trust/policies/summary');
-    if (r.ok) portalPolicies = await r.json(); else portalPolicies = { pending: true, status: r.status_code };
-  } catch { portalPolicies = { pending: true }; }
+  await Promise.all([
+    bootLoadJSON('/api/assurance/dashboard', (d) => { dash = d; }),
+    bootLoadJSON('/api/assurance/counts', (d) => { counts = d; }),
+    bootLoadJSON('/api/assurance/findings', (d) => { findings = d; }),
+    bootLoadJSON('/api/trends', (d) => { trends = d; }),
+    bootLoadJSON('/api/trust/policies/summary', (d) => { portalPolicies = d; },
+      { pending: true }, { pendingOnNonOk: true }),
+  ]);
+}
+
+function bootGreeting() {
   const tenant = overview && overview.tenants ? overview.tenants[0] : { label: 'default' };
   const h = new Date().getHours();
-  const word = h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
+  let word = 'evening';
+  if (h < 12) word = 'morning';
+  else if (h < 18) word = 'afternoon';
   document.getElementById('page-sub').textContent =
     'Good ' + word + ' · tenant ' + tenant.label + ' · agent suite alpha';
+}
+
+function bootShell() {
   buildSidebar();
   buildLegend();
   buildTopbar();
@@ -1724,8 +1884,12 @@ async function boot() {
     go(h);
   });
 }
-boot();
-</script>
-<div id="tip" class="tip" role="status"></div>
-</body>
-</html>
+
+async function boot() {
+  overview = null; findings = null; counts = null; trends = null;
+  await bootLoads();
+  bootGreeting();
+  bootShell();
+}
+
+await boot();

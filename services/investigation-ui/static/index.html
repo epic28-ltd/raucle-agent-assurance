@@ -17,6 +17,17 @@
     --c-exempt:#5f6b76; --c-exempt-bg:#e8ebee;
     --ink:#1c2733; --line:#d4dae0; --soft:#5f6b76; --accent:#0b4a8f;
     --bg:#f7f8fa; --panel:#ffffff;
+    /* Elera token set (UI-02.4) */
+    --el-page:#F6F6F3; --el-panel:#ECEBE6; --el-card:#FFFFFF; --el-ink:#232420;
+    --el-soft:#6E6B62; --el-line:#E3E1DA; --el-green:#5CBF4F;
+    --t-green-bg:#E7F5D9; --t-green-ink:#3E7A1E;
+    --t-amber-bg:#FBEFD6; --t-amber-ink:#A97A1A;
+    --t-red-bg:#FAE3DE;   --t-red-ink:#D14B39;
+    --t-grey-bg:#ECEBE6;  --t-grey-ink:#4B4941;
+    --t-active:#232420;   --t-active-ink:#FFFFFF;
+    /* muted dark for identity tiles (ID tiles/badges): visually distinct
+       from solid dark ACTIVE chips (coherence-pass fix) */
+    --el-tile:#8B887E;    --el-tile-ink:#FFFFFF;
   }
   *{box-sizing:border-box}
   body{font:15px/1.45 system-ui,sans-serif;color:var(--ink);margin:0;background:var(--bg)}
@@ -93,19 +104,7 @@
      Kanban reference tokens (Elera 'Patient Flow'): quiet SaaS palette:
      page bg vs pale board panels one shade darker; white radius-12 cards
      with soft shadow; charcoal active chips; green/amber/red pill tints. */
-  :root{
-    /* Elera token set (UI-02.4) */
-    --el-page:#F6F6F3; --el-panel:#ECEBE6; --el-card:#FFFFFF; --el-ink:#232420;
-    --el-soft:#6E6B62; --el-line:#E3E1DA; --el-green:#5CBF4F;
-    --t-green-bg:#E7F5D9; --t-green-ink:#3E7A1E;
-    --t-amber-bg:#FBEFD6; --t-amber-ink:#A97A1A;
-    --t-red-bg:#FAE3DE;   --t-red-ink:#D14B39;
-    --t-grey-bg:#ECEBE6;  --t-grey-ink:#4B4941;
-    --t-active:#232420;   --t-active-ink:#FFFFFF;
-    /* muted dark for identity tiles (ID tiles/badges): visually distinct
-       from solid dark ACTIVE chips (coherence-pass fix) */
-    --el-tile:#8B887E;    --el-tile-ink:#FFFFFF;
-  }
+  
   [data-theme="dark"]{
     --el-page:#1B1D19; --el-panel:#252722; --el-card:#2C2F29; --el-ink:#E9E7E1;
     --el-soft:#A5A29A; --el-line:#3A3C36;
@@ -222,6 +221,11 @@
     color:var(--el-card);padding:.5rem .9rem;border-radius:10px;font-size:.8rem;z-index:10;
     opacity:0;transition:opacity 180ms ease-out;pointer-events:none}
   .toast.show{opacity:1}
+  /* css:S9440 — honour reduced-motion preferences: disable the hover
+     transitions that displace content (motion sensitivity) */
+  @media (prefers-reduced-motion: reduce){
+    .card, .tip, .hovercard{transition-duration:0ms}
+  }
 </style>
 </head>
 <body>
@@ -247,6 +251,18 @@
 <main id="app"></main>
 
 <script>
+
+/* Sort order helper: suppressed findings sink to the bottom of a severity group */
+const cmpSuppressed = (a, b) => {
+  if (a.suppressed === b.suppressed) return 0;
+  return a.suppressed ? 1 : -1;
+};
+/* State chip for one finding row (suppressed vs active) */
+const chipState = (cell, f) => {
+  const kind = f.suppressed ? "suppressed" : "active";
+  const tone = f.suppressed ? "exempt" : "act";
+  chip(cell, kind, tone);
+};
 // SPDX-License-Identifier: Apache-2.0
 // UI-02 single-page app. Threat model T5 discipline unchanged: every piece
 // of model/tool/index content is rendered with textContent (never innerHTML
@@ -579,7 +595,7 @@ function renderFindings(parent, findings, showSuppressed) {
   const sevOrder = {critical:0, high:1, medium:2, low:3};
   const ordered = (findings || []).slice().sort((a, b) =>
     (sevOrder[a.severity] ?? 9) - (sevOrder[b.severity] ?? 9)
-    || (a.suppressed === b.suppressed ? 0 : a.suppressed ? 1 : -1));
+    || cmpSuppressed(a, b));
   const visible = ordered.filter(f => showSuppressed || !f.suppressed);
   const toggleRow = el("div", "filters");
   const lbl = el("label");
@@ -610,7 +626,7 @@ function renderFindings(parent, findings, showSuppressed) {
     td(tr, f.confidence);
     td(tr, f.subject || "");
     const st = el("td");
-    chip(st, f.suppressed ? "suppressed" : "active", f.suppressed ? "exempt" : "act");
+    chipState(st, f);
     tr.appendChild(st);
     td(tr, f.explanation || "");
     td(tr, f.suppression_reason || "");
@@ -649,30 +665,7 @@ function renderOverviewItems(parent, runs) {
   Promise.all(runs.map(r => api("/api/runs/" + encodeURIComponent(r.run_id)).catch(() => null)))
     .then(details => {
       t.replaceChildren(hr);
-      details.filter(Boolean).forEach(run => {
-        run.traces.forEach(trace => {
-          trace.spans.filter(s => s.privileged).forEach(s => {
-            const tone = spanTone(s.verification.status, s.correlation.state);
-            if (needTone && tone !== needTone) return;
-            if (stateFilter.size && !(stateFilter.has(s.verification.status) || stateFilter.has(s.correlation.state))) return;
-            if (textFilter && !(
-              run.run_id + " " + trace.trace_id + " " + (s.receipt_hash || "") + " " + s.span_id
-            ).toLowerCase().includes(textFilter)) return;
-            any = true;
-            const tr = el("tr");
-            tr.className = "rowbtn";
-            td(tr, run.run_id); td(tr, trace.trace_id); td(tr, s.tool || s.name);
-            td(tr, s.receipt_hash || "no receipt");
-            const v1 = el("td"); vChip(v1, s.verification.status); tr.appendChild(v1);
-            const v2 = el("td"); cChip(v2, s.correlation.state); tr.appendChild(v2);
-            tr.tabIndex = 0;
-            const open = () => { location.hash = "run/" + run.run_id; };
-            tr.onclick = open;
-            tr.onkeydown = ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); open(); } };
-            t.appendChild(tr);
-          });
-        });
-      });
+      any = appendOverviewRows(t, details.filter(Boolean), needTone);
       parent.replaceChildren();
       parent.appendChild(el("h2", null, "Privileged spans" + (selectedBucket ? " — filtered" : "")));
       filtersBar(parent);
@@ -682,6 +675,82 @@ function renderOverviewItems(parent, runs) {
         parent.appendChild(t);
       }
     });
+}
+
+function overviewSpanVisible(run, trace, s, needTone) {
+  const tone = spanTone(s.verification.status, s.correlation.state);
+  if (needTone && tone !== needTone) return false;
+  if (stateFilter.size && !(stateFilter.has(s.verification.status) || stateFilter.has(s.correlation.state))) return false;
+  if (textFilter && !(
+    run.run_id + " " + trace.trace_id + " " + (s.receipt_hash || "") + " " + s.span_id
+  ).toLowerCase().includes(textFilter)) return false;
+  return true;
+}
+
+function overviewSpanRow(run, trace, s) {
+  const tr = el("tr");
+  tr.className = "rowbtn";
+  td(tr, run.run_id); td(tr, trace.trace_id); td(tr, s.tool || s.name);
+  td(tr, s.receipt_hash || "no receipt");
+  const v1 = el("td"); vChip(v1, s.verification.status); tr.appendChild(v1);
+  const v2 = el("td"); cChip(v2, s.correlation.state); tr.appendChild(v2);
+  tr.tabIndex = 0;
+  const open = () => { location.hash = "run/" + run.run_id; };
+  tr.onclick = open;
+  tr.onkeydown = ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); open(); } };
+  return tr;
+}
+
+function appendOverviewRows(t, runs, needTone) {
+  // summaries lack per-span rows, so each run is fetched; the table carries one row per privileged span
+  let any = false;
+  for (const run of runs) {
+    for (const trace of run.traces) {
+      for (const s of trace.spans) {
+        if (!s.privileged) continue;
+        if (!overviewSpanVisible(run, trace, s, needTone)) continue;
+        any = true;
+        t.appendChild(overviewSpanRow(run, trace, s));
+      }
+    }
+  }
+  return any;
+}
+
+function timelineSpanItem(span, side, tl) {
+  const tone = span.privileged
+    ? spanTone(span.verification.status, span.correlation.state)
+    : "exempt";
+  const li = el("li", "tl tl-" + tone);
+  const btn = el("button", "sel");
+  btn.appendChild(el("strong", null, span.name));
+  if (span.tool) btn.appendChild(el("span", null, "  ·  tool: " + span.tool));
+  btn.appendChild(document.createTextNode("  " + (span.privileged ? "privileged" : "regular")));
+  const chips = el("span");
+  if (span.privileged) {
+    vChip(chips, span.verification.status);
+    cChip(chips, span.correlation.state);
+    chips.appendChild(el("span", "hint", " " + (span.receipt_hash || "no receipt")));
+  } else {
+    chips.appendChild(el("span", "hint", " outside gate scope"));
+  }
+  btn.appendChild(chips);
+  btn.setAttribute("aria-pressed", "false");
+  const showDetail = () => {
+    tl.querySelectorAll("button.sel").forEach(b => b.setAttribute("aria-pressed", "false"));
+    btn.setAttribute("aria-pressed", "true");
+    const combo = el("div");
+    combo.appendChild(el("p", "hint", "— verification —"));
+    combo.appendChild(guidancePanel("verif", span.verification.status));
+    combo.appendChild(el("p", "hint", "— correlation —"));
+    combo.appendChild(guidancePanel("corr", span.correlation.state));
+    side.replaceChildren();          // clear, then evidence + guidance
+    renderEvidence(side, span);
+    side.appendChild(combo);
+  };
+  btn.onclick = showDetail;
+  li.appendChild(btn);
+  return li;
 }
 
 function filtersBar(parent) {
@@ -820,42 +889,9 @@ function showRun(runId) {
       const tl = el("ul", "timeline");
       // order spans by start time where present
       const spans = trace.spans.slice().sort((a, b) => String(a.started).localeCompare(String(b.started)));
-      let selected = null;
-      spans.forEach(span => {
-        const tone = span.privileged
-          ? spanTone(span.verification.status, span.correlation.state)
-          : "exempt";
-        const li = el("li", "tl tl-" + tone);
-        const btn = el("button", "sel");
-        btn.appendChild(el("strong", null, span.name));
-        if (span.tool) btn.appendChild(el("span", null, "  ·  tool: " + span.tool));
-        btn.appendChild(document.createTextNode("  " + (span.privileged ? "privileged" : "regular")));
-        const chips = el("span");
-        if (span.privileged) {
-          vChip(chips, span.verification.status);
-          cChip(chips, span.correlation.state);
-          chips.appendChild(el("span", "hint", " " + (span.receipt_hash || "no receipt")));
-        } else {
-          chips.appendChild(el("span", "hint", " outside gate scope"));
-        }
-        btn.appendChild(chips);
-        btn.setAttribute("aria-pressed", "false");
-        const showDetail = () => {
-          tl.querySelectorAll("button.sel").forEach(b => b.setAttribute("aria-pressed", "false"));
-          btn.setAttribute("aria-pressed", "true");
-          const combo = el("div");
-          combo.appendChild(el("p", "hint", "— verification —"));
-          combo.appendChild(guidancePanel("verif", span.verification.status));
-          combo.appendChild(el("p", "hint", "— correlation —"));
-          combo.appendChild(guidancePanel("corr", span.correlation.state));
-          side.replaceChildren();          // clear, then evidence + guidance
-          renderEvidence(side, span);
-          side.appendChild(combo);
-        };
-        btn.onclick = showDetail;
-        li.appendChild(btn);
-        tl.appendChild(li);
-      });
+      for (const span of spans) {
+        tl.appendChild(timelineSpanItem(span, side, tl));
+      }
       tp.appendChild(tl);
       timelineCol.appendChild(tp);
       // auto-select the first red, else first amber, else first privileged span
@@ -886,7 +922,7 @@ function renderRunFindings(parent, findings, showSuppressed, side) {
   const sevOrder = {critical:0, high:1, medium:2, low:3};
   const ordered = (findings || []).slice().sort((a, b) =>
     (sevOrder[a.severity] ?? 9) - (sevOrder[b.severity] ?? 9)
-    || (a.suppressed === b.suppressed ? 0 : a.suppressed ? 1 : -1));
+    || cmpSuppressed(a, b));
   const visible = ordered.filter(f => showSuppressed || !f.suppressed);
   const lbl = el("label");
   const cb = el("input");
@@ -911,7 +947,7 @@ function renderRunFindings(parent, findings, showSuppressed, side) {
     const tr = el("tr");
     td(tr, f.rule_id); td(tr, f.severity); td(tr, f.confidence); td(tr, f.subject || "");
     const st = el("td");
-    chip(st, f.suppressed ? "suppressed" : "active", f.suppressed ? "exempt" : "act");
+    chipState(st, f);
     tr.appendChild(st);
     td(tr, f.explanation || "");
     t.appendChild(tr);
@@ -1211,9 +1247,6 @@ function showBoard() {
     // ---- board grid
     const gridWrap = el("div");
     app.appendChild(gridWrap);
-    const selectedCard = boardSelection.get("_card") || null;
-    boardSelection.delete("_card");
-
     const visibleFor = (f) => {
       const tester = members[boardLens];
       if (tester && !tester(f)) return false;
@@ -1300,7 +1333,11 @@ function showBoard() {
       const tokens = el("div", "card-tokens");
       const sev = el("span", "tok tok-sev-" + f.severity, f.severity);
       tokens.appendChild(sev);
-      const cls = f.age_seconds === null ? "" : f.age_seconds > 86400 ? " stale" : f.age_seconds > 3600 ? " warm" : "";
+      let cls = "";
+      if (f.age_seconds !== null) {
+        if (f.age_seconds > 86400) cls = " stale";
+        else if (f.age_seconds > 3600) cls = " warm";
+      }
       const clock = el("span", "tok tok-clock" + cls, "⏱ " + relTime(f.age_seconds));
       clock.title = f.detected_at || "detection instant unknown (corpus-level finding)";
       tokens.appendChild(clock);
