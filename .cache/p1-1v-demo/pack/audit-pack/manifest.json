@@ -1,0 +1,41 @@
+{
+  "built_at": "2026-11-05T12:00:00+00:00",
+  "counts": {
+    "chain_receipts": 0,
+    "keys": 1,
+    "policy_files": 0,
+    "receipts": 2,
+    "timestamp_tokens": 0
+  },
+  "files": {
+    "chain_graph.json": "21c132701a8eae22e1eeb8cd3d51e609ef8cb12c83cef7d3e13ad546ed38fa65",
+    "claims.md": "fceea8e238357b615cd02c17624fe3e69b049d59068c55d70a77e12fe2e7415b",
+    "keys/trust_roots.jsonl": "abcce57e724686a989a7fecac255d34e131ce722a10243df91163bc1774660f1",
+    "policies/README.md": "a33c95eee0c8dcbb811b89dccee629ce151542ca44d729eeaaf40dff10e59d93",
+    "receipts.jsonl": "0afe93c937b96c304f8cb57cc61905e5e9178d94a92bb7439b26d372a0f95de7",
+    "signatures/README.md": "2ca1d9303f009b38426e75619e25387e14065004d85abb27629ce1eddb3d42b3",
+    "timestamps/README.md": "4ec8a0a6145ffa67c6ed935e920f76d4b2a831575f1ecfdaa7b190b2607cca0e",
+    "verify-notes.md": "ef334e49aa3573e25562568037b1ba94359347814b24ac6b561b509231dd6409"
+  },
+  "pack": "AUD-01 auditor export pack",
+  "pinned_key_snapshot": {
+    "file": "keys/trust_roots.jsonl",
+    "key_ids": [
+      "1515bd8cf636bf4b"
+    ],
+    "note": "verbatim pinned snapshot, public halves only; re-verification depends on nothing outside the pack",
+    "sha256": "abcce57e724686a989a7fecac255d34e131ce722a10243df91163bc1774660f1"
+  },
+  "query_window": {
+    "from": null,
+    "receipt_hash": null,
+    "to": null
+  },
+  "schema_version": 1,
+  "self_contained": {
+    "network": "none",
+    "offline": true,
+    "raucle": "not required at verification time",
+    "requires": "Python 3.11+ standard library plus the cryptography package"
+  }
+}

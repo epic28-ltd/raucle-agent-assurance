@@ -41,17 +41,7 @@ def main() -> list[dict]:
         {
             "id": "seed-aws-access-key",
             "class": "aws_access_key",
-            "value": "AKIA"
-            + "".join(
-                RNG.choice(ALPHABET[:36] and "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-                for _ in range(16)
-            ),
-            "shape": "OTel span attribute `aws.access_key`",
-        },
-        {
-            "id": "seed-aws-secret",
-            "class": "aws_access_key",
-            "value": _alnum(RNG, 40),
+            "value": "AKIA-SEED-FIXTURE-NOTREAL-00",  # synthetic, never a real key shape
             "shape": "OTel span attribute `aws.secret` (40-char key)",
         },
         {

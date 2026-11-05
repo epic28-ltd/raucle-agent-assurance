@@ -1,0 +1,1 @@
+{"key_id": "1515bd8cf636bf4b", "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAbYAPBKsvWrvIsVtAzBaox3V7jVoAEh821ySgXUgJ/Xc=\n-----END PUBLIC KEY-----\n", "valid_from": "1970-01-01T00:00:00+00:00", "valid_until": null, "status": "current", "note": "derived PUBLIC half of obs01 gateway signing key (2026-11-04 spike)"}

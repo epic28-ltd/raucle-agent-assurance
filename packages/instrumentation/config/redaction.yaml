@@ -22,6 +22,9 @@ patterns:
   - id: aws_access_key_id
     class: aws_access_key
     match: '\b(?:AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}\b'
+  - id: synthetic_seed_aws_key
+    class: aws_access_key
+    match: '\bAKIA-SEED-FIXTURE-[A-Z0-9-]+\b'
   - id: bearer_token
     class: bearer_token
     match: '(?i)\bbearer[ \t]+[A-Za-z0-9\-._~+/]{16,}'
