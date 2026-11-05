@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import dataclasses
 import datetime as dt
 import hashlib
 import importlib.util
@@ -152,6 +153,36 @@ def _event_time(envelope_line: str) -> dt.datetime:
 # --------------------------------------------------------------- select ----
 
 
+def _line_matching_hash(raw: str, receipt_hash: str) -> str | None:
+    """The raw line, byte-exact, when its receipt_hash matches — else None."""
+    line = raw.rstrip("\n")
+    if not line:
+        return None
+    rec = json.loads(line)
+    return line if rec["receipt_hash"] == receipt_hash else None
+
+
+def _decodable_window_line(raw: str, from_utc, to_utc) -> str | None:
+    """The raw envelope line when decodable and inside the window — else None.
+
+    Undecodable lines are reported to stderr; they are never silently
+    dropped or repaired.
+    """
+    line = raw.rstrip("\n")
+    if not line:
+        return None
+    try:
+        t = _event_time(line)
+    except Exception as exc:
+        print(f"audit-pack: skipped undecodable store line: {exc}", file=sys.stderr)
+        return None
+    if from_utc is not None and t < from_utc:
+        return None
+    if to_utc is not None and t > to_utc:
+        return None
+    return line
+
+
 def select_envelopes(
     store_path: pathlib.Path,
     *,
@@ -167,31 +198,17 @@ def select_envelopes(
     with a stderr note, never silently dropped or repaired.
     """
     if receipt_hash is not None:
-        lines = store_path.read_text(encoding="utf-8").splitlines()
-        for line in lines:
-            line = line.rstrip("\n")
-            if not line:
-                continue
-            rec = json.loads(line)
-            if rec["receipt_hash"] == receipt_hash:
+        for raw in store_path.read_text(encoding="utf-8").splitlines():
+            line = _line_matching_hash(raw, receipt_hash)
+            if line is not None:
                 return [line]
         raise FileNotFoundError(f"{receipt_hash} not in evidence store {store_path}")
 
     out: list[str] = []
     for raw in store_path.read_text(encoding="utf-8").splitlines():
-        line = raw.rstrip("\n")
-        if not line:
-            continue
-        try:
-            t = _event_time(line)
-        except Exception as exc:
-            print(f"audit-pack: skipped undecodable store line: {exc}", file=sys.stderr)
-            continue
-        if from_utc is not None and t < from_utc:
-            continue
-        if to_utc is not None and t > to_utc:
-            continue
-        out.append(line)
+        line = _decodable_window_line(raw, from_utc, to_utc)
+        if line is not None:
+            out.append(line)
     return out
 
 
@@ -305,6 +322,42 @@ def _graph_receipt_ids(graph_status: str, graphs: dict) -> set[str]:
     return ids
 
 
+def _store_hash_map(evidence_store: pathlib.Path) -> dict[str, str]:
+    """Every decodable store line keyed by its receipt_hash (errors noted)."""
+    in_store_all: dict[str, str] = {}
+    for raw in evidence_store.read_text(encoding="utf-8").splitlines():
+        line = raw.rstrip("\n")
+        if not line:
+            continue
+        try:
+            rh = json.loads(line)["receipt_hash"]
+        except Exception as exc:  # already reported by select_envelopes
+            print(
+                f"audit-pack: signature bundle skipped undecodable store line: {exc}",
+                file=sys.stderr,
+            )
+            continue
+        in_store_all[rh] = line
+    return in_store_all
+
+
+def _bundle_note(extra: int, missing: int) -> str:
+    """Honest note for the claim sheet."""
+    if extra and missing:
+        return (
+            f"{extra} chain receipt(s) embedded in `signatures/`; "
+            f"{missing} referenced receipt(s) were absent from the evidence store and the graphs record them as unknown"
+        )
+    if extra:
+        return f"{extra} chain receipt(s) embedded in `signatures/chain_receipts.jsonl` beyond the query window"
+    if missing:
+        return "referenced chain receipts were absent from the evidence store and the graphs record them as unknown"
+    return (
+        "complete within the query window: every receipt the resolved chain"
+        " graphs reference is carried in `receipts.jsonl`"
+    )
+
+
 def build_signature_bundle(
     evidence_store: pathlib.Path,
     in_window: list[str],
@@ -322,20 +375,7 @@ def build_signature_bundle(
     sig_dir = out_dir / "signatures"
     sig_dir.mkdir()
     window_hashes: set[str] = set()
-    in_store_all: dict[str, str] = {}
-    for raw in evidence_store.read_text(encoding="utf-8").splitlines():
-        line = raw.rstrip("\n")
-        if not line:
-            continue
-        try:
-            rh = json.loads(line)["receipt_hash"]
-        except Exception as exc:  # already reported by select_envelopes
-            print(
-                f"audit-pack: signature bundle skipped undecodable store line: {exc}",
-                file=sys.stderr,
-            )
-            continue
-        in_store_all[rh] = line
+    in_store_all = _store_hash_map(evidence_store)
     for line in in_window:
         try:
             window_hashes.add(json.loads(line)["receipt_hash"])
@@ -372,21 +412,7 @@ def build_signature_bundle(
             "was needed; this directory exists so the contract stays stable.\n",
             encoding="utf-8",
         )
-    if extra and missing:
-        note = (
-            f"{len(extra)} chain receipt(s) embedded in `signatures/`; "
-            f"{len(missing)} referenced receipt(s) were absent from the evidence store and the graphs record them as unknown"
-        )
-    elif extra:
-        note = f"{len(extra)} chain receipt(s) embedded in `signatures/chain_receipts.jsonl` beyond the query window"
-    elif missing:
-        note = "referenced chain receipts were absent from the evidence store and the graphs record them as unknown"
-    else:
-        note = (
-            "complete within the query window: every receipt the resolved chain"
-            " graphs reference is carried in `receipts.jsonl`"
-        )
-    return len(extra), note
+    return len(extra), _bundle_note(len(extra), len(missing))
 
 
 def _assert_key_snapshot_covers(snapshot_kids: set[str], used_kids: set[str]) -> None:
@@ -445,6 +471,83 @@ def _stage_timestamps(pack: pathlib.Path, envelopes: list[str]) -> int:
     return token_count
 
 
+def _copy_policy_files(policies_dir: pathlib.Path | None, pol_dir: pathlib.Path) -> list[str]:
+    """Copy policy files from the operator directory; return the copied names."""
+    if policies_dir is None:
+        return []
+    policies_dir = pathlib.Path(policies_dir)
+    copied_policies: list[str] = []
+    for f in sorted(policies_dir.iterdir()):
+        if f.is_file() and f.suffix in {".yaml", ".yml", ".json"}:
+            target = pol_dir / f.name
+            # the copied path is derived from an untrusted directory
+            # listing; refuse anything that does not stay inside pol_dir
+            if target.resolve().parent != pol_dir.resolve():
+                raise ValueError(
+                    f"policy file {str(f)!s} would not land inside the pack "
+                    "policies/ directory; refusing the copy"
+                )
+            shutil.copyfile(f, target)
+            copied_policies.append(f.name)
+    return copied_policies
+
+
+def _stage_policy_receipts(
+    pol_dir: pathlib.Path,
+    evidence_store: pathlib.Path,
+    policy_receipt_hashes: list[str] | None,
+) -> None:
+    """Copy the deployment-chain receipt lines named by the audit."""
+    if not policy_receipt_hashes:
+        return
+    pol_lines: list[str] = []
+    store_all = [
+        ln.rstrip("\n")
+        for ln in evidence_store.read_text(encoding="utf-8").splitlines()
+        if ln.strip()
+    ]
+    by_hash = {json.loads(ln)["receipt_hash"]: ln for ln in store_all}
+    for rh in policy_receipt_hashes:
+        if rh in by_hash:
+            pol_lines.append(by_hash[rh])
+    (pol_dir / "deployment_chain_receipts.jsonl").write_text(
+        "\n".join(pol_lines) + "\n", encoding="utf-8"
+    )
+
+
+def _policy_gap_note_and_readme(
+    copied_policies: list[str], policy_receipt_hashes: list[str] | None, pol_dir: pathlib.Path
+) -> str:
+    """Honest coverage note (and gap README) for the staged policy set."""
+    if copied_policies and policy_receipt_hashes:
+        return (
+            f"{len(copied_policies)} policy file(s) and deployment-chain receipts under `policies/`"
+        )
+    if copied_policies:
+        (pol_dir / README_MD).write_text(
+            "# Policies\n\nDeployment-chain receipts from the gate audit were not\n"
+            "accessible at pack time. Policy files are included verbatim; the\n"
+            "deployment chain for them is unverified — treated honestly as a gap,\n"
+            "never as evidence of approval.\n",
+            encoding="utf-8",
+        )
+        return (
+            f"{len(copied_policies)} policy file(s) under `policies/`; deployment-chain"
+            " receipts were not accessible at pack time — this is stated, not hidden"
+        )
+    (pol_dir / README_MD).write_text(
+        "# Policies\n\nNot included: no policy file or deployment-chain receipt\n"
+        "was accessible at pack time. The pack does not claim policy coverage\n"
+        "it cannot show. Obtain the current policy set from the operator\n"
+        "separately and verify it against the gate-audit records.\n",
+        encoding="utf-8",
+    )
+    return (
+        "not included — the policy set and its deployment-chain receipts were"
+        " not accessible at pack time; coverage here is unverified"
+    )
+
+
 def _stage_policies(
     pack: pathlib.Path,
     evidence_store: pathlib.Path,
@@ -454,64 +557,12 @@ def _stage_policies(
     """Copy policy files + deployment-chain receipts; note every gap honestly."""
     pol_dir = pack / "policies"
     pol_dir.mkdir()
-    copied_policies: list[str] = []
-    if policies_dir is not None:
-        policies_dir = pathlib.Path(policies_dir)
-        for f in sorted(policies_dir.iterdir()):
-            if f.is_file() and f.suffix in {".yaml", ".yml", ".json"}:
-                target = pol_dir / f.name
-                # the copied path is derived from an untrusted directory
-                # listing; refuse anything that does not stay inside pol_dir
-                if target.resolve().parent != pol_dir.resolve():
-                    raise ValueError(
-                        f"policy file {str(f)!s} would not land inside the pack "
-                        "policies/ directory; refusing the copy"
-                    )
-                shutil.copyfile(f, target)
-                copied_policies.append(f.name)
-    if policy_receipt_hashes:
-        pol_lines: list[str] = []
-        store_all = [
-            ln.rstrip("\n")
-            for ln in evidence_store.read_text(encoding="utf-8").splitlines()
-            if ln.strip()
-        ]
-        by_hash = {json.loads(ln)["receipt_hash"]: ln for ln in store_all}
-        for rh in policy_receipt_hashes:
-            if rh in by_hash:
-                pol_lines.append(by_hash[rh])
-        (pol_dir / "deployment_chain_receipts.jsonl").write_text(
-            "\n".join(pol_lines) + "\n", encoding="utf-8"
-        )
-    if copied_policies and policy_receipt_hashes:
-        policies_note = (
-            f"{len(copied_policies)} policy file(s) and deployment-chain receipts under `policies/`"
-        )
-    elif copied_policies:
-        policies_note = (
-            f"{len(copied_policies)} policy file(s) under `policies/`; deployment-chain"
-            " receipts were not accessible at pack time — this is stated, not hidden"
-        )
-        (pol_dir / README_MD).write_text(
-            "# Policies\n\nDeployment-chain receipts from the gate audit were not\n"
-            "accessible at pack time. Policy files are included verbatim; the\n"
-            "deployment chain for them is unverified — treated honestly as a gap,\n"
-            "never as evidence of approval.\n",
-            encoding="utf-8",
-        )
-    else:
-        policies_note = (
-            "not included — the policy set and its deployment-chain receipts were"
-            " not accessible at pack time; coverage here is unverified"
-        )
-        (pol_dir / README_MD).write_text(
-            "# Policies\n\nNot included: no policy file or deployment-chain receipt\n"
-            "was accessible at pack time. The pack does not claim policy coverage\n"
-            "it cannot show. Obtain the current policy set from the operator\n"
-            "separately and verify it against the gate-audit records.\n",
-            encoding="utf-8",
-        )
-    return policies_note, len(copied_policies)
+    copied_policies = _copy_policy_files(policies_dir, pol_dir)
+    _stage_policy_receipts(pol_dir, evidence_store, policy_receipt_hashes)
+    return (
+        _policy_gap_note_and_readme(copied_policies, policy_receipt_hashes, pol_dir),
+        len(copied_policies),
+    )
 
 
 def _chain_graph_resolver_path() -> pathlib.Path | None:
@@ -595,8 +646,20 @@ def _stage_chain_graph(
     return graph_status, graphs
 
 
+@dataclasses.dataclass(frozen=True)
+class _QueryContext:
+    """Query-window selection the manifest must record."""
+
+    from_utc: dt.datetime | None
+    to_utc: dt.datetime | None
+    receipt_hash: str | None
+    clock: dt.datetime | None
+    window: str
+
+
 def _build_pack_manifest(
     pack: pathlib.Path,
+    ctx: _QueryContext,
     *,
     envelopes: list[str],
     n_keys: int,
@@ -606,27 +669,21 @@ def _build_pack_manifest(
     snapshot_kids: set[str],
     keys_dir: pathlib.Path,
     trust_roots: pathlib.Path,
-    from_utc,
-    to_utc,
-    receipt_hash,
-    clock,
-    window: str,
-    policies_note: str,
 ) -> dict:
     """manifest.json + zip; return the summary dict."""
     files = {
         str(p.relative_to(pack)): _sha256_file(p) for p in sorted(pack.rglob("*")) if p.is_file()
     }
-    now = (clock or dt.datetime.now(dt.UTC)).replace(microsecond=0)
+    now = (ctx.clock or dt.datetime.now(dt.UTC)).replace(microsecond=0)
     snapshot_digest = _sha256_file(keys_dir / trust_roots.name)
     manifest = {
         "schema_version": PACK_SCHEMA_VERSION,
         "pack": "AUD-01 auditor export pack",
         "built_at": now.isoformat(),
         "query_window": {
-            "from": from_utc.isoformat() if from_utc else None,
-            "to": to_utc.isoformat() if to_utc else None,
-            "receipt_hash": receipt_hash,
+            "from": ctx.from_utc.isoformat() if ctx.from_utc else None,
+            "to": ctx.to_utc.isoformat() if ctx.to_utc else None,
+            "receipt_hash": ctx.receipt_hash,
         },
         "pinned_key_snapshot": {
             "file": f"keys/{trust_roots.name}",
@@ -742,6 +799,13 @@ def build_pack(
 
     return _build_pack_manifest(
         pack,
+        _QueryContext(
+            from_utc=from_utc,
+            to_utc=to_utc,
+            receipt_hash=receipt_hash,
+            clock=clock,
+            window=window,
+        ),
         envelopes=envelopes,
         n_keys=n_keys,
         token_count=token_count,
@@ -750,12 +814,6 @@ def build_pack(
         snapshot_kids=snapshot_kids,
         keys_dir=keys_dir,
         trust_roots=trust_roots,
-        from_utc=from_utc,
-        to_utc=to_utc,
-        receipt_hash=receipt_hash,
-        clock=clock,
-        window=window,
-        policies_note=policies_note,
     )
 
 
