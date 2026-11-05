@@ -145,3 +145,29 @@ deliberate, documented acceptance of that trade-off.
 
 **Decision owner:** Craig. **Status:** accepted November 2026; if the sidecar
 format ever changes, revisit and remove the suppression.
+
+## Web:S6819 and Web:S6845: listbox role and tabindex on the console search (SPA shell)
+
+**Rule:** Web:S6819 ("use <datalist> or <select> instead of the listbox role")
+on `services/console/static/index.html` `#search-results`, and Web:S6845
+("tabindex should only be declared on interactive elements") on `<main id="view" tabindex="0">`.
+
+**Rationale:**
+
+1. The console global search is a custom autocomplete widget following the
+   WAI-ARIA Combobox/Listbox pattern: the results panel is a live-filtered
+   list of navigation actions, not a plain value suggestion list. `<datalist>`
+   cannot carry interactive entries (it only offers input values), and a
+   `<select>` would replace the free-text search UX with a dropdown and lose
+   multi-field matching. The status-role finding from the same sweep was
+   converted to the native `<output>` element.
+2. `<main tabindex="0">` is the deliberate keyboard-accessible route target
+   for the SPA shell: a keyboard user moving past the sidebar must be able to
+   focus into the rendered view region. It carries no tab-stop burden in
+   normal tab order beyond that single stop.
+
+**Residual risk accepted:** none functional; purely an alternative-markup
+preference by the analyzer's Web rules.
+
+**Decision owner:** Craig. **Status:** accepted November 2026; revisit if
+the search widget is ever rebuilt, or if the SPA is replaced by server routes.
