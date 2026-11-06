@@ -440,3 +440,130 @@ def test_findings_age_seconds_none_without_detected_at(monkeypatch) -> None:
     val = _findings_age_seconds({"id": "x", "detected_at": "2026-11-05T00:00:00+00:00"})
     assert val is not None
     assert val >= 0
+
+
+# ------------------------------------------------------- EPIC P2.C fleet ----
+
+FLEET_ARTIFACTS = {
+    "gates": [
+        {
+            "gate_id": "gate-alpha",
+            "board": {
+                "kind": "findings_board",
+                "findings": [
+                    {"id": "f1", "rule": "RED-003", "severity": "critical",
+                     "verification_status": "pending"},
+                    {"id": "f2", "rule": "BEH-A", "severity": "low"},
+                ],
+            },
+            "coverage": {"reported": 75},
+            "baseline": {"status": "clean", "violations": []},
+            "drilldown_url": "/view/runs",
+        },
+        {"gate_id": "gate-beta"},  # shipped nothing but its name: all ABSENT
+    ]
+}
+
+
+def _fleet_reset(client: TestClient) -> None:
+    r = client.delete("/api/fleet/rollup")
+    assert r.status_code == 200
+
+
+def test_fleet_rollup_empty_fleet_is_explicit(client: TestClient) -> None:
+    _fleet_reset(client)
+    r = client.get("/api/fleet/rollup")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["rollup"]["kind"] == "fleet_rollup"
+    assert body["rollup"]["gates"] == []
+    assert body["rollup"]["totals"]["gates"] == 0
+
+
+def test_fleet_rollup_happy_is_deterministic_and_honest(client: TestClient) -> None:
+    _fleet_reset(client)
+    ing = client.post("/api/fleet/rollup", json=FLEET_ARTIFACTS)
+    assert ing.status_code == 200
+    assert ing.json() == {"ingested": True, "gates": 2}
+    first = client.get("/api/fleet/rollup")
+    again = client.get("/api/fleet/rollup")
+    assert first.status_code == again.status_code == 200
+    assert first.content == again.content  # deterministic output
+    rollup = first.json()["rollup"]
+    gates = {g["gate_id"]: g for g in rollup["gates"]}
+    assert gates["gate-alpha"]["violations"] == 1
+    assert gates["gate-alpha"]["coverage"] == 75  # as reported
+    # gate-beta reported nothing: ABSENT, never zero
+    for metric in ("violations", "drift", "unverified", "coverage"):
+        assert gates["gate-beta"][metric] == "ABSENT"
+    assert rollup["totals"]["violations"]["reported_total"] == 1
+    assert rollup["totals"]["violations"]["absent_gates"] == ["gate-beta"]
+
+
+def test_fleet_reingest_is_idempotent_per_gate(client: TestClient) -> None:
+    _fleet_reset(client)
+    client.post("/api/fleet/rollup", json=FLEET_ARTIFACTS)
+    ing = client.post("/api/fleet/rollup", json={"gates": [{"gate_id": "gate-beta"}]})
+    assert ing.status_code == 200
+    assert ing.json()["gates"] == 2  # merge, not duplicate
+
+
+def test_fleet_ingest_rejects_bad_artifacts_named(client: TestClient) -> None:
+    for bad, msg in (
+        (None, "must be a JSON array"),
+        ([{"gate_id": "../escape"}], "gate_id"),
+        ({"gates": [{"nonsense": 1}]}, "gate_id"),
+        ({"gates": [{"gate_id": "ok", "drilldown_url": "http://evil"}]}, "relative in-app path"),
+    ):
+        r = client.post("/api/fleet/rollup", json=bad)
+        assert r.status_code == 422, (bad, r.text)
+        assert msg in r.json()["error"]
+
+
+def test_fleet_baseline_surfaces_regressions_fleet_wide(client: TestClient) -> None:
+    _fleet_reset(client)
+    client.post(
+        "/api/fleet/rollup",
+        json={
+            "gates": [
+                {"gate_id": "gate-alpha", "baseline": {"status": "clean", "violations": []}},
+                {
+                    "gate_id": "gate-beta",
+                    "baseline": {"status": "regressed", "violations": [{"rule": "F2-deny-step"}]},
+                },
+            ]
+        },
+    )
+    r = client.get("/api/fleet/rollup")
+    baseline = r.json()["baseline"]
+    assert baseline["kind"] == "fleet_baseline"
+    assert baseline["regressed_gates"] == ["gate-beta"]
+    gates = {g["gate_id"]: g for g in baseline["gates"]}
+    assert gates["gate-beta"]["violations"] == [{"rule": "F2-deny-step"}]
+    missing = client.delete("/api/fleet/rollup")
+    assert missing.status_code == 200
+    baseline = client.get("/api/fleet/rollup").json()["baseline"]
+    assert all(g["status"] == "ABSENT" for g in baseline["gates"]) or baseline["gates"] == []
+
+
+def test_view_fleet_page_is_textcontent_only(client: TestClient) -> None:
+    r = client.get("/view/fleet")
+    assert r.status_code == 200
+    text = r.text
+    assert "textContent" in text
+    assert ".innerHTML" not in text  # no DOM writes but textContent
+    assert "onclick" not in text
+    assert "<script" in text and text.count("<script") == 1
+    assert "/api/fleet/rollup" in text
+    assert "ABSENT" in text  # absence is a first-class rendered state
+
+
+def test_fleet_sidecar_does_not_touch_evidence_store(
+    client: TestClient, data_dir: pathlib.Path
+) -> None:
+    _fleet_reset(client)
+    client.post("/api/fleet/rollup", json=FLEET_ARTIFACTS)
+    assert (data_dir / "fleet_gates.json").is_file()
+    assert (data_dir / "evidence_store.jsonl").read_bytes() == (
+        DATA_DIR / "evidence_store.jsonl"
+    ).read_bytes()

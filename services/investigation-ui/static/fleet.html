@@ -1,0 +1,124 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- EPIC P2.C fleet view: per-gate rollup + F2 baseline status on one screen. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OAA investigation — fleet rollup</title>
+<link rel="stylesheet" href="/static/styles.css">
+<style>
+  nav { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; }
+  h2 { margin: .6rem 0 .2rem; }
+  .legend { font-size: .85rem; margin-bottom: .6rem; }
+  .badge-good { background: #e6f4ea; color: #1a5c2c; }   /* green = proven / clean */
+  .badge-warn { background: #fdf3d7; color: #6b4e00; }   /* amber = un-proven */
+  .badge-bad  { background: #fde8e8; color: #8a1f1f; }   /* red = action needed */
+  .badge-absent { background: #eceff3; color: #45525f; } /* grey = ABSENT / not reported */
+</style>
+</head>
+<body>
+<nav>
+  <strong>Open Agent Assurance — fleet rollup</strong>
+  <a href="/">investigation</a>
+</nav>
+<p class="legend">
+  semantic colours — <span class="badge badge-good">proven / clean</span>
+  <span class="badge badge-warn">un-proven</span>
+  <span class="badge badge-bad">action needed</span>
+  <span class="badge badge-absent">ABSENT / not reported</span>
+</p>
+<main id="app"></main>
+
+<script>
+// SPDX-License-Identifier: Apache-2.0
+// Threat model T5 discipline: every dynamic value is set with textContent —
+// no innerHTML anywhere, no external fetches (only /api/fleet/rollup), and
+// ABSENT is rendered as an explicit state, never blank and never zero.
+"use strict";
+const app = document.getElementById("app");
+
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = String(text); // hostile text: safe by construction
+  return n;
+}
+function badge(parent, text) {
+  const cls = text === "ABSENT" ? "badge badge-absent"
+    : (text === "clean" || text === 0) ? "badge badge-good"
+    : (typeof text === "number" && text > 0) ? "badge badge-bad"
+    : "badge badge-warn";
+  parent.appendChild(el("span", cls, text));
+  return parent;
+}
+function table(head) {
+  const t = el("table"); const tr = el("tr");
+  head.forEach(h => tr.appendChild(el("th", null, h)));
+  t.appendChild(tr); return t;
+}
+
+function render(data) {
+  app.textContent = "";
+  const rollup = data.rollup || {};
+  app.appendChild(el("h2", null, "Fleet rollup (per gate)"));
+  const t = table(["gate", "findings", "violations", "drift", "unverified", "coverage (as reported)", "F2 baseline", "drill-down"]);
+  (rollup.gates || []).forEach(g => {
+    const tr = el("tr");
+    const name = el("td"); const link = el("a", null, g.gate_id);
+    link.href = g.drilldown_url || "/view/runs";
+    name.appendChild(link); tr.appendChild(name);
+    ["findings_total", "violations", "drift", "unverified", "coverage"].forEach(k => {
+      const c = el("td"); badge(c, g[k]); tr.appendChild(c);
+    });
+    const b = el("td"); badge(b, g.baseline); tr.appendChild(b);
+    tr.appendChild(el("td"));
+    t.appendChild(tr);
+  });
+  app.appendChild(t);
+
+  const totals = rollup.totals || {};
+  const t2 = table(["fleet metric", "reported total", "gates ABSENT"]);
+  ["violations", "drift", "unverified", "findings_total", "baseline_violations"].forEach(k => {
+    const tr = el("tr");
+    const cell = el("td");
+    const fold = totals[k] || {};
+    badge(cell, fold.reported_total);
+    tr.appendChild(el("td", null, k));
+    tr.appendChild(cell);
+    tr.appendChild(el("td", null, (fold.absent_gates || []).length ? (fold.absent_gates || []).join(", ") : "—"));
+    t2.appendChild(tr);
+  });
+  app.appendChild(el("h2", null, "Fleet totals (fold over reported gates only)"));
+  app.appendChild(t2);
+  app.appendChild(el("p", null, rollup.coverage_note || ""));
+
+  app.appendChild(el("h2", null, "Fleet baseline status (F2 regressions)"));
+  const bl = data.baseline || {};
+  const t3 = table(["gate", "baseline status", "regression violations"]);
+  (bl.gates || []).forEach(g => {
+    const tr = el("tr");
+    tr.appendChild(el("td", null, g.gate_id));
+    const c = el("td"); badge(c, g.status); tr.appendChild(c);
+    const v = el("td");
+    const violations = g.violations;
+    if (violations === "ABSENT") {
+      badge(v, "ABSENT");
+    } else {
+      v.appendChild(el("pre", null, JSON.stringify(violations, null, 2)));
+    }
+    tr.appendChild(v);
+    t3.appendChild(tr);
+  });
+  app.appendChild(t3);
+  app.appendChild(el("p", null, (bl.regressed_gates || []).length
+    ? "regressed gates: " + bl.regressed_gates.join(", ")
+    : "no regressed gates reported"));
+}
+
+fetch("/api/fleet/rollup").then(r => r.json()).then(render).catch(e => {
+  app.textContent = "fleet rollup unavailable: " + e;
+});
+</script>
+</body>
+</html>
