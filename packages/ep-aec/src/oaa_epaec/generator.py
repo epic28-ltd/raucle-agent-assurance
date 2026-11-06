@@ -68,10 +68,22 @@ def read_evidence_store(store_dir: pathlib.Path | str) -> dict[str, dict[str, An
         for raw in path.read_bytes().splitlines():
             if not raw.strip():
                 continue
-            line = raw.decode("utf-8")
-            rec = json.loads(line)
-            if set(rec) != {"receipt_hash", "jws"}:
-                raise ValueError(f"{path.name}: line is not a canonical envelope: {sorted(rec)}")
+            try:
+                line = raw.decode("utf-8")
+                rec = json.loads(line)
+            except (UnicodeDecodeError, ValueError) as e:
+                raise ValueError(f"{path.name}: unparsable line: {e}") from None
+            if not isinstance(rec, dict) or set(rec) != {"receipt_hash", "jws"}:
+                shape = sorted(rec) if isinstance(rec, dict) else type(rec).__name__
+                raise ValueError(f"{path.name}: line is not a canonical envelope: {shape}")
+            if not isinstance(rec["jws"], str):
+                raise ValueError(
+                    f"{path.name}: 'jws' must be a string, got {type(rec['jws']).__name__}"
+                )
+            if not isinstance(rec["receipt_hash"], str):
+                raise ValueError(
+                    f"{path.name}: 'receipt_hash' must be a string, got {type(rec['receipt_hash']).__name__}"
+                )
             want = "sha256:" + hashlib.sha256(rec["jws"].encode()).hexdigest()
             entry = {
                 "line": line,
@@ -87,8 +99,21 @@ def _payload_of(entry: dict[str, Any]) -> dict[str, Any]:
     """Parse the receipt's signed payload (middle JWS segment)."""
     import base64
 
-    payload_b64 = entry["jws"].split(".")[1]
-    return json.loads(base64.urlsafe_b64decode(payload_b64 + "=" * (-len(payload_b64) % 4)))
+    segments = entry["jws"].split(".")
+    if len(segments) != 3 or not all(segments):
+        raise ValueError(
+            f"malformed receipt JWS: compact serialization must have exactly "
+            f"three non-empty segments, got {len(segments)}"
+        )
+    payload_b64 = segments[1]
+    try:
+        decoded = base64.urlsafe_b64decode(payload_b64 + "=" * (-len(payload_b64) % 4))
+    except Exception as e:
+        raise ValueError(f"malformed receipt JWS: payload segment is not base64url: {e}") from None
+    try:
+        return json.loads(decoded.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError) as e:
+        raise ValueError(f"malformed receipt JWS: payload is not JSON: {e}") from None
 
 
 def _classify_entry(

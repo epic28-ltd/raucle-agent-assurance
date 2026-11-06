@@ -62,7 +62,21 @@ def export_rows(crosswalk: dict, profile: str = WORKPAPER_PROFILE) -> list[dict]
     un-cited control never becomes a workpaper.
     """
     if profile == WORKPAPER_PROFILE:
-        rows = [r for r in crosswalk.get("rows", []) if r.get("framework") == "AIUC-1"]
+        raw_rows = crosswalk.get("rows", []) if isinstance(crosswalk, dict) else None
+        if raw_rows is None or not isinstance(raw_rows, list):
+            raise WorkpaperError(
+                f"crosswalk 'rows' must be a list, got {type(raw_rows).__name__}"
+            )
+        out_rows: list[dict] = []
+        for idx, row in enumerate(raw_rows):
+            if not isinstance(row, dict):
+                raise WorkpaperError(
+                    f"crosswalk row {idx} must be a mapping, got {type(row).__name__}"
+                )
+            if not isinstance(row.get("control_id"), str) or not row["control_id"]:
+                raise WorkpaperError(f"crosswalk row {idx} lacks a non-empty 'control_id'")
+            out_rows.append(row)
+        rows = [r for r in out_rows if r.get("framework") == "AIUC-1"]
     else:
         raise WorkpaperError(f"unknown workpaper profile: {profile!r}")
     if not rows:
@@ -89,6 +103,8 @@ def build_workpaper(row: dict, packet: dict | None, dotted_lookup) -> dict:
     ``dotted_lookup`` is the graph exporter's packet-field lookup so the two
     exporters resolve evidence fields identically.
     """
+    if "status" not in row:
+        raise WorkpaperError(f"crosswalk row {row.get('control_id')!r} lacks 'status'")
     status = row["status"]
     evidence: list[dict] = []
     if packet is not None:
