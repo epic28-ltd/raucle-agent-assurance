@@ -64,9 +64,7 @@ def export_rows(crosswalk: dict, profile: str = WORKPAPER_PROFILE) -> list[dict]
     if profile == WORKPAPER_PROFILE:
         raw_rows = crosswalk.get("rows", []) if isinstance(crosswalk, dict) else None
         if raw_rows is None or not isinstance(raw_rows, list):
-            raise WorkpaperError(
-                f"crosswalk 'rows' must be a list, got {type(raw_rows).__name__}"
-            )
+            raise WorkpaperError(f"crosswalk 'rows' must be a list, got {type(raw_rows).__name__}")
         out_rows: list[dict] = []
         for idx, row in enumerate(raw_rows):
             if not isinstance(row, dict):
