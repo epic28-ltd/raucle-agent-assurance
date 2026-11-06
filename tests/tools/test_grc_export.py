@@ -50,7 +50,8 @@ def test_every_crosswalk_row_is_a_control_node_with_its_crosswalk_status():
     _, graph = _build(_green_with_receipts())
     crosswalk = json.loads(CROSSWALK.read_text())
     controls = [n for n in graph["nodes"] if n["kind"] == "control"]
-    assert len(controls) == len(crosswalk["rows"]) == 20
+    assert len(controls) == len(crosswalk["rows"])  # every row is a control node
+    assert len(controls) >= 28  # incl. the 8 N7 AIUC-1 rows
     by_id = {(n["framework"], n["control_id"]): n for n in controls}
     for row in crosswalk["rows"]:
         node = by_id[(row["framework"], row["control_id"])]
