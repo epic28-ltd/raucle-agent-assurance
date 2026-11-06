@@ -451,8 +451,12 @@ FLEET_ARTIFACTS = {
             "board": {
                 "kind": "findings_board",
                 "findings": [
-                    {"id": "f1", "rule": "RED-003", "severity": "critical",
-                     "verification_status": "pending"},
+                    {
+                        "id": "f1",
+                        "rule": "RED-003",
+                        "severity": "critical",
+                        "verification_status": "pending",
+                    },
                     {"id": "f2", "rule": "BEH-A", "severity": "low"},
                 ],
             },

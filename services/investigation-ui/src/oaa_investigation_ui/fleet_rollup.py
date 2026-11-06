@@ -66,8 +66,7 @@ def parse_artifacts(raw: object) -> list[dict]:
         raw = raw["gates"]
     if not isinstance(raw, list):
         raise ValueError(
-            'fleet artifacts must be a JSON array of gate artifacts'
-            ' or {"gates": [...]}'
+            'fleet artifacts must be a JSON array of gate artifacts or {"gates": [...]}'
         )
     for a in raw:
         if not isinstance(a, dict):
@@ -119,13 +118,15 @@ def gate_rollup(artifact: dict) -> dict:
         row["violations"] = sum(
             1
             for f in findings
-            if isinstance(f, dict) and isinstance(f.get("severity"), str)
+            if isinstance(f, dict)
+            and isinstance(f.get("severity"), str)
             and f["severity"] in VIOLATION_SEVERITIES
         )
         row["drift"] = sum(
             1
             for f in findings
-            if isinstance(f, dict) and isinstance(f.get("rule"), str)
+            if isinstance(f, dict)
+            and isinstance(f.get("rule"), str)
             and f["rule"].startswith(RED_DRIFT_PREFIX)
         )
         statuses = [
@@ -154,9 +155,7 @@ def gate_rollup(artifact: dict) -> dict:
     elif isinstance(baseline, dict):
         row["baseline"] = "clean" if baseline.get("status") == "clean" else "regressed"
         v = baseline.get("violations")
-        row["baseline_violations"] = (
-            len(v) if isinstance(v, list) else _int_or_absent(v)
-        )
+        row["baseline_violations"] = len(v) if isinstance(v, list) else _int_or_absent(v)
     else:
         row["baseline"] = ABSENT
         row["baseline_violations"] = ABSENT
@@ -231,9 +230,7 @@ def fleet_baseline(artifacts: list[dict]) -> dict:
                     "gate_id": a["gate_id"],
                     "status": "clean" if b.get("status") == "clean" else "regressed",
                     "violations": (
-                        b.get("violations")
-                        if isinstance(b.get("violations"), list)
-                        else ABSENT
+                        b.get("violations") if isinstance(b.get("violations"), list) else ABSENT
                     ),
                 }
             )
