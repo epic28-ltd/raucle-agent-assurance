@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/epic28-ltd/raucle-agent-assurance/schemas/grc_evidence_graph.schema.json",
+  "title": "GRC Evidence Graph v1",
+  "description": "Deterministic export of every framework control's evidence status from the governance crosswalk and an agent assurance packet. Vendor-neutral; GRC vendor integration is a documented non-goal.",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "guard",
+    "inputs",
+    "nodes",
+    "edges",
+    "graph_content_sha256"
+  ],
+  "properties": {
+    "kind": { "const": "grc_evidence_graph" },
+    "schema_version": { "const": 1 },
+    "guard": {
+      "type": "string",
+      "description": "Honesty guard: statuses come from the crosswalk; UNSUPPORTED names the gap."
+    },
+    "inputs": {
+      "type": "object",
+      "properties": {
+        "crosswalk_version": { "type": "integer" },
+        "packet_sha256": {
+          "type": ["string", "null"],
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "node_count": { "type": "integer", "minimum": 0 },
+        "edge_count": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["node_count", "edge_count"],
+      "additionalProperties": false
+    },
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/node" }
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/edge" }
+    },
+    "graph_content_sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "node": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {
+          "enum": ["agent", "policy", "receipt", "control", "evidence"]
+        },
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ref": { "type": "string" },
+        "hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "framework": { "type": "string" },
+        "control_id": { "type": "string" },
+        "title": { "type": ["string", "null"] },
+        "status": {
+          "enum": ["SUPPORTED", "PARTIAL", "UNSUPPORTED"],
+          "description": "Straight from the crosswalk, never inferred."
+        },
+        "declared_status": {
+          "type": "string",
+          "description": "Status the packet itself declares, when it does."
+        },
+        "status_conflict": {
+          "type": "boolean",
+          "description": "True when the packet declares more than the crosswalk supports."
+        },
+        "evidence_field": {
+          "type": ["string", "null"],
+          "description": "Dotted packet path; null is the honest UNSUPPORTED gap."
+        },
+        "unsat_reason": { "type": "string" },
+        "basis": { "type": "string" },
+        "packet_field": { "type": "string" },
+        "value_kind": { "enum": ["list", "number", "object", "string"] },
+        "value": {},
+        "value_count": { "type": "integer", "minimum": 0 },
+        "value_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "edge": {
+      "type": "object",
+      "required": ["kind", "source", "target"],
+      "properties": {
+        "kind": {
+          "enum": [
+            "evidence_satisfies_control",
+            "agent_bound_by_policy",
+            "receipt_part_of_chain"
+          ]
+        },
+        "source": { "type": "string" },
+        "target": { "type": "string" },
+        "status": {
+          "enum": ["SUPPORTED", "PARTIAL"],
+          "description": "Claim strength from the crosswalk; UNSUPPORTED controls have no satisfies edge at all."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
