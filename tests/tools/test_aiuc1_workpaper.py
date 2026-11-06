@@ -25,7 +25,9 @@ RH2 = "sha256:" + "b" * 64
 
 
 def _load(name):
-    spec = importlib.util.spec_from_file_location(name, REPO / "tools" / "grc_export" / f"{name}.py")
+    spec = importlib.util.spec_from_file_location(
+        name, REPO / "tools" / "grc_export" / f"{name}.py"
+    )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -55,7 +57,9 @@ def test_aiuc1_rows_exist_and_are_derivation_tagged():
     assert families == {"E. Accountability", "D. Reliability"}
     for row in rows:
         assert row["derivation"] == "derived"
-        assert row["source_heading"] and row["source_url"].startswith("https://standard.aiuc-1.com/")
+        assert row["source_heading"] and row["source_url"].startswith(
+            "https://standard.aiuc-1.com/"
+        )
         assert row["control_text"] and row["control_text"] == row["control_text"].strip()
 
 
@@ -64,7 +68,9 @@ def test_every_aiuc1_row_cites_its_heading_verbatim():
     # source citation fields and the citation is present, not paraphrased.
     for row in _aiuc1_rows():
         assert row["source_heading"] in row["control_id"]  # e.g. "E004: Assign accountability"
-        assert len(row["control_text"]) > len(row["source_heading"])  # full text, not just the heading
+        assert len(row["control_text"]) > len(
+            row["source_heading"]
+        )  # full text, not just the heading
         assert row["source_url"].rstrip(".md") in json.dumps(row)
 
 
@@ -92,12 +98,8 @@ def test_deterministic_byte_identical_output(tmp_path):
     p = tmp_path / "packet.json"
     p.write_text(json.dumps(packet))
     out1, out2 = tmp_path / "w1.json", tmp_path / "w2.json"
-    assert (
-        exporter.main(["--profile", "aiuc1", "--packet", str(p), "--out", str(out1)]) == 0
-    )
-    assert (
-        exporter.main(["--profile", "aiuc1", "--packet", str(p), "--out", str(out2)]) == 0
-    )
+    assert exporter.main(["--profile", "aiuc1", "--packet", str(p), "--out", str(out1)]) == 0
+    assert exporter.main(["--profile", "aiuc1", "--packet", str(p), "--out", str(out2)]) == 0
     assert out1.read_text() == out2.read_text()
     doc = json.loads(out1.read_text())
     assert doc["kind"] == "workpapers" and doc["schema_version"] == 1
@@ -186,7 +188,10 @@ def test_partial_evidence_field_absent_from_packet_degrades_honestly():
 
 
 def test_unexportable_rows_are_named_failures():
-    bad = {"version": 1, "rows": [{"framework": "AIUC-1", "control_id": "X", "status": "SUPPORTED"}]}
+    bad = {
+        "version": 1,
+        "rows": [{"framework": "AIUC-1", "control_id": "X", "status": "SUPPORTED"}],
+    }
     with pytest.raises(workpaper.WorkpaperError, match="verbatim citation fields"):
         workpaper.export_rows(bad)
     with pytest.raises(workpaper.WorkpaperError, match="unknown workpaper profile"):

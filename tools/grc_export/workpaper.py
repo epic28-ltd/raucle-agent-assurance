@@ -77,8 +77,7 @@ def export_rows(crosswalk: dict, profile: str = WORKPAPER_PROFILE) -> list[dict]
             )
         if row.get("status") == "UNSUPPORTED" and not row.get("unsat_reason"):
             raise WorkpaperError(
-                f"crosswalk row {row['control_id']!r} is UNSUPPORTED without an honest"
-                " unsat_reason"
+                f"crosswalk row {row['control_id']!r} is UNSUPPORTED without an honest unsat_reason"
             )
         out.append(row)
     return sorted(out, key=lambda r: r["control_id"])
@@ -93,7 +92,9 @@ def build_workpaper(row: dict, packet: dict | None, dotted_lookup) -> dict:
     status = row["status"]
     evidence: list[dict] = []
     if packet is not None:
-        evidence.append({"kind": "packet", "id": "packet:sha256", "packet_sha256": sha256_of(packet)})
+        evidence.append(
+            {"kind": "packet", "id": "packet:sha256", "packet_sha256": sha256_of(packet)}
+        )
         field = row.get("evidence_field")
         if field:
             value = dotted_lookup(packet, str(field))
@@ -113,9 +114,13 @@ def build_workpaper(row: dict, packet: dict | None, dotted_lookup) -> dict:
         for key, value in node.items():
             if key in ("hash", "packet_sha256", "value_sha256"):
                 if not (isinstance(value, str) and value.startswith("sha256:")):
-                    raise WorkpaperError(f"evidence node {node.get('id')!r} field {key!r} is not a sha256 hash")
+                    raise WorkpaperError(
+                        f"evidence node {node.get('id')!r} field {key!r} is not a sha256 hash"
+                    )
                 if len(value) != len("sha256:") + 64 or value[6:] != value[6:].lower():
-                    raise WorkpaperError(f"evidence node {node.get('id')!r} field {key!r} is not canonical sha256")
+                    raise WorkpaperError(
+                        f"evidence node {node.get('id')!r} field {key!r} is not canonical sha256"
+                    )
 
     gaps: list[str] = []
     if status == "UNSUPPORTED":
@@ -124,7 +129,9 @@ def build_workpaper(row: dict, packet: dict | None, dotted_lookup) -> dict:
         gaps.append(row.get("basis", ""))
     gaps = [g for g in gaps if g]
     if packet is None:
-        gaps.append("no agent assurance packet supplied to this export: the evidence below is absent")
+        gaps.append(
+            "no agent assurance packet supplied to this export: the evidence below is absent"
+        )
 
     wp: dict = {
         "control_id": row["control_id"],
