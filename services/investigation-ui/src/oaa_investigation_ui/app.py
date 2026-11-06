@@ -45,6 +45,13 @@ from .counting import (  # noqa: F401
     now_iso,
 )
 from .data import DemoData, default_data_dir
+from .fleet_rollup import (  # EPIC P2.C fleet rollup
+    fleet_baseline,
+    fleet_rollup,
+    load_artifacts,
+    parse_artifacts,
+    persist_artifacts,
+)
 from .red_intake import (
     RED_LENS_BY_SEVERITY,
     RED_SOURCE,
@@ -187,6 +194,10 @@ def index() -> FileResponse:
 
 def legacy() -> FileResponse:
     return FileResponse(_static_dir / "legacy.html")  # UI-01 SPA, kept reachable
+
+
+def fleet() -> FileResponse:
+    return FileResponse(_static_dir / "fleet.html")  # EPIC P2.C fleet view
 
 
 class _Routes:
@@ -493,6 +504,45 @@ class _Routes:
         return JSONResponse({"error": text}, status_code=422)
 
     # ------------------------------------------------- optional live Langfuse
+    # --------------------------------------------- EPIC P2.C fleet rollup
+    def fleet_view(self) -> dict:
+        """The ONE fleet view: per-gate rollup plus F2 baseline status,
+        both computed from persisted gate artifacts by the fleet module.
+        A gate that never shipped an artifact simply does not appear; a
+        gate that shipped one without figures renders ABSENT, never zero."""
+        artifacts = load_artifacts(self.data_dir)
+        return {
+            "rollup": fleet_rollup(artifacts),
+            "baseline": fleet_baseline(artifacts),
+        }
+
+    async def fleet_ingest(self, request: fastapi.Request):
+        """Ingest per-gate artifacts (gate_id required; board JSON export,
+        F2 baseline status and as-reported coverage all optional). Stored
+        in the fleet sidecar — the canonical evidence store stays untouched."""
+        body_bytes = await request.body()
+        try:
+            raw = json.loads(body_bytes.decode("utf-8")) if body_bytes else None
+        except ValueError:
+            raw = None
+        try:
+            artifacts = parse_artifacts(raw)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+        existing = load_artifacts(self.data_dir)
+        by_id = {a["gate_id"]: a for a in existing}
+        for a in artifacts:
+            by_id[a["gate_id"]] = a
+        merged = [by_id[k] for k in sorted(by_id)]
+        persist_artifacts(self.data_dir, merged)
+        return {"ingested": True, "gates": len(merged)}
+
+    def fleet_reset(self):
+        """Drop persisted gate artifacts (sidecar only; ingest is idempotent
+        per gate_id so re-posting restores everything it carried)."""
+        persist_artifacts(self.data_dir, [])
+        return {"fleet": "reset"}
+
     def live_traces(self) -> dict:
         base = os.environ.get("OAA_LANGFUSE_BASE_URL")
         public_key = os.environ.get("OAA_LANGFUSE_PUBLIC_KEY")
@@ -653,6 +703,10 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
     # ------------------------------------------------- UI-02.4 findings board
     app.get("/api/findings/board")(api.findings_board)
     app.post("/api/findings/{finding_id}/triage")(api.triage)
+    # --------------------------------------------- EPIC P2.C fleet rollup
+    app.get("/api/fleet/rollup")(api.fleet_view)
+    app.post("/api/fleet/rollup")(api.fleet_ingest)
+    app.delete("/api/fleet/rollup")(api.fleet_reset)
     app.get("/api/receipts/{receipt_hash}")(api.receipt)
     app.get("/api/receipts/{receipt_hash}/jws")(api.jws)
     app.post("/api/receipts/{receipt_hash}/verify")(api.verify_receipt)
@@ -668,6 +722,7 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
     app.post("/view/receipt/{receipt_hash}/verify", response_class=HTMLResponse)(api.view_verify)
     app.get("/", include_in_schema=False)(index)
     app.get("/legacy.html", include_in_schema=False)(legacy)
+    app.get("/view/fleet", include_in_schema=False, response_class=FileResponse)(fleet)
     return app
 
 
