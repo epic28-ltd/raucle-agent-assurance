@@ -337,6 +337,16 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Export the GRC evidence graph (v1).")
     parser.add_argument("--crosswalk", type=pathlib.Path, default=DEFAULT_CROSSWALK)
     parser.add_argument("--packet", type=pathlib.Path, default=None)
+    parser.add_argument(
+        "--profile",
+        default="graph",
+        choices=("graph", "aiuc1"),
+        help=(
+            "aiuc1 exports the AIUC-1 crosswalk rows as workpapers/v1"
+            " (sibling module grc_export/workpaper.py); graph is the default"
+            " grc_evidence_graph/v1 export."
+        ),
+    )
     parser.add_argument("--out", type=pathlib.Path, default=None, help="default: stdout")
     args = parser.parse_args(argv)
 
@@ -349,14 +359,28 @@ def main(argv: list[str] | None = None) -> int:
             packet = _load_json_file(args.packet, "packet")
             if not isinstance(packet, dict):
                 raise ExportError("packet must be a JSON object")
-        graph = build_graph(crosswalk, packet)
-        text = render(graph)
-        if args.out is not None:
-            args.out.write_text(text, encoding="utf-8")
-            print(
-                f"wrote {args.out}: {graph['inputs']['node_count']} nodes,"
+        if args.profile == "aiuc1":
+            if str(MODULE_DIR) not in sys.path:
+                sys.path.insert(0, str(MODULE_DIR))
+            import workpaper as workpaper_mod  # noqa: PLC0415 - profile-selected module
+        else:
+            workpaper_mod = None
+        if workpaper_mod is not None:
+            doc = workpaper_mod.build_workpapers(crosswalk, packet, _dotted_lookup)
+            text = workpaper_mod.render(doc)
+            summary = f"workpapers: {doc['inputs']['workpaper_count']}"
+        else:
+            if args.profile != "graph":
+                raise ExportError(f"unknown export profile: {args.profile!r}")
+            graph = build_graph(crosswalk, packet)
+            text = render(graph)
+            summary = (
+                f"graph: {graph['inputs']['node_count']} nodes,"
                 f" {graph['inputs']['edge_count']} edges"
             )
+        if args.out is not None:
+            args.out.write_text(text, encoding="utf-8")
+            print(f"wrote {args.out}: {summary}")
         else:
             sys.stdout.write(text)
     except ExportError as exc:

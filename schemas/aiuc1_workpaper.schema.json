@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/epic28-ltd/raucle-agent-assurance/schemas/aiuc1_workpaper.schema.json",
+  "title": "AIUC-1 workpapers v1",
+  "description": "Deterministic export of the AIUC-1 crosswalk rows as SOC 2-style auditor workpapers. Control text is quoted verbatim from the AIUC-1 published framework headings cited per row; evidence nodes carry hashes only; honest gaps are named, not papered over. Not an auditor's report, not a certification.",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "profile",
+    "guard",
+    "inputs",
+    "workpapers",
+    "workpaper_content_sha256"
+  ],
+  "properties": {
+    "kind": { "const": "workpapers" },
+    "schema_version": { "const": 1 },
+    "profile": { "const": "aiuc1" },
+    "guard": {
+      "type": "string",
+      "description": "Honesty guard: verbatim-cited controls, hash-only evidence, named gaps."
+    },
+    "inputs": {
+      "type": "object",
+      "properties": {
+        "crosswalk_version": { "type": "integer" },
+        "packet_sha256": {
+          "type": ["string", "null"],
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "workpaper_count": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["workpaper_count"],
+      "additionalProperties": false
+    },
+    "workpapers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/workpaper" }
+    },
+    "workpaper_content_sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "workpaper": {
+      "type": "object",
+      "required": [
+        "control_id",
+        "framework",
+        "title",
+        "control_text",
+        "source_heading",
+        "source_url",
+        "family_heading",
+        "family_url",
+        "derivation",
+        "status",
+        "evidence_field",
+        "evidence",
+        "auditor_notes"
+      ],
+      "properties": {
+        "control_id": { "type": "string" },
+        "framework": { "const": "AIUC-1" },
+        "title": { "type": "string" },
+        "control_text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Verbatim quote of the AIUC-1 requirement text; never paraphrased."
+        },
+        "source_heading": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Verbatim AIUC-1 published framework heading the row was derived from."
+        },
+        "source_url": { "type": "string" },
+        "family_heading": { "type": "string" },
+        "family_url": { "type": "string" },
+        "derivation": {
+          "enum": ["derived"],
+          "description": "Every AIUC-1 row is derivation-tagged."
+        },
+        "status": {
+          "enum": ["SUPPORTED", "PARTIAL", "UNSUPPORTED"],
+          "description": "Straight from the crosswalk, never inferred."
+        },
+        "evidence_field": {
+          "type": ["string", "null"],
+          "description": "Dotted packet path; null is the honest UNSUPPORTED gap."
+        },
+        "evidence": {
+          "type": "array",
+          "description": "Hash-only evidence nodes.",
+          "items": { "$ref": "#/$defs/evidenceNode" }
+        },
+        "auditor_notes": { "$ref": "#/$defs/notes" }
+      },
+      "additionalProperties": false
+    },
+    "evidenceNode": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": { "enum": ["packet", "evidence_field_digest", "receipt"] },
+        "id": { "type": "string" },
+        "packet_field": { "type": "string" },
+        "packet_sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "value_sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "notes": {
+      "type": "object",
+      "required": ["derivation_note", "status_reason", "gaps"],
+      "properties": {
+        "derivation_note": { "type": "string" },
+        "status_reason": { "type": ["string", "null"] },
+        "gaps": {
+          "type": "array",
+          "description": "Honest gaps: UNSUPPORTED names full gaps; PARTIAL names scoping limitations; SUPPORTED carries none.",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
