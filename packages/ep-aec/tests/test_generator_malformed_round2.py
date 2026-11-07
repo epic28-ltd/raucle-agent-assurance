@@ -51,11 +51,11 @@ def test_read_store_non_string_jws_is_named(tmp_path):
     assert "store.jsonl" in str(exc.value)
 
 
-def test_payload_of_malformed_jws_is_named():
-    for jws in ["nodots", "a.b", "aaaa.", ".payload.sig"]:
-        with pytest.raises(ValueError) as exc:
-            _payload_of({"jws": jws})
-        assert "malformed receipt JWS" in str(exc.value)
+@pytest.mark.parametrize("jws", ["nodots", "a.b", "aaaa.", ".payload.sig"])
+def test_payload_of_malformed_jws_is_named(jws):
+    with pytest.raises(ValueError) as exc:
+        _payload_of({"jws": jws})
+    assert "malformed receipt JWS" in str(exc.value)
 
 
 def test_payload_of_unparsable_payload_is_named():

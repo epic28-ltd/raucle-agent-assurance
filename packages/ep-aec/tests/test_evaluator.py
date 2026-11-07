@@ -77,7 +77,7 @@ class TestLimits:
     def test_token_limit(self):
         exactly = " a" + " AND a" * 127  # 255 tokens, ~1KB: inside both limits
         v, _ = evaluate_requirement(exactly, [])
-        assert v in (SATISFIED, UNSATISFIED)
+        assert SATISFIED == v or UNSATISFIED == v
         with pytest.raises(RequirementRejected) as e:
             evaluate_requirement(exactly + " OR a", [])  # 257 tokens
         assert "EVAL_LIMIT_TOKENS" == e.value.reason_code
@@ -115,7 +115,7 @@ class TestParseErrors:
     def test_rejected(self, req):
         with pytest.raises(RequirementRejected) as e:
             evaluate_requirement(req, PRESENT)
-        assert e.value.reason_code in ("EVAL_PARSE", "EVAL_LIMIT_BYTES")
+        assert any(k == e.value.reason_code for k in ("EVAL_PARSE", "EVAL_LIMIT_BYTES"))
 
     def test_rejection_verdict_never_satisfied(self):
         # A rejected requirement must never yield a verdict — it raises.
