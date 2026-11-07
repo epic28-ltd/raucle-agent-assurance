@@ -131,3 +131,80 @@ def test_parse_document_reports_every_inline_span():
     inline = [s for s in spans if s["kind"] == "inline"]
     assert [s["content"] for s in inline] == ["one", "two", "y"]
     assert any("unpaired backtick on line 2" in w for w in warnings)
+
+
+def _load_module():
+    spec = importlib.util.spec_from_file_location("check_docs_alignment", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _mod():
+    if not hasattr(_load_module, "_cache"):
+        _load_module._cache = _load_module()
+    return _load_module._cache
+
+
+def test_parse_document_pairs_inline_and_fence_spans():
+    mod = _mod()
+    text = textwrap.dedent(
+        """
+        prose `scripts/check_docs_alignment.py` inline.
+
+        ```bash
+        .venv/bin/python scripts/check_docs_alignment.py
+        ```
+
+        ```python
+        print("not a bash fence")
+        ```
+        """
+    )
+    spans, warnings = mod.parse_document(text)
+    kinds = [s["kind"] for s in spans]
+    assert kinds.count("inline") >= 1
+    assert kinds.count("fence") >= 1
+    # the ```python fence is named as outside the checked set, not scanned
+    assert warnings == ["non-bash fence (language 'python') opened on line 8"]
+
+
+def test_check_inline_span_flags_missing_repo_path_and_skips_external():
+    mod = _mod()
+    assert mod.check_inline_span({"content": "docs/does/not/exist.md"}) == [
+        "inline path does not exist: docs/does/not/exist.md"
+    ]
+    assert mod.check_inline_span({"content": "external://somewhere-else"}) == []
+    assert mod.check_inline_span({"content": "README.md"}) == []
+
+
+def test_check_fence_lines_strips_cli_wrappers_and_flags_missing_target():
+    mod = _mod()
+    fence = [{"content": ".venv/bin/python scripts/nope.py --flag"}]
+    assert mod.check_fence_lines(fence) == ["code block target does not exist: scripts/nope.py"]
+    # module invocation is not a repo path; prompts and comments are prose
+    assert mod.check_fence_lines([{"content": ".venv/bin/python -m pytest"}]) == []
+    assert mod.check_fence_lines([{"content": "# just a comment"}]) == []
+    assert mod.check_fence_lines([{"content": "$ .venv/bin/pytest -q"}]) == []
+    assert mod.check_fence_lines([{"content": ""}]) == []
+    assert mod.check_fence_lines([{"content": ".venv/bin/ruff format"}]) == []
+
+
+def test_check_document_names_external_github_links():
+    mod = _mod()
+    tmp = pathlib.Path(SCRIPT.parent)
+    doc = tmp / "_test_external_link_alignment.md"
+    try:
+        doc.write_text("see `https://github.com/someone/else/wiki`\n")
+        problems = mod.check_document(doc)
+        assert any("_test_external_link_alignment.md: external URL" in p for p in problems)
+    finally:
+        doc.unlink()
+
+
+def test_main_passes_on_synthetic_roles_dir(tmp_path):
+    mod = _mod()
+    for name in ("leaders.md", "architects.md", "engineers.md"):
+        (tmp_path / name).write_text("see `README.md`\n")
+    rc = mod.main(["--roles-dir", str(tmp_path)])
+    assert rc == 0
