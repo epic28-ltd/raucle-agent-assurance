@@ -48,6 +48,38 @@ RAUCLE_DISTRIBUTION_PIN = "raucle 0.23.5 (git 63edacd)"
 TRUST_POLICY_VERSION = "evd-trust-1"
 
 
+class DistributionPinDrift(RuntimeError):
+    """The installed raucle does not match RAUCLE_DISTRIBUTION_PIN.
+
+    Raised by :func:`_raucle` instead of silently using whichever raucle is
+    importable — stale pins previously drifted silently (the 7 Nov replay
+    digest break was this class of failure).
+    """
+
+
+def _inst_raucle_version(module: Any) -> str | None:
+    """Best-effort version of the installed raucle: dist metadata first."""
+    import importlib.metadata as md  # noqa: PLC0415
+
+    try:
+        return md.version("raucle")
+    except md.PackageNotFoundError:  # pragma: no cover - namespace install
+        return getattr(module, "__version__", None) or None
+
+
+def _check_raucle_pin(module: Any) -> None:
+    """Fail *named* when the installed raucle version is not the pinned one."""
+    expected = RAUCLE_DISTRIBUTION_PIN.replace("raucle ", "").split(" ")[0]
+    found = _inst_raucle_version(module)
+    if found and found != expected:
+        raise DistributionPinDrift(
+            f"Installed raucle {found} does not match "
+            f"RAUCLE_DISTRIBUTION_PIN ({RAUCLE_DISTRIBUTION_PIN!r}). "
+            "Re-key the pin and regenerate the fixture corpus before "
+            "consuming further verification evidence."
+        )
+
+
 def _raucle():
     """Lazy import of the optional raucle dependency, with install guidance."""
     try:
@@ -61,6 +93,7 @@ def _raucle():
             "Install it from the pinned v0.23.5 worktree (git 63edacd) or "
             "PyPI raucle==0.23.5 — see packages/raucle-adapter/README.md."
         ) from exc
+    _check_raucle_pin(raucle)
     return raucle
 
 
