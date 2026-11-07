@@ -180,7 +180,8 @@ def test_binding_with_absent_hash_degrades_to_unexecuted() -> None:
 def test_results_document_is_byte_identical_across_runs() -> None:
     lines_a = _cli_json([SUITES / "ops.yaml", SUITES / "banking.yaml", SUITES / "insurance.yaml"])
     lines_b = _cli_json([SUITES / "ops.yaml", SUITES / "banking.yaml", SUITES / "insurance.yaml"])
-    assert lines_a == lines_b and lines_a.strip()
+    assert lines_a == lines_b
+    assert lines_a.strip()
 
 
 def test_results_document_has_no_wallclock_content() -> None:
@@ -203,7 +204,8 @@ def test_cli_fail_on_executed_fail_exits_one_on_fail_scenario() -> None:
     assert proc.returncode == 1, proc.stdout
     doc = json.loads(proc.stdout)
     fails = [r for s in doc["suites"] for r in s["results"] if r["outcome"] == "EXECUTED_FAIL"]
-    assert fails and fails[0]["scenario_id"] == "sce-ops-004-unknown-never-passes-silently"
+    assert fails
+    assert fails[0]["scenario_id"] == "sce-ops-004-unknown-never-passes-silently"
 
 
 def test_cli_rejects_invalid_suite_with_error_and_exit_one() -> None:

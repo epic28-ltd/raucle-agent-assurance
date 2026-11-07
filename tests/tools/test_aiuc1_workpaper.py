@@ -57,10 +57,9 @@ def test_aiuc1_rows_exist_and_are_derivation_tagged():
     assert families == {"E. Accountability", "D. Reliability"}
     for row in rows:
         assert row["derivation"] == "derived"
-        assert row["source_heading"] and row["source_url"].startswith(
-            "https://standard.aiuc-1.com/"
-        )
-        assert row["control_text"] and row["control_text"] == row["control_text"].strip()
+        assert row["source_heading"]
+        assert row["source_url"].startswith("https://standard.aiuc-1.com/")
+        assert row["control_text"] == row["control_text"].strip()
 
 
 def test_every_aiuc1_row_cites_its_heading_verbatim():
@@ -102,7 +101,8 @@ def test_deterministic_byte_identical_output(tmp_path):
     assert exporter.main(["--profile", "aiuc1", "--packet", str(p), "--out", str(out2)]) == 0
     assert out1.read_text() == out2.read_text()
     doc = json.loads(out1.read_text())
-    assert doc["kind"] == "workpapers" and doc["schema_version"] == 1
+    assert doc["kind"] == "workpapers"
+    assert doc["schema_version"] == 1
     assert doc["inputs"]["workpaper_count"] == len(doc["workpapers"]) == 8
     # no wall-clock / volatile data
     assert "timestamp" not in json.dumps(doc)
@@ -132,7 +132,8 @@ def test_evidence_nodes_are_hash_only():
                         assert len(node[key]) == 71
         # no signed payload leakage anywhere in the document
         full = json.dumps(doc)
-        assert "jws" not in full and "eyJ" not in full
+        assert "jws" not in full
+        assert "eyJ" not in full
         assert "denial" not in full
 
 
