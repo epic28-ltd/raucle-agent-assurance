@@ -5,7 +5,59 @@ Format based on Keep a Changelog; versioning will be semver from 0.1.0.
 
 ## Unreleased
 
-Current repository state: alpha, in progress. Everything below is imported
+### 2026-11-05 → 07: sprint wave (PRs #26–#65)
+
+The 4-Nov spike imports below are followed by the merged sprint wave. Every
+entry lists the PR that carried it.
+
+### Added (sprint wave)
+
+- OV-1 assurance packet generator (#28); OV-3 packet offline re-validation
+  (#30); role-based assurance pages plus the OV-6 docs-alignment check (#29);
+  OV-15 fence-aware docs-alignment parser (#42).
+- Run records: privacy-filtered AgentRunRecord schema + fixture generator,
+  OV-8 (#27); Agent Process Expectations schema + validator, OV-7 (#32);
+  scenario taxonomy OV-11 (#34) and OV-26 scenario banks + offline harness
+  CLI (#57).
+- Prebind indicators OV-12/#35 and OV-16 round 2 (#43) — CAGE-1 lifecycle
+  states derived from gate receipts, evidence-backed narrowed/no_bind
+  counters; independent-verification controls OV-9 release compiler (#37)
+  with determinism/--output follow-ups (#41).
+- OV-10 controls-efficacy mutation catalog + campaign runner v0 (#40);
+  OV-13 Independent Assurance Agent scaffold (#36); OV-20 IAA consumes
+  revalidation reports and cites REPRODUCED/MISMATCH (#45).
+- OV-22 optional ML-DSA-65 packet signature over the packet digest (#44) and
+  PQ signature trust-model docs (#46).
+- OV-27 GRC evidence-graph export `grc_evidence_graph/v1` (#56); N7 AIUC-1
+  crosswalk rows + `workpapers/v1` verbatim-cited export (#58).
+- OV-5 assurance-gate CI action + reusable workflow + fixture runs (#33);
+  investigation-UI assurance packet over HTTP, OV-2 (#38).
+- P2.C honest fleet rollup + fleet baseline status on one view (#59).
+
+### Fixed (sprint wave)
+
+- Bug-hunt round 1 (#49): evidence readers named-skip malformed lines
+  (prebind, correlation, run-records, crosswalk, release compiler);
+  round 2 (#60): named failures for malformed evidence-store lines and
+  crosswalk rows.
+- Policy receipt staging tolerates undecodable store entries (named skip,
+  no pack crash) (#48); `revalidate_packet` CLI input-read canonicalisation
+  (#55).
+
+### Documentation (sprint wave)
+
+- Overnight ledgers (#47, #54), validated 10x backlog (#26), red-team
+  round-3 plan (#61), per-path S8707 acceptance notes (#52).
+
+### Security (sprint wave)
+
+- RED-031 round-3 remediation (#65) — see the Security section below (same
+  change, merged in the wave). Sonar residual sweeps cleared all 23 open
+  main-branch findings to 0 (#62) with follow-ups (#63, #64), and the
+  wave-4 refactor/sonar lanes (#1–#5, plus #51, #53) were gated per-PR with
+  0 open issues on new code.
+
+Current repository state: alpha, in progress. The entries below are imported
 from completed 4-Nov-2026 spike work (EPIC K, Open Agent Assurance companion).
 
 ### Added
