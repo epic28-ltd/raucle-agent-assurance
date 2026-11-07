@@ -63,7 +63,7 @@ class TestVerdicts:
         assert UNSATISFIED == v
         atom_codes = [c for c in codes if c.startswith("EVAL_UNSATISFIED_ATOM:")]
         assert 16 == len(atom_codes)
-        assert codes[16] == "EVAL_UNSATISFIED_ATOMS_TRUNCATED"
+        assert "EVAL_UNSATISFIED_ATOMS_TRUNCATED" == codes[16]
 
 
 class TestLimits:
@@ -124,6 +124,7 @@ class TestParseErrors:
 
     def test_rejection_is_deterministic(self):
         r1 = None
+        r2 = None
         try:
             evaluate_requirement("(" * 50 + "a", [])
         except RequirementRejected as e:
@@ -131,4 +132,5 @@ class TestParseErrors:
         try:
             evaluate_requirement("(" * 50 + "a", [])
         except RequirementRejected as e:
-            assert (e.reason_code, e.detail) == r1
+            r2 = (e.reason_code, e.detail)
+        assert r1 == r2
