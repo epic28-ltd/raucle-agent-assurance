@@ -557,7 +557,8 @@ def test_view_fleet_page_is_textcontent_only(client: TestClient) -> None:
     assert "textContent" in text
     assert ".innerHTML" not in text  # no DOM writes but textContent
     assert "onclick" not in text
-    assert "<script" in text and text.count("<script") == 1
+    assert "<script" in text
+    assert text.count("<script") == 1
     assert "/api/fleet/rollup" in text
     assert "ABSENT" in text  # absence is a first-class rendered state
 

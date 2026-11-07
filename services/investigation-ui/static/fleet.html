@@ -30,7 +30,7 @@
 </p>
 <main id="app"></main>
 
-<script>
+<script type="module">
 // SPDX-License-Identifier: Apache-2.0
 // Threat model T5 discipline: every dynamic value is set with textContent —
 // no innerHTML anywhere, no external fetches (only /api/fleet/rollup), and
@@ -44,12 +44,14 @@ function el(tag, cls, text) {
   if (text !== undefined) n.textContent = String(text); // hostile text: safe by construction
   return n;
 }
+function badgeClass(text) {
+  if (text === "ABSENT") return "badge badge-absent";
+  if (text === "clean" || text === 0) return "badge badge-good";
+  if (typeof text === "number" && text > 0) return "badge badge-bad";
+  return "badge badge-warn";
+}
 function badge(parent, text) {
-  const cls = text === "ABSENT" ? "badge badge-absent"
-    : (text === "clean" || text === 0) ? "badge badge-good"
-    : (typeof text === "number" && text > 0) ? "badge badge-bad"
-    : "badge badge-warn";
-  parent.appendChild(el("span", cls, text));
+  parent.appendChild(el("span", badgeClass(text), text));
   return parent;
 }
 function table(head) {
@@ -116,9 +118,12 @@ function render(data) {
     : "no regressed gates reported"));
 }
 
-fetch("/api/fleet/rollup").then(r => r.json()).then(render).catch(e => {
+try {
+  const r = await fetch("/api/fleet/rollup");
+  render(await r.json());
+} catch (e) {
   app.textContent = "fleet rollup unavailable: " + e;
-});
+}
 </script>
 </body>
 </html>
