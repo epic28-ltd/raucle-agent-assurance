@@ -63,7 +63,7 @@ class TestVerdicts:
         assert UNSATISFIED == v
         atom_codes = [c for c in codes if c.startswith("EVAL_UNSATISFIED_ATOM:")]
         assert 16 == len(atom_codes)
-        assert "EVAL_UNSATISFIED_ATOMS_TRUNCATED" in codes
+        assert codes[16] == "EVAL_UNSATISFIED_ATOMS_TRUNCATED"
 
 
 class TestLimits:
@@ -131,4 +131,4 @@ class TestParseErrors:
         try:
             evaluate_requirement("(" * 50 + "a", [])
         except RequirementRejected as e:
-            assert r1 == (e.reason_code, e.detail)
+            assert (e.reason_code, e.detail) == r1

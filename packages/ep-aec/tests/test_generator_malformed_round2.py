@@ -59,8 +59,9 @@ def test_payload_of_malformed_jws_is_named(jws):
 
 
 def test_payload_of_unparsable_payload_is_named():
+    jws = f"{b64u(b'{}')}.{b64u(b'not json')}.{b64u(b'sig')}"  # args built before the raise scope
     with pytest.raises(ValueError) as exc:
-        _payload_of({"jws": f"{b64u(b'{}')}.{b64u(b'not json')}.{b64u(b'sig')}"})
+        _payload_of({"jws": jws})
     assert "malformed receipt JWS" in str(exc.value)
 
 
