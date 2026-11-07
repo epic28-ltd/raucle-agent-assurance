@@ -49,6 +49,13 @@ from completed 4-Nov-2026 spike work (EPIC K, Open Agent Assurance companion).
 
 ### Security
 
+- RED-031 (round-3 remediation): the blanket `oaa.metadata.*` redaction
+  allowlist is REMOVED — metadata values now pass through the same
+  SDK secret-scan/redact pipeline and the collector batch re-scan as any
+  other value (config v2 ships `allowlist: []`; the only named passthrough
+  is the EMPTY value). Metadata-planted secrets are redacted at the SDK
+  and quarantined at the collector.
+
 - SonarQube Cloud security sweep (Nov 2026): harden AUD-01 pack builder
   (`--out` canonicalisation/refusal, CLI input canonicalisation,
   content-derived filename validation, policy-copy containment), zip-slip-

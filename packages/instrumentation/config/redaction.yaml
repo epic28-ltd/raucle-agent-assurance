@@ -4,16 +4,22 @@
 #
 # Span-attribute VALUES matching any pattern are replaced with
 # `[REDACTED:<class>|len=<n>]` — the matched secret never survives, and the
-# only retained datum is the original value length. Keys matching the
-# allowlist globs are passed through untouched (oaa.metadata.* is the
-# metadata-only namespace per ADR: metadata-only by default).
-config_version: 1
+# only retained datum is the original value length.
+#
+# RED-031 (round-3): the blanket `oaa.metadata.*` allowlist is REMOVED.
+# Metadata is structure only in name — an operator plant under any
+# `oaa.metadata.*` key used to travel raw through both the SDK redaction
+# and the collector re-scan. Every key value now passes through the same
+# scan/redact pipeline; there are NO key-tier exemptions. The only named
+# passthrough is the EMPTY value (nothing to scan): ""
+# The `allowlist` parser capability remains (a config MAY still name
+# globs) but config v2 ships none, and any future exemption must carry
+# a documented, minimal rationale here.
+config_version: 2
 
 # Attribute keys that are exempt from redaction (fnmatch globs).
-# Rationale: the oaa.metadata.* namespace is the *only* place free-form
-# metadata is allowed to travel raw; keys are structure, not content.
-allowlist:
-  - "oaa.metadata.*"
+# Intentionally EMPTY: no key namespace exempts its values from scanning.
+allowlist: []
 
 # Pattern-based redaction, evaluated before the entropy heuristic.
 # A value is redacted if ANY pattern matches anywhere in the string.

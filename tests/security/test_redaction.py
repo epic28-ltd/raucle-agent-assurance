@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Open Agent Assurance contributors
-"""PRIV-01 unit tests: redaction patterns, allowlist, entropy bounds,
-collector scan/quarantine. All runnable WITHOUT the Langfuse stack
+"""PRIV-01 unit tests: redaction patterns, metadata governance (RED-031), entropy
+bounds, collector scan/quarantine. All runnable WITHOUT the Langfuse stack
 (the live-leak proof is in test_priv01_live.py and skips cleanly offline)."""
 
 from __future__ import annotations
@@ -142,23 +142,43 @@ def test_embedded_matches_are_scrubbed_in_place(redactor: Redactor, value: str) 
 
 
 # --------------------------------------------------------------------- allowlist
-ALLOWLIST_CASES = [
+# RED-031: no key-tier exemption ships; oaa.metadata.* VALUES are governed
+# like any other value (the only passthrough is an EMPTY string).
+METADATA_CASES = [
     "oaa.metadata.run_note",
     "oaa.metadata.trace.receipt_hash",
     "oaa.metadata.tools.lease",
 ]
 
 
-@pytest.mark.parametrize("key", ALLOWLIST_CASES, ids=["run_note", "hash", "lease"])
-def test_allowlist_passthrough(redactor: Redactor, key: str) -> None:
+@pytest.mark.parametrize("key", METADATA_CASES, ids=["run_note", "hash", "lease"])
+def test_metadata_values_are_governed_not_passthrough(redactor: Redactor, key: str) -> None:
     raw = "raw metadata payload with AKIAIOSFODNN7EXAMPLE inside"
     scrubbed, violations = redactor.redact({key: raw})
-    assert scrubbed[key] == raw
+    assert "[REDACTED" in str(scrubbed[key])
+    assert scrubbed[key] != raw
+    assert violations
+
+
+def test_metadata_empty_value_is_the_only_passthrough(redactor: Redactor) -> None:
+    # an empty value has nothing to scan: the named passthrough keeps it
+    scrubbed, violations = redactor.redact({"oaa.metadata.run_note": ""})
+    assert scrubbed["oaa.metadata.run_note"] == ""
     assert violations == []
 
 
-def test_allowlist_glob_boundaries(redactor: Redactor) -> None:
-    # exact key without a suffix is NOT covered by the `oaa.metadata.*` glob
+def test_metadata_values_are_governed_at_the_collector_too(redactor: Redactor) -> None:
+    # RED-031: the collector re-scan must flag a metadata-planted secret
+    # even when the SDK redaction was bypassed entirely.
+    report = scan_batch(
+        [{"oaa.metadata.custom_note": "operator note: AKIAIOSFODNN7EXAMPLE"}], redactor
+    )
+    assert not report.clean
+    assert report.violation_count > 0
+
+
+def test_metadata_glob_boundaries(redactor: Redactor) -> None:
+    # exact key without a suffix is governed (nothing about it was ever special)
     scrubbed, violations = redactor.redact({"oaa.metadata": "AKIAIOSFODNN7EXAMPLE"})
     assert "[REDACTED" in scrubbed["oaa.metadata"]
     assert violations
@@ -257,12 +277,13 @@ def test_entropy_does_not_second_guess_pattern_hits(redactor: Redactor) -> None:
 # ------------------------------------------------------------- config integrity
 def test_config_version_and_hash(redactor: Redactor) -> None:
     cfg = redactor.config
-    assert cfg.config_version == 1
+    assert cfg.config_version == 2
     assert cfg.source_sha256
     assert len(cfg.source_sha256) == 64
     assert cfg.config_sha256
     assert len(cfg.config_sha256) == 64
-    assert any("oaa.metadata.*" in g for g in cfg.allowlist)
+    # RED-031: config v2 ships an EMPTY allowlist — no key-tier exemption.
+    assert cfg.allowlist == ()
 
 
 # ------------------------------------------------------- seeded fixtures parity
@@ -328,12 +349,24 @@ def test_collector_scan_counts_and_never_echoes(redactor: Redactor, seeds: dict[
     assert all("value" not in json.dumps(v.as_dict()).lower() for v in report.violations)
 
 
-def test_collector_scan_clean_payload(redactor: Redactor, seeds: dict[str, dict]) -> None:
+def test_collector_scan_flags_metadata_planted_seed(
+    redactor: Redactor, seeds: dict[str, dict]
+) -> None:
+    # RED-031: a planted seed under a metadata key is flagged at the
+    # collector too (previously the oaa.metadata.* allowlist exempted it).
+    planted = [{"oaa.metadata.note": seeds["seed-aws-access-key"]["value"]}]
+    report = scan_batch(planted, redactor)
+    assert not report.clean
+    assert report.violation_count == 1
+    assert report.violations[0].attr_key == "oaa.metadata.note"
+
+
+def test_collector_scan_clean_payload(redactor: Redactor) -> None:
     good = [
         {
             "oaa.run_id": "oaa-run-abc123",
             "oaa.content_class": "synthetic_public",
-            "oaa.metadata.note": "anything goes here, AKIAIOSFODNN7EXAMPLE",
+            "oaa.metadata.note": "operator note with no planted seed",
         },
     ]
     report = scan_batch(good, redactor)

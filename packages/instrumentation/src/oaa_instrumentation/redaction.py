@@ -4,8 +4,14 @@
 A :class:`Redactor` loads a versioned pattern config and rewrites span
 attribute values that match any pattern (or the entropy heuristic) into a
 `[REDACTED:<class>|len=<n>]` token — a class tag plus the original length;
-the matched secret itself never survives. Keys matching the allowlist globs
-(the ``oaa.metadata.*`` namespace) pass through untouched.
+the matched secret itself never survives.
+
+RED-031 fix (round 3): there is NO blanket metadata allowlist. Values under
+``oaa.metadata.*`` (or any other key) pass through the same scan/redact
+pipeline as payloads; the shipped config v2 ships ``allowlist: []``. The
+only named passthrough is the EMPTY value ("" — nothing to scan), which is
+a value rule, not a key rule. Key-tier exemptions in a config must be
+minimal and documented in the config itself.
 
 Design invariants (companion ADRs): redaction happens at the SDK, before
 export; a content-hash of a secret is NOT anonymisation (it remains a
@@ -29,7 +35,7 @@ from typing import Any
 
 import yaml
 
-REDACTION_CONFIG_VERSION = 1
+REDACTION_CONFIG_VERSION = 2
 DEFAULT_CONFIG_PATH = pathlib.Path(__file__).resolve().parents[2] / "config" / "redaction.yaml"
 REPLACEMENT_PREFIX = "[REDACTED"
 
@@ -140,6 +146,11 @@ class Redactor:
 
     # -- detection helpers ------------------------------------------------
     def is_allowlisted(self, attr_key: str) -> bool:
+        """A config MAY name globs; config v2 ships an EMPTY allowlist.
+
+        RED-031: the shipped machinery applies no key-tier exemption —
+        every non-empty value is scanned regardless of its key.
+        """
         return any(fnmatch.fnmatchcase(attr_key, glob) for glob in self.config.allowlist)
 
     def scan_string(self, attr_key: str, value: str) -> list[RedactionViolation]:

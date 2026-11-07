@@ -85,7 +85,7 @@ def main() -> list[dict]:
             "id": "seed-allowlisted-metadata",
             "class": "allowlisted",
             "value": "run-note: oaa.metadata passthrough probe " + _alnum(RNG, 12),
-            "shape": "span attribute `oaa.metadata.run_note` (MUST pass through unredacted)",
+            "shape": "span attribute `oaa.metadata.run_note` (governed like any other value since RED-031; non-secret, travels unchanged)",
         },
     ]
     for s in seeds:

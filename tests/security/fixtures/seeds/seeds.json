@@ -61,7 +61,7 @@
       "id": "seed-allowlisted-metadata",
       "class": "allowlisted",
       "value": "run-note: oaa.metadata passthrough probe 5kbgPHdjnnJD",
-      "shape": "span attribute `oaa.metadata.run_note` (MUST pass through unredacted)",
+      "shape": "span attribute `oaa.metadata.run_note` (governed like any other value since RED-031; non-secret, travels unchanged)",
       "sha256": "79424a69bf79efbdb9a4a8d32606d2033cbe81958103c88e43a8974e092d03c7"
     }
   ]

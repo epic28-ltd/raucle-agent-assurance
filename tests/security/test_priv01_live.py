@@ -70,7 +70,7 @@ def test_priv01_a_without_redaction_seeds_persist(lf) -> None:
         assert seed["value"] in text, (
             f"counterfactual failed: {seed['id']} NOT persisted in readback for {trace_id}"
         )
-    # the allowlisted metadata namespace also travels (expected; documented)
+    # the metadata namespace also travels when the value carries no secret
     assert allowlisted_seed()["value"] in text
 
 
@@ -85,7 +85,7 @@ def test_priv01_b_with_redaction_seeds_absent(lf) -> None:
         assert seed["value"] not in text, (
             f"LEAK: {seed['id']} persisted despite redaction for {trace_id}"
         )
-    # allowlisted metadata namespace STILL travels (passthrough must hold)
+    # a non-secret metadata note still travels (values, not keys, are governed)
     assert allowlisted_seed()["value"] in text
     # redaction tokens ARE present, with class tags
     assert text.count("[REDACTED:") >= 1
