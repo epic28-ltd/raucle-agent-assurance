@@ -8,6 +8,32 @@ Format based on Keep a Changelog; versioning will be semver from 0.1.0.
 Current repository state: alpha, in progress. Everything below is imported
 from completed 4-Nov-2026 spike work (EPIC K, Open Agent Assurance companion).
 
+### Added (2026-11-05 → 2026-11-07, PRs #3–#66)
+
+- P2.C investigation-UI work: assurance packet over HTTP, honest fleet
+  rollup + fleet baseline status, Independent Assurance Agent scaffold
+  (#37, #38, #59).
+- OV-26 scenario banks + offline harness CLI, OV-27 GRC evidence-graph
+  export (`grc_evidence_graph/v1`), AIUC-1 crosswalk rows +
+  workpapers/v1 export (#56, #57, #58).
+- OV releases: prebind indicators round 2, controls-efficacy mutation
+  catalog + campaign runner, release compiler, IAA consumes
+  revalidation report, optional ML-DSA-65 packet signature, PQ
+  signature trust-model docs, fence-aware docs-alignment parser
+  (#36, #40–#46).
+- Security / hardening: named `DistributionPinDrift` tripwire on the
+  raucle distribution pin (#66), RED-031 — remove the blanket
+  `oaa.metadata.*` redaction allowlist (#65), bug-hunt rounds 1–2
+  with named failures for malformed evidence/crosswalk lines
+  (#49, #60, #48, #55).
+
+### Fixed (2026-11-05 → 2026-11-07)
+
+- SonarCloud residual sweeps: main-branch findings cleared to 0 over
+  three rounds (#50–#53, #62–#64).
+- Documentation: red-team round-3 plan, per-path acceptance notes,
+  overnight ledgers (#47, #52, #54, #61).
+
 ### Added
 
 - Project layout, ADRs (0001–0003) and threat model v0 (imported from the
