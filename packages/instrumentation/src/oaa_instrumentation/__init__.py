@@ -5,8 +5,9 @@ wrappers that install both layers.
 
 Modules:
 - :mod:`oaa_instrumentation.redaction` — deterministic, versioned redactor
-  (``[REDACTED:<class>|len=<n>]`` replacement, ``oaa.metadata.*`` allowlist,
-  entropy heuristic) and the collector batch scan/quarantine.
+  (``[REDACTED:<class>|len=<n>]`` replacement, NO key-tier metadata
+  exemption since RED-031, entropy heuristic) and the collector batch
+  scan/quarantine.
 - :mod:`oaa_instrumentation.otel_processor` — ``RedactingSpanExporter``
   (redaction at the SDK, before export) and ``QuarantiningSpanExporter``
   (re-scan just before export; violations counted, never logged with content).
