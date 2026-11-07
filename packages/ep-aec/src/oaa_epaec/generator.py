@@ -68,31 +68,35 @@ def read_evidence_store(store_dir: pathlib.Path | str) -> dict[str, dict[str, An
         for raw in path.read_bytes().splitlines():
             if not raw.strip():
                 continue
-            try:
-                line = raw.decode("utf-8")
-                rec = json.loads(line)
-            except (UnicodeDecodeError, ValueError) as e:
-                raise ValueError(f"{path.name}: unparsable line: {e}") from None
-            if not isinstance(rec, dict) or set(rec) != {"receipt_hash", "jws"}:
-                shape = sorted(rec) if isinstance(rec, dict) else type(rec).__name__
-                raise ValueError(f"{path.name}: line is not a canonical envelope: {shape}")
-            if not isinstance(rec["jws"], str):
-                raise ValueError(
-                    f"{path.name}: 'jws' must be a string, got {type(rec['jws']).__name__}"
-                )
-            if not isinstance(rec["receipt_hash"], str):
-                raise ValueError(
-                    f"{path.name}: 'receipt_hash' must be a string, got {type(rec['receipt_hash']).__name__}"
-                )
-            want = "sha256:" + hashlib.sha256(rec["jws"].encode()).hexdigest()
-            entry = {
-                "line": line,
-                "jws": rec["jws"],
-                "receipt_hash": rec["receipt_hash"],
-                "hash_ok": rec["receipt_hash"] == want,
-            }
-            index.setdefault(rec["receipt_hash"], entry)
+            entry, receipt_hash = _evidence_entry(path, raw)
+            index.setdefault(receipt_hash, entry)
     return index
+
+
+def _evidence_entry(path: pathlib.Path, raw: bytes) -> tuple[dict[str, Any], str]:
+    """Validate one evidence-store line and build its index entry."""
+    try:
+        line = raw.decode("utf-8")
+        rec = json.loads(line)
+    except ValueError as e:
+        raise ValueError(f"{path.name}: unparsable line: {e}") from None
+    if not isinstance(rec, dict) or set(rec) != {"receipt_hash", "jws"}:
+        shape = sorted(rec) if isinstance(rec, dict) else type(rec).__name__
+        raise ValueError(f"{path.name}: line is not a canonical envelope: {shape}")
+    if not isinstance(rec["jws"], str):
+        raise ValueError(f"{path.name}: 'jws' must be a string, got {type(rec['jws']).__name__}")
+    if not isinstance(rec["receipt_hash"], str):
+        raise ValueError(
+            f"{path.name}: 'receipt_hash' must be a string, got {type(rec['receipt_hash']).__name__}"
+        )
+    want = "sha256:" + hashlib.sha256(rec["jws"].encode()).hexdigest()
+    entry = {
+        "line": line,
+        "jws": rec["jws"],
+        "receipt_hash": rec["receipt_hash"],
+        "hash_ok": rec["receipt_hash"] == want,
+    }
+    return entry, rec["receipt_hash"]
 
 
 def _payload_of(entry: dict[str, Any]) -> dict[str, Any]:
@@ -112,7 +116,7 @@ def _payload_of(entry: dict[str, Any]) -> dict[str, Any]:
         raise ValueError(f"malformed receipt JWS: payload segment is not base64url: {e}") from None
     try:
         return json.loads(decoded.decode("utf-8"))
-    except (ValueError, UnicodeDecodeError) as e:
+    except ValueError as e:
         raise ValueError(f"malformed receipt JWS: payload is not JSON: {e}") from None
 
 

@@ -73,11 +73,19 @@ def parse_artifacts(raw: object) -> list[dict]:
             raise ValueError("each gate artifact must be a JSON object")
         if not isinstance(a.get("gate_id"), str) or not GATE_ID_RE.fullmatch(a["gate_id"]):
             raise ValueError("each gate artifact needs a gate_id of 1..128 gate-id characters")
-        if "drilldown_url" in a and a["drilldown_url"] is not None:
-            u = a["drilldown_url"]
-            if not isinstance(u, str) or not _DRILLDOWN_RE.fullmatch(u):
-                raise ValueError("drilldown_url must be a relative in-app path ('/...')")
+        _check_drilldown(a)
     return raw
+
+
+def _check_drilldown(artifact: dict) -> None:
+    """A drill-down URL must stay a relative in-app path: artifacts are
+    hostile content and an absolute/scheme href would be an injected
+    external link."""
+    if "drilldown_url" not in artifact or artifact["drilldown_url"] is None:
+        return
+    u = artifact["drilldown_url"]
+    if not isinstance(u, str) or not _DRILLDOWN_RE.fullmatch(u):
+        raise ValueError("drilldown_url must be a relative in-app path ('/...')")
 
 
 def _board_findings(board: object) -> list | None:
@@ -140,7 +148,17 @@ def gate_rollup(artifact: dict) -> dict:
             # findings present but none carries a verification status: the
             # gate gave no verification plane at all — ABSENT, not zero.
             row["unverified"] = ABSENT
-    # coverage: reported honestly as given, never derived
+    _aux_rollup(artifact, row)
+    row["drilldown_url"] = (
+        artifact.get("drilldown_url")
+        if isinstance(artifact.get("drilldown_url"), str)
+        else "/view/runs"
+    )
+    return row
+
+
+def _aux_rollup(artifact: dict, row: dict) -> None:
+    """Coverage + baseline fields: reported honestly as given, never derived."""
     cov = artifact.get("coverage")
     if cov is None:
         row["coverage"] = ABSENT
@@ -149,22 +167,13 @@ def gate_rollup(artifact: dict) -> dict:
     else:
         row["coverage"] = _int_or_absent(cov)
     baseline = artifact.get("baseline")
-    if baseline is None:
-        row["baseline"] = ABSENT
-        row["baseline_violations"] = ABSENT
-    elif isinstance(baseline, dict):
+    if isinstance(baseline, dict):
         row["baseline"] = "clean" if baseline.get("status") == "clean" else "regressed"
         v = baseline.get("violations")
         row["baseline_violations"] = len(v) if isinstance(v, list) else _int_or_absent(v)
     else:
         row["baseline"] = ABSENT
         row["baseline_violations"] = ABSENT
-    row["drilldown_url"] = (
-        artifact.get("drilldown_url")
-        if isinstance(artifact.get("drilldown_url"), str)
-        else "/view/runs"
-    )
-    return row
 
 
 def _fold(rows: list[dict], metric: str) -> dict:

@@ -190,7 +190,8 @@ def test_cli_writes_and_names_counts(tmp_path, capsys):
     )
     assert rc == 0
     text = capsys.readouterr().out
-    assert "nodes" in text and "edges" in text
+    assert "nodes" in text
+    assert "edges" in text
     graph = json.loads(out.read_text())
     assert graph["kind"] == "grc_evidence_graph"
     assert graph["schema_version"] == 1
@@ -200,8 +201,9 @@ def test_non_canonical_receipt_hash_is_a_named_failure():
     exporter = _load_exporter()
     packet = _green_with_receipts()
     packet["receipt_chain"]["receipt_hashes"] = ["sha256:deadbeef"]
+    crosswalk = json.loads(CROSSWALK.read_text())
     with pytest.raises(exporter.ExportError, match="not canonical sha256"):
-        exporter.build_graph(json.loads(CROSSWALK.read_text()), packet)
+        exporter.build_graph(crosswalk, packet)
 
 
 def test_crosswalk_row_with_bad_status_is_a_named_failure():

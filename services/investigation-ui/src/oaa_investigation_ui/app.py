@@ -69,6 +69,9 @@ DATA_DIR = default_data_dir()
 _static_dir = pathlib.Path(__file__).resolve().parents[2] / "static"
 
 
+_FLEET_ROLLUP_PATH = "/api/fleet/rollup"
+
+
 def esc(value) -> str:
     """Hostile-text rendering: escape EVERYTHING; no link resolution."""
     return html.escape(str(value), quote=True)
@@ -704,9 +707,9 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
     app.get("/api/findings/board")(api.findings_board)
     app.post("/api/findings/{finding_id}/triage")(api.triage)
     # --------------------------------------------- EPIC P2.C fleet rollup
-    app.get("/api/fleet/rollup")(api.fleet_view)
-    app.post("/api/fleet/rollup")(api.fleet_ingest)
-    app.delete("/api/fleet/rollup")(api.fleet_reset)
+    app.get(_FLEET_ROLLUP_PATH)(api.fleet_view)
+    app.post(_FLEET_ROLLUP_PATH)(api.fleet_ingest)
+    app.delete(_FLEET_ROLLUP_PATH)(api.fleet_reset)
     app.get("/api/receipts/{receipt_hash}")(api.receipt)
     app.get("/api/receipts/{receipt_hash}/jws")(api.jws)
     app.post("/api/receipts/{receipt_hash}/verify")(api.verify_receipt)
