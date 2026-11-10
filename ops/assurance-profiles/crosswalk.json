@@ -56,6 +56,30 @@
       "unsat_reason": "No oversight-operator roles, approval workflows or human-in-the-loop evidence fields exist in the packet schema or repo."
     },
     {
+      "framework": "EU AI Act",
+      "control_id": "Art 13(1)-13(3) transparency to deployers",
+      "title": "Transparency and provision of information to deployers",
+      "evidence_field": "policy_proof_refs",
+      "status": "PARTIAL",
+      "basis": "Signed policies and policy-proof references declare exactly which tools the agent may run and under what rules, and receipts evidence what it actually did; however, no deployer-facing technical documentation, instructions-for-use artefact or capability-summary document is produced by the evidence plane."
+    },
+    {
+      "framework": "EU AI Act",
+      "control_id": "Art 50(1) transparency to users",
+      "title": "Transparency obligations towards users (disclosure of AI interaction)",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The evidence plane proves what the agent did at gate and receipt level, but nothing in the packet schema or repo evidences that end users were informed they were interacting with an AI system; no disclosure or labelling artefact exists."
+    },
+    {
+      "framework": "EU AI Act",
+      "control_id": "Art 19 record-keeping of logs",
+      "title": "Record-keeping: providers and deployers keep automatically generated logs",
+      "evidence_field": "receipt_chain.verified_count",
+      "status": "PARTIAL",
+      "basis": "Receipts over gated tool calls are staged as bytes into the offline audit pack (ops/audit-pack/pack.py) and re-verified outside the production plane, so records can be kept and independently checked; no retention policy or retention-period control (e.g. the six-month default) exists in the repo."
+    },
+    {
       "framework": "ISO 42001",
       "control_id": "A.7.2 AI system impact assessment",
       "title": "Documented AI-system impact assessment",
