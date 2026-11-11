@@ -131,6 +131,29 @@ def _resolve_out_dir(out_dir: pathlib.Path) -> pathlib.Path:
     return candidate
 
 
+def _pack_member(root: pathlib.Path, member: str) -> pathlib.Path:
+    """Gate every in-pack write/copy path: refuse anything that escapes ``root``.
+
+    Member names inside the pack can be derived from untrusted material (a
+    receipt field read from the evidence store, a filename from the
+    operator-supplied key snapshot or the policies directory), so no member
+    may take a filesystem path without passing this gate: an empty member,
+    an absolute path, a Windows ``\\`` separator, a ``..`` segment, or a
+    name that canonicalises outside the pack sandbox root is refused with
+    a ValueError before a single byte is written.
+    """
+    if not member or "\\" in member or pathlib.PurePosixPath(member).is_absolute():
+        raise ValueError(f"refusing non-containerised pack member {member!r}")
+    if any(part == ".." for part in pathlib.PurePosixPath(member).parts):
+        raise ValueError(f"refusing '..' segment in pack member {member!r}")
+    target = root / member
+    try:
+        target.resolve().relative_to(root.resolve())
+    except ValueError:
+        raise ValueError(f"pack member {member!r} resolves outside the pack root {root}") from None
+    return target
+
+
 def _now_iso() -> str:
     return dt.datetime.now(dt.UTC).replace(microsecond=0).isoformat()
 
@@ -404,7 +427,11 @@ def build_signature_bundle(
             continue
         extra.append(line)
     if extra:
-        (sig_dir / "chain_receipts.jsonl").write_text("\n".join(extra) + "\n", encoding="utf-8")
+        # store-derived chain receipt lines; gated member + explicit file
+        # handle (byte-identical to the previous Path.write_text form)
+        bundle_member = _pack_member(sig_dir, "chain_receipts.jsonl")
+        with open(bundle_member, "w", encoding="utf-8") as _fh:
+            _fh.write("\n".join(extra) + "\n")
     if not extra and not missing:
         (sig_dir / README_MD).write_text(
             "# Signature bundle\n\nEvery receipt the resolved chain graphs\n"
@@ -437,10 +464,16 @@ def _stage_receipts_and_keys(
     pack: pathlib.Path, envelopes: list[str], trust_roots: pathlib.Path
 ) -> tuple[pathlib.Path, int]:
     """Write ``receipts.jsonl`` (byte-exact) and the verbatim key snapshot."""
-    (pack / "receipts.jsonl").write_text("\n".join(envelopes) + "\n", encoding="utf-8")
+    # receipts.jsonl carries store-derived envelope content, written via a
+    # gated member path and an explicit file handle (byte-exact either way)
+    receipts_member = _pack_member(pack, "receipts.jsonl")
+    with open(receipts_member, "w", encoding="utf-8") as _fh:
+        _fh.write("\n".join(envelopes) + "\n")
     keys_dir = pack / "keys"
     keys_dir.mkdir()
-    shutil.copyfile(trust_roots, keys_dir / trust_roots.name)
+    # the snapshot member name comes from a CLI-supplied file (untrusted
+    # material even here); the gate refuses traversal before the copy
+    shutil.copyfile(trust_roots, _pack_member(pack, f"keys/{trust_roots.name}"))
     n_keys = sum(1 for ln in trust_roots.read_text().splitlines() if ln.strip())
     return keys_dir, n_keys
 
@@ -457,7 +490,7 @@ def _stage_timestamps(pack: pathlib.Path, envelopes: list[str]) -> int:
             rh = _receipt_hash_filename(
                 str(json.loads(line)["receipt_hash"]), label="timestamp token"
             )
-            (ts_dir / f"{rh}.token").write_bytes(token)
+            _pack_member(ts_dir, f"{rh}.token").write_bytes(token)
             token_count += 1
     if token_count == 0:
         (ts_dir / README_MD).write_text(
@@ -479,14 +512,10 @@ def _copy_policy_files(policies_dir: pathlib.Path | None, pol_dir: pathlib.Path)
     copied_policies: list[str] = []
     for f in sorted(policies_dir.iterdir()):
         if f.is_file() and f.suffix in {".yaml", ".yml", ".json"}:
-            target = pol_dir / f.name
             # the copied path is derived from an untrusted directory
-            # listing; refuse anything that does not stay inside pol_dir
-            if target.resolve().parent != pol_dir.resolve():
-                raise ValueError(
-                    f"policy file {str(f)!s} would not land inside the pack "
-                    "policies/ directory; refusing the copy"
-                )
+            # listing; the pack-member gate refuses traversal and any
+            # escape from the policies/ directory before the copy
+            target = _pack_member(pol_dir, f.name)
             shutil.copyfile(f, target)
             copied_policies.append(f.name)
     return copied_policies
@@ -510,9 +539,11 @@ def _stage_policy_receipts(
     for rh in policy_receipt_hashes:
         if rh in by_hash:
             pol_lines.append(by_hash[rh])
-    (pol_dir / "deployment_chain_receipts.jsonl").write_text(
-        "\n".join(pol_lines) + "\n", encoding="utf-8"
-    )
+    # store-derived receipt lines; gated member + explicit file handle
+    # (byte-identical to the previous Path.write_text form)
+    deployments_member = _pack_member(pol_dir, "deployment_chain_receipts.jsonl")
+    with open(deployments_member, "w", encoding="utf-8") as _fh:
+        _fh.write("\n".join(pol_lines) + "\n")
 
 
 def _policy_gap_note_and_readme(
