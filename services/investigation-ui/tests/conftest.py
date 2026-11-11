@@ -1,8 +1,8 @@
-# SPDX-License-Identifier: Apache-2.0
 """UI-01 test setup: point the offline verifier at the pinned raucle
 worktree when it is present (optional, env-driven at runtime). Committed
 tests skip the raucle-dependent assertions gracefully when raucle is not
 importable in the current environment."""
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 import importlib.util
 import os

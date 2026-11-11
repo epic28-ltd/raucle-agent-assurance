@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: Apache-2.0
 """oaa_rules — RULE-01 deterministic security rules engine (SEC-001..011)."""
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from .baseline import (  # BEH-01: behavioural baselines (advisory, measured)
     BEH_RULES,

@@ -3,6 +3,7 @@
 Round-2 fuzzing of the N7 workpaper exporter found raw KeyError leaks on
 malformed rows — instead of the exporter's own named WorkpaperError.
 """
+# SPDX-License-Identifier: Apache-2.0
 
 import pytest
 from tools.grc_export.workpaper import WorkpaperError, build_workpaper, export_rows

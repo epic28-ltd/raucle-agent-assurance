@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 """Red findings intake (RED-INTEGRATION): the future Raucle Agent Red
 product posts its findings JSONL here at the end of every run.
 
@@ -42,6 +41,7 @@ Per-rule guidance: the red rules (RED-xxx) are not in the assurance G
 rule map, so every red board row carries a guidance string from here —
 the per-rule text when known, else the generic fallback.
 """
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from __future__ import annotations
 

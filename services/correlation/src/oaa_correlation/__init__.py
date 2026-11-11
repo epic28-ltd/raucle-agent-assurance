@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: Apache-2.0
 """Open Agent Assurance — minimal correlation service (COR-01)."""
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from .core import (
     CORRELATION_STATES,

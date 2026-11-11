@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 """Shared counting module — ONE source for every number on both surfaces.
 
 The QA coherence pass (docs/spikes/coherence-pass.md) found count
@@ -42,6 +41,7 @@ docs/spikes/UI-02.4-findings-board.md):
   needs_investigation, medium/low → unproven, info → unproven. Their
   share is reported separately under the ``red`` key (never re-counted).
 """
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from __future__ import annotations
 

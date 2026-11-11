@@ -1,6 +1,6 @@
-# SPDX-License-Identifier: Apache-2.0
 """EPIC-N Raucle Console tests: routes, config, textContent discipline,
 semantic colour system guidance and single-tenant alpha contract."""
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from __future__ import annotations
 

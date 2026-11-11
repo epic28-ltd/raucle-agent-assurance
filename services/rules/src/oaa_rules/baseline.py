@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 """Behavioural baselines (BEH-01) — index-plane behavioural drift rules.
 
 Builds per-(agent_id, release, tool) distributions over a LABELLED window
@@ -23,6 +22,7 @@ harness in tests/eval pins the benign-case FP count and precision.
 All rule outputs are deterministic: same window + same baseline -> byte
 stable findings (pinned by tests).
 """
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from __future__ import annotations
 

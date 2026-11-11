@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 """OV-2: assurance packet exposed over HTTP on the investigation UI app.
 
 Two routes delegate to the OV-1 packet generator's real code (imported by
@@ -12,6 +11,7 @@ Failure mapping (nothing silent, nothing fabricated):
 - missing evidence store -> 404 {"error": "..."} (the CLI's FAIL exit, 404-class);
 - tampered / malformed store or bad declared refs -> 422 {"error": <named CLI error>}.
 """
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from __future__ import annotations
 

@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 """Attach an advisory QualityScore (QUAL-01) to observability surfaces.
 
 Two equivalent sinks, both *callback style* — the module never owns a span,
@@ -15,6 +14,7 @@ Both are pure renderers plus a callback hook; enforcement and delivery
 scheduling belong to the caller. See ``docs/spikes/QUAL-01-findings.md``
 for the sink-pattern comparison and the "no auto-enforcement" rule.
 """
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from __future__ import annotations
 

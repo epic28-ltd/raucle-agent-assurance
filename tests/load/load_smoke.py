@@ -12,6 +12,7 @@ Overhead metric: per-run producer wall-clock (time to emit 20 spans), p95 of the
 measured window vs p95 of the no-export baseline. This is a smoke, not a benchmark.
 Output: ops/scratch/load-report.json.
 """
+# SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 

@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 """Versioned quality rubrics (QUAL-01).
 
 A rubric is a small, reviewable YAML document (``services/quality/rubrics/*.yaml``)
@@ -21,6 +20,7 @@ Design rules (see ``docs/spikes/QUAL-01-findings.md``):
 - Loading is pure validation: no defaults are invented silently, no weights are
   renormalised behind the reviewer's back. A malformed rubric is an error.
 """
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from __future__ import annotations
 
