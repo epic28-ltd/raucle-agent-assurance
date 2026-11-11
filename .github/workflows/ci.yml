@@ -34,16 +34,10 @@ jobs:
         run: ruff format --check .
       - name: ruff check
         run: ruff check .
-      # Licence hygiene before any test run: every .py under the FSL engine
-      # dirs carries FSL-1.1-ALv2, every .py on the Apache-2.0 audit path
+      # Licence hygiene before any test run: every .py in the mapped tree
       # carries Apache-2.0 (mapping governed by LICENSING.md).
       - name: licence header check
         run: python3 scripts/check_licence_headers.py
-      # The Apache-2.0 audit path (packages/, services/assurance_packet,
-      # services/independent-assurance) must never import FSL-surface engine
-      # code; see LICENSING.md "Import direction".
-      - name: import direction check
-        run: python3 scripts/check_import_direction.py
       - name: pytest (raucle-free set; raucle-dependent tests skip with reason)
         run: pytest tests/ -rs
         env:

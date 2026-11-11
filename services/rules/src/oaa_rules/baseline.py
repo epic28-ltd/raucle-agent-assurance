@@ -22,7 +22,7 @@ harness in tests/eval pins the benign-case FP count and precision.
 All rule outputs are deterministic: same window + same baseline -> byte
 stable findings (pinned by tests).
 """
-# SPDX-License-Identifier: FSL-1.1-ALv2
+# SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 

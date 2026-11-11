@@ -5,7 +5,7 @@ for any figure a gate artifact did not actually carry (never a fabricated
 zero), fold totals only over reported numbers, and never invent a fleet-wide
 coverage figure.
 """
-# SPDX-License-Identifier: FSL-1.1-ALv2
+# SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 

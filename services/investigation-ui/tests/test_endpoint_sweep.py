@@ -6,7 +6,7 @@ receipts, findings and malformed ids all get explicit 4xx or escaped
 states an explicit unavailable verdict instead of fabricating one, and the
 optional Langfuse source degrades honestly in every state.
 """
-# SPDX-License-Identifier: FSL-1.1-ALv2
+# SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 

@@ -5,7 +5,7 @@ Runs against the real demo fixture dir for corpus checks, and against a
 throwaway copy for the mutation endpoints (board state persistence) so the
 repo's demo data stays clean while tests run.
 """
-# SPDX-License-Identifier: FSL-1.1-ALv2
+# SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 

@@ -63,15 +63,14 @@ See CONTRIBUTING.md and packages/raucle-adapter/README.md (raucle pin).
 
 ## Licensing
 
-Split by trust role: the audit path is Apache-2.0 (evidence formats, schemas,
-assurance packet builder, the independent-assurance checker the auditor runs,
-and the packaging that bridges the Apache-2.0 raucle gate); the operational
-engine (trace correlation and coverage, quality gates, rules, console,
-investigation UI) is source-available under the Functional Source Licence
-FSL-1.1-ALv2, which converts to Apache-2.0 two years after each release.
-Commits up to 804e50f stay Apache-2.0. See LICENSING.md and LICENSE-FSL.md
-for the exact directory split. Langfuse and its licences are described in
-NOTICE.
+Apache-2.0, permanently. The whole repository is open source and stays that
+way; nothing published here gets relicensed. Enterprise capabilities live in
+a separate closed Enterprise Edition, built that way from the start, and
+enterprise code is not harvested out of this repository later. See
+LICENSING.md for the full statement and
+docs/adr/0006-licensing-open-core-ee.md for the decision record. Langfuse
+and its licences are described in NOTICE.
+
 ## Naming
 
 - Raucle Agent Trust: product-line name for the raucle gate/evidence core (package/repo identity remains `raucle`).

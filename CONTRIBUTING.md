@@ -19,6 +19,12 @@ stable yet, and no compatibility promises are made before 0.1.0.
 5. Conformance fixture changes are generated through
    `oaa_raucle_adapter.fixture_gen` against the pinned raucle distribution —
    never hand-constructed JWS artefacts.
+6. Enterprise-shaped contributions (fleet consoles, multi-tenant operator
+   tooling, commercial connector work) live in the Enterprise Edition, a
+   separate closed repository, not here. Raise them as a discussion issue
+   first so they land in the right edition. Fixes, adapters, backends,
+   verifier improvements and compliance mappings all belong here and stay
+   Apache-2.0.
 
 ## Layout discipline
 

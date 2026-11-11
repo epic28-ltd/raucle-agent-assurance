@@ -5,7 +5,7 @@ Read-only import of repo fixtures (the EVAL-01 synthetic corpus, built as
 test data and marked synthetic in ``metadata``); the demo writes nothing
 except its own output file. Run: .venv/bin/python services/quality/demo/demo_qual01.py
 """
-# SPDX-License-Identifier: FSL-1.1-ALv2
+# SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 

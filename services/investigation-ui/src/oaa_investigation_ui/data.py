@@ -29,7 +29,7 @@ bytes never leave ``evidence_store.jsonl``.
 The private key of the trust roots lives with the spike directory and is
 NEVER copied here; only the derived public half is.
 """
-# SPDX-License-Identifier: FSL-1.1-ALv2
+# SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 

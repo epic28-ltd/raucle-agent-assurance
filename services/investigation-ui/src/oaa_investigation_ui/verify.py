@@ -10,7 +10,7 @@ JWS/secret handling: the canonical envelope line is passed to ``classify``
 in-process only; the endpoint result contains index fields and verifier
 output summary — never the JWS string.
 """
-# SPDX-License-Identifier: FSL-1.1-ALv2
+# SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 
