@@ -302,6 +302,102 @@
       "source_url": "https://standard.aiuc-1.com/reliability/3rd-party-testing-of-tool-calls",
       "family_heading": "D. Reliability",
       "family_url": "https://standard.aiuc-1.com/reliability"
+    },
+    {
+      "framework": "HIPAA",
+      "control_id": "164.312(b) audit controls",
+      "title": "Audit controls that record and examine activity in information systems containing or using PHI",
+      "evidence_field": "receipt_chain.verified_count",
+      "status": "SUPPORTED",
+      "basis": "Every gated tool call produces a tamper-evident, sha256-pinned receipt (receipts.jsonl, ADR-0001/0002) and the chain is independently re-verified offline (ops/audit-pack/pack.py); missing or invalid receipts are first-class findings (SEC-001, SEC-002), so activity in the agent tool plane is both recorded and examined. The recording covers the agent tool plane only: the repo makes no PHI handling claim."
+    },
+    {
+      "framework": "HIPAA",
+      "control_id": "164.312(c)(1) integrity",
+      "title": "Protection of records from improper alteration or destruction",
+      "evidence_field": "receipt_chain.receipt_hashes",
+      "status": "PARTIAL",
+      "basis": "Receipt payloads are bound by sha256 content digests and the verifier re-validates the whole chain, so alteration or deletion of recorded activity is detected rather than silent (SEC-001, SEC-002). The integrity guarantee is scoped to the evidence plane's own records: the repo makes no PHI handling claim, so this does not evidence integrity protection for PHI in a deployed system."
+    },
+    {
+      "framework": "HIPAA",
+      "control_id": "164.312(a)(1) access control",
+      "title": "Technical measures that guard access to the systems the agent operates",
+      "evidence_field": "coverage.unverified_tools",
+      "status": "PARTIAL",
+      "basis": "Access to privileged tools is bound to signed policies and a recorded capability chain (policy_proof_refs, capability_chain), and every tool not under gate custody is reported fail-visible (coverage map, ADR-0004, SEC-006). The addressable specifications (unique user identification, emergency access procedure, automatic logoff, encryption and decryption) have no repository evidence, and the mapping covers the agent tool surface, not PHI systems."
+    },
+    {
+      "framework": "HIPAA",
+      "control_id": "164.312(e)(1) transmission security",
+      "title": "Technical measures that guard data in transit over electronic communications networks",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The evidence plane records tool-call activity tamper-evidently (see the audit controls row) but carries no field evidencing protection of data in transit: no transport encryption, channel integrity or network access control artefact exists, and the repo makes no PHI handling claim, so transmission security for ePHI is untested and unclaimed."
+    },
+    {
+      "framework": "PCI DSS",
+      "control_id": "10.2 audit logging of access and events",
+      "title": "Audit logs capture internal access and events, with records carrying user, event, date and time, and outcome",
+      "evidence_field": "receipt_chain.verified_count",
+      "status": "PARTIAL",
+      "basis": "Gated tool calls are logged with the acting agent identity, the event (allow or deny) and a tamper-evident hash (receipts.jsonl, ADR-0001/0002); records carry no payload content (bounded disclosure). The requirement's enumerated user-account and configuration-change events are outside the plane's scope: no identity-store or system-user logging exists."
+    },
+    {
+      "framework": "PCI DSS",
+      "control_id": "10.4 log review and anomaly response",
+      "title": "Logs reviewed, with anomalies promptly addressed",
+      "evidence_field": "receipt_chain.invalid_or_missing_count",
+      "status": "PARTIAL",
+      "basis": "Deterministic rules examine the receipt stream continuously (SEC-001/002 missing and invalid receipts, SEC-003/004 denial-rate and post-deny anomalies, SEC-005/006 looping and drift) and the audit pack re-verifies the bytes off-system (ops/audit-pack/pack.py); the review is automated over the agent plane only, not a formal periodic review procedure over a cardholder data environment."
+    },
+    {
+      "framework": "PCI DSS",
+      "control_id": "10.5 audit log retention",
+      "title": "Audit log history retained for at least 12 months",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The audit pack stages and re-verifies receipt bytes, but no retention policy, period control or archival lifecycle artefact exists in the repo, so the 12-month retention minimum cannot be evidenced."
+    },
+    {
+      "framework": "PCI DSS",
+      "control_id": "8.2 user identification and accounts",
+      "title": "Unique identification established before access is granted",
+      "evidence_field": "receipt_chain.receipt_hashes",
+      "status": "PARTIAL",
+      "basis": "Every receipt is signed by the gate identity and binds the acting agent identity in its payload, verifiable offline (ADR-0001/0002); this is agent-plane identification only. No user-account provisioning, disable or delete controls, or shared-account management exists in the evidence plane."
+    },
+    {
+      "framework": "PCI DSS",
+      "control_id": "8.3/8.4 strong authentication and MFA",
+      "title": "Strong authentication, with MFA for access into the cardholder data environment",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "No authentication-strength, factor or MFA evidence field exists in the packet schema or repo; the evidence plane makes no cardholder-data-environment claim, so a deployment's authentication or MFA posture cannot be evidenced from raucle data."
+    },
+    {
+      "framework": "PCI DSS",
+      "control_id": "2.2 secure configurations",
+      "title": "System components secured in line with accepted configuration standards",
+      "evidence_field": "policy_proof_refs",
+      "status": "PARTIAL",
+      "basis": "The agent's tool surface is bound to signed, versioned policy artefacts (policy_proof_refs) and new privileged tools at release fail visibly (SEC-006); no OS, container or service hardening baseline or accepted configuration-standard artefact exists in the repo, and the mapping covers the agent tool policy surface only."
+    },
+    {
+      "framework": "PCI DSS",
+      "control_id": "6.2 secure software development",
+      "title": "Software developed securely, with changes reviewed by individuals other than the original author",
+      "evidence_field": "governance.PCI DSS",
+      "status": "PARTIAL",
+      "basis": "Changes to this repo land only through reviewed, CI-gated pull requests with DCO sign-offs, security-relevant contracts are pinned by deterministic tests (services/rules SEC-001..011) and ADRs document the design decisions; but the evidence plane produces no per-change reviewer-independence or approval artefact, and the packet carries only an empty governance mapping slot unless the firm fills it."
+    },
+    {
+      "framework": "PCI DSS",
+      "control_id": "6.5 change control",
+      "title": "Changes to system components managed through documented change control",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "No change-approval register, impact documentation, duty-separation or sign-off record exists in the repo or the evidence schema; repository-level reviewed-PR traces exist but are not an evidence plane field."
     }
   ]
 }
