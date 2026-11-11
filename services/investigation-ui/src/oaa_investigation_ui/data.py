@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 """Open Agent Assurance — UI-01 investigation UI demo data.
 
 Loads the demo data dir (read-only, invariant 1):
@@ -30,6 +29,7 @@ bytes never leave ``evidence_store.jsonl``.
 The private key of the trust roots lives with the spike directory and is
 NEVER copied here; only the derived public half is.
 """
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from __future__ import annotations
 

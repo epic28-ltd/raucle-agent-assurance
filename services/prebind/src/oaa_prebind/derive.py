@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 """OV-12: Prebind Assurance indicators.
 
 Derives per-receipt prebind lifecycle states from gate receipt data and red
@@ -16,6 +15,7 @@ remaining zeros (held, escalated, quarantined) stay annotated: the repo
 invariant (no fabricated verdicts, fail-visible) outranks the desire to
 fill all seven counters.
 """
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from __future__ import annotations
 

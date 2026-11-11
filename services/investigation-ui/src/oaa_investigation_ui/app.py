@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 """Open Agent Assurance — UI-01 investigation UI (FastAPI).
 
 Views per the story 'Investigate tool calls':
@@ -22,6 +21,7 @@ UX hard rules (threat model T5):
 - no auto-link resolution, no external fetches from the page, no secret
   display (JWS bodies, trust keys, env values never appear in output).
 """
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from __future__ import annotations
 

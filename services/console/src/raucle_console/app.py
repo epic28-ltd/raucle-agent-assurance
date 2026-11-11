@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 """Raucle Console - EPIC-N application shell (FastAPI).
 
 The console is the ONE application shell for the Raucle agent suite;
@@ -21,6 +20,7 @@ UX hard rules (threat model T5, shared with investigation-ui):
 - semantic colour system: green = proven, amber = un-proven, red = action
   needed, grey = exempt / not purchased; a legend is always present.
 """
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from __future__ import annotations
 

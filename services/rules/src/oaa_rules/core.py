@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 """Open Agent Assurance — deterministic security rules engine (RULE-01).
 
 Implements SEC-001..SEC-011 over INDEX-PLANE records only:
@@ -25,6 +24,7 @@ schema v1 — see ``schemas/rules-config.schema.json``). All thresholds and the
 default privileged-tool registry are config-driven; every rule is
 deterministic and table-driven testable.
 """
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from __future__ import annotations
 

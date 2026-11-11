@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 """UI-05 coherence pass: shared counting module unit tests.
 
 The counting module is the ONE source of every number both surfaces render.
@@ -8,6 +7,7 @@ columns / chip members all equal the same module's output. One test proves
 the cross-surface contract: the console's overview trust block equals this
 module's output.
 """
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from __future__ import annotations
 

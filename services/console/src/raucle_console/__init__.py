@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: Apache-2.0
 """Raucle Console - EPIC-N application shell for the Raucle agent suite."""
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 __all__ = ["app", "create_app"]
 

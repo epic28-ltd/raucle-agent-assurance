@@ -7,7 +7,7 @@ name = "oaa-investigation-ui"
 version = "0.1.0"
 description = "Open Agent Assurance — UI-01 minimal investigation UI (FastAPI, single-page, no build toolchain)."
 requires-python = ">=3.11"
-license = { file = "../../LICENSE" }
+license = { text = "FSL-1.1-ALv2" }
 # Pinned locally for the UI-01 spike; minimal on purpose.
 dependencies = [
   "fastapi==0.118.3",

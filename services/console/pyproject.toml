@@ -7,7 +7,7 @@ name = "raucle-console"
 version = "0.1.0"
 description = "Raucle Console - EPIC-N single-page application shell for the Raucle agent suite (FastAPI, no build toolchain)."
 requires-python = ">=3.11"
-license = { file = "../../LICENSE" }
+license = { text = "FSL-1.1-ALv2" }
 dependencies = [
   "fastapi==0.118.3",
   "httpx==0.28.1",  # fastapi TestClient transport

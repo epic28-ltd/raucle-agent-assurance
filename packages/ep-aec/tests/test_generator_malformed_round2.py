@@ -4,6 +4,7 @@ Round-2 fuzzing of the EP-AEC generator found raw JSONDecodeError /
 AttributeError / binascii leaks on malformed JSONL store lines and malformed
 JWS receipts, instead of named ValueErrors carrying the file context.
 """
+# SPDX-License-Identifier: Apache-2.0
 
 import base64
 import json

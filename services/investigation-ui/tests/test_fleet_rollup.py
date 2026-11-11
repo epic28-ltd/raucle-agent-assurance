@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 """Fleet rollup (EPIC P2.C) unit tests: determinism and honest ABSENT handling.
 
 The rollup is a reporting surface, not a truth source: it must render ABSENT
@@ -6,6 +5,7 @@ for any figure a gate artifact did not actually carry (never a fabricated
 zero), fold totals only over reported numbers, and never invent a fleet-wide
 coverage figure.
 """
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from __future__ import annotations
 

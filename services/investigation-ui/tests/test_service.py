@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: Apache-2.0
 """UI-01 investigation UI service tests (offline, TestClient, demo fixtures)."""
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from __future__ import annotations
 

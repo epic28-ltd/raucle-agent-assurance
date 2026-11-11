@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 """Fleet rollup (EPIC P2.C1) — per-gate coverage and status on ONE honest view.
 
 Inputs are per-gate artifacts, each carrying exactly what its gate actually
@@ -27,6 +26,7 @@ Fleet totals fold only over REPORTED numbers: a metric whose value is
 ABSENT on every gate stays ABSENT fleet-wide, and the rollup lists which
 gates were absent per metric so the fold is auditable rather than silent.
 """
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from __future__ import annotations
 

@@ -1,9 +1,9 @@
-# SPDX-License-Identifier: Apache-2.0
 """UI-02.2 screenshot helper: local headless Chromium + raw CDP.
 
 Captures full-page screenshots of the console in both themes into
 services/console/static/preview/. Run with the project venv python
 (needs websocket-client which is installed there)."""
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 import base64
 import json

@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 """Investigation-UI endpoint sweep: every route, happy plus 4xx failure paths.
 
 Auditor story: the investigation board never hides failure — unknown runs,
@@ -7,6 +6,7 @@ receipts, findings and malformed ids all get explicit 4xx or escaped
 states an explicit unavailable verdict instead of fabricating one, and the
 optional Langfuse source degrades honestly in every state.
 """
+# SPDX-License-Identifier: FSL-1.1-ALv2
 
 from __future__ import annotations
 
