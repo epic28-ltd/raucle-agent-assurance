@@ -28,15 +28,49 @@ their own notice fall under the Apache-2.0 root.
 
 ## Boundary and history
 
-Commits up to and including `804e50f` (the Apache-2.0 era) remain Apache-2.0
-and may be forked. The licence change applies from the `feat/licensing-fsl-engine`
+Commits up to and including `804e50f862005e94b6cf28a81b8a114ed0aad868` (12 Nov boundary, the Apache-2.0 era) remain Apache-2.0 and may be forked. The licence change applies from the `feat/licensing-fsl-engine`
 boundary commit onward. A solicited solicitor review of the boundary commit
 is pending; until that review returns, treat this file as stated intent.
-Contributions after the boundary are made under the DCO; a CLA arrives with
-the first outside contribution.
+Contributions after the boundary are made under a DCO **plus a signed CLA**;
+no outside PR is merged under the DCO alone, because DCO alone does not
+carry relicence rights. Until the CLA bot is wired in, every outside PR is
+left unmerged. Note for the solicitor review: much of this code is AI-assisted
+(some release notes are marked as generated with Claude Code); authorship and
+ownership implications should be read at sign-off.
 
 ## Copy discipline
 
 Product copy must say: the core and verifier are open source (Apache-2.0),
 the assurance engine is source-available (FSL-1.1-ALv2, converting to
 Apache-2.0 after two years). Do not describe the whole suite as open source.
+
+## Release conversion ledger
+
+Every FSL-covered release converts to Apache-2.0 two years after it is made
+available. The first FSL-boundary release is gated on the solicitor review;
+until then no FSL release is tagged. The ledger grows from that point:
+
+| Version | Release date | Converted to Apache-2.0 on |
+|---|---|---|
+| (first FSL release pending solicitor review) | | |
+
+## What the FSL allows (FAQ)
+
+- A bank running the engine in production for its own agents: **permitted**.
+- A consultancy running the engine for itself and its own clients'
+  operations: **permitted** (professional-services use of the Software,
+  not a competing product).
+- A managed-service provider hosting or reselling the engine for other
+  organisations: that is a **competing use**; contact us for a commercial
+  licence.
+- Redistributing modified copies with attribution per the licence terms:
+  **permitted**, including for internal use.
+
+Commercial-licence contact: `contact@epic28.com`.
+
+## Pack definitions, stated deliberately
+
+The compliance pack definitions stay Apache-2.0 on purpose: auditors and
+customers can copy the crosswalk content. The value this project keeps is
+not the content; it is freshness, third-party reviewer engagement and
+signed attestation binding the packs to live evidence.
