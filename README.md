@@ -63,8 +63,15 @@ See CONTRIBUTING.md and packages/raucle-adapter/README.md (raucle pin).
 
 ## Licensing
 
-Apache-2.0 (see LICENSE). Spike findings docs are project records under the
-same licence. Langfuse and its licences are described in NOTICE.
+Split by trust role: the audit path is Apache-2.0 (evidence formats, schemas,
+assurance packet builder, the independent-assurance checker the auditor runs,
+and the packaging that bridges the Apache-2.0 raucle gate); the operational
+engine (trace correlation and coverage, quality gates, rules, console,
+investigation UI) is source-available under the Functional Source Licence
+FSL-1.1-ALv2, which converts to Apache-2.0 two years after each release.
+Commits up to 804e50f stay Apache-2.0. See LICENSING.md and LICENSE-FSL.md
+for the exact directory split. Langfuse and its licences are described in
+NOTICE.
 ## Naming
 
 - Raucle Agent Trust: product-line name for the raucle gate/evidence core (package/repo identity remains `raucle`).
