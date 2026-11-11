@@ -1,5 +1,5 @@
 """Make the console package importable without installing it."""
-# SPDX-License-Identifier: FSL-1.1-ALv2
+# SPDX-License-Identifier: Apache-2.0
 
 import pathlib
 import sys

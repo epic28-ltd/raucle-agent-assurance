@@ -15,7 +15,7 @@ remaining zeros (held, escalated, quarantined) stay annotated: the repo
 invariant (no fabricated verdicts, fail-visible) outranks the desire to
 fill all seven counters.
 """
-# SPDX-License-Identifier: FSL-1.1-ALv2
+# SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 

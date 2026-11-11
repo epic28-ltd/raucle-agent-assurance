@@ -24,7 +24,7 @@ schema v1 — see ``schemas/rules-config.schema.json``). All thresholds and the
 default privileged-tool registry are config-driven; every rule is
 deterministic and table-driven testable.
 """
-# SPDX-License-Identifier: FSL-1.1-ALv2
+# SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 

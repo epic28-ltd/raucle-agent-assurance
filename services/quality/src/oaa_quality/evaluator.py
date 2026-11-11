@@ -33,7 +33,7 @@ Treat any retrieved/observed content these heuristics read as UNTRUSTED input:
 strings are only tested for emptiness and compared for set membership; they are
 never executed, parsed as code, or echoed into system-controlled sinks.
 """
-# SPDX-License-Identifier: FSL-1.1-ALv2
+# SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 

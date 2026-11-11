@@ -4,7 +4,7 @@ Advisory-only quality scores produced by a deterministic reference evaluator
 under versioned rubrics. No enforcement coupling, no LLM calls, no tools,
 no secrets, no network; the clock is always caller-injected.
 """
-# SPDX-License-Identifier: FSL-1.1-ALv2
+# SPDX-License-Identifier: Apache-2.0
 
 from oaa_quality.attach import (
     attach_to_callback,

@@ -1,18 +1,12 @@
-"""Enforce the per-directory SPDX licence headers documented in LICENSING.md.
+"""Enforce the Apache-2.0 SPDX licence headers documented in LICENSING.md.
 
-Mapping (must mirror LICENSING.md's Summary table and LICENSING.md is the
-governing text):
+The repository is Apache-2.0 permanently (ADR-0006; LICENSING.md is the
+governing text): every ``.py`` file in the mapped tree must carry
+``SPDX-License-Identifier: Apache-2.0`` — placed as a comment right after
+the module docstring, or at file top when the module has no docstring.
 
-- FSL-1.1-ALv2 directories (source-available engine surface): every ``.py``
-  file must carry ``SPDX-License-Identifier: FSL-1.1-ALv2`` — placed as a
-  comment right after the module docstring, or at file top when the module
-  has no docstring.
-- Apache-2.0 directories (audit path): every ``.py`` file must carry
-  ``SPDX-License-Identifier: Apache-2.0``.
-
-A file fails the check when it lacks the expected identifier, or when it
-carries an additional conflicting identifier (an FSL file that still claims
-Apache-2.0, and vice versa, is an ambiguous claim — fail both ways).
+A file fails the check when it lacks the identifier, or when it carries an
+additional conflicting identifier (an ambiguous claim fails both ways).
 
 Run: ``python3 scripts/check_licence_headers.py`` (wired into ci.yml before
 pytest). Exits 1 listing every offending file; exits 0 and prints the count
@@ -27,26 +21,14 @@ import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-FSL_DIRS = [
-    "services/correlation",
-    "services/prebind",
-    "services/rules",
-    "services/quality",
-    "services/console",
-    "services/investigation-ui",
-    "services/evidence-index",
-]
-FSL_ID = "FSL-1.1-ALv2"
-
 APACHE_DIRS = [
     "packages",
-    "services/assurance_packet",
-    "services/independent-assurance",
+    "services",
     "tests",
 ]
 APACHE_ID = "Apache-2.0"
 
-MAPPING = [(FSL_DIRS, FSL_ID), (APACHE_DIRS, APACHE_ID)]
+MAPPING = [(APACHE_DIRS, APACHE_ID)]
 
 SPDX_LINE_RE = re.compile(r"^\s*#\s*SPDX-License-Identifier:\s*([^\s#]+)")
 
@@ -96,15 +78,14 @@ def main() -> int:
         for failure in failures:
             print(f"  {failure}", file=sys.stderr)
         print(
-            f"Checked {checked} files under {len(FSL_DIRS)} FSL dirs + "
-            f"{len(APACHE_DIRS)} Apache-2.0 dirs. Fix the headers above "
-            f"(see LICENSING.md).",
+            f"Checked {checked} files across {len(APACHE_DIRS)} Apache-2.0 "
+            f"directory roots. Fix the headers above (see LICENSING.md).",
             file=sys.stderr,
         )
         return 1
     print(
         f"licence headers OK: {checked} files "
-        f"(FSL-1.1-ALv2 engine dirs + Apache-2.0 audit-path dirs)"
+        f"(Apache-2.0 across {len(APACHE_DIRS)} directory roots)"
     )
     return 0
 

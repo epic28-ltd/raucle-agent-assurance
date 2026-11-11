@@ -12,7 +12,7 @@ Env:    OAA_LANGFUSE_URL (default http://127.0.0.1:3301)
         OAA_LANGFUSE_ENV (default ~/Projects/oaa-spike-4nov/obs01/obs.env —
         holds LANGFUSE_INIT_PROJECT_PUBLIC_KEY / _SECRET_KEY; never committed)
 """
-# SPDX-License-Identifier: FSL-1.1-ALv2
+# SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 

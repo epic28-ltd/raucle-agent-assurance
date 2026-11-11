@@ -38,7 +38,7 @@ evidence files are immutable (invariant 1); ``load_receipt_index`` opens
 index files read-only and asserts sha256 equality of the raw bytes before
 and after the read.
 """
-# SPDX-License-Identifier: FSL-1.1-ALv2
+# SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 

@@ -41,7 +41,7 @@ docs/spikes/UI-02.4-findings-board.md):
   needs_investigation, medium/low → unproven, info → unproven. Their
   share is reported separately under the ``red`` key (never re-counted).
 """
-# SPDX-License-Identifier: FSL-1.1-ALv2
+# SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 

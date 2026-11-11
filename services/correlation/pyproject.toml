@@ -9,7 +9,7 @@ version = "0.0.1.dev0"
 description = "Open Agent Assurance — minimal COR-01 correlation engine (ADR-0002 states, offline-testable)."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "FSL-1.1-ALv2" }
+license = "Apache-2.0"
 authors = [{ name = "Open Agent Assurance contributors" }]
 dependencies = []  # stdlib only; the Langfuse smoke is optional and separate
 

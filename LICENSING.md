@@ -1,74 +1,35 @@
 # Licensing
 
-Two licences apply across this repository, split by trust role. The rule is
-simple: **everything an auditor needs to run the audit path is Apache-2.0;
-the operational detection engine is source-available under the Functional
-Source Licence.**
+raucle-agent-assurance is open source under Apache-2.0, and it stays that
+way. That is a permanent decision about this repository, not a launch
+posture.
 
-## Summary
+The commercial surface of the Raucle Agent Assurance product line is a
+separate Enterprise Edition, built closed from the start in a private
+repository (epic28-ltd/raucle-agent-assurance-ee). Enterprise capabilities
+(fleet operator tooling, multi-tenant hosted components, commercial
+connectors) are not developed here and are not harvested out of here later.
+When a capability belongs in the Enterprise Edition, it is built there from
+day one.
 
-| Surface | Licence | Why |
-|---|---|---|
-| Receipt and evidence formats, schemas, pack definitions | Apache-2.0 | Formats anyone may parse; the schema is the contract |
-| `packages/instrumentation` (OTel ingest formats) | Apache-2.0 | Interoperable instrumentation must be inspectable |
-| `packages/raucle-adapter` | Apache-2.0 | Bridge into the Apache-2.0 raucle gate |
-| `packages/ep-aec` | Apache-2.0 | Implements the published verifier spec |
-| `services/assurance_packet` | Apache-2.0 | Deterministic packet builder; the evidence artefact an auditor holds |
-| `services/independent-assurance` | Apache-2.0 | The auditor-runnable checker; the who-audits-the-auditor guarantee |
-| `docs/spec`, `docs/adr`, `schemas/` | Apache-2.0 | Public specification record |
-| `services/correlation` (trace correlation and coverage engine) | FSL-1.1-ALv2 | Operational detection surface; converts to Apache-2.0 after two years |
-| `services/prebind`, `services/rules`, `services/quality` | FSL-1.1-ALv2 | Engine and operating surface |
-| `services/console`, `services/investigation-ui`, `services/evidence-index` | FSL-1.1-ALv2 | Operator and fleet surfaces |
+What this means, plainly:
 
-Read `LICENSE-FSL.md` for the full Functional Source Licence text: standard
-FSL terms, use, modification and self-hosting granted, competing products
-excluded, and every release converts to Apache-2.0 two years after its
-release date. The root `LICENSE` stays Apache-2.0; directories not carrying
-their own notice fall under the Apache-2.0 root.
+- Everything in this repository is Apache-2.0. Use it, modify it,
+  self-host it, build products on it.
+- Nothing published here will be relicensed. There is no plan, now or
+  later, to move this repository or any part of it to a restrictive or
+  source-available licence.
+- The packet format, the offline verifier, the crosswalk and the
+  trace-correlation companion are open permanently. Evidence has to be
+  verifiable by parties with no relationship to us; a verification layer
+  that could go closed would contradict the product's own thesis.
+- The Enterprise Edition is closed source and is never described as open
+  source.
 
-## Boundary and history
+## Contributions
 
-Commits up to and including `804e50f862005e94b6cf28a81b8a114ed0aad868` (12 Nov boundary, the Apache-2.0 era) remain Apache-2.0 and may be forked. The licence change applies from the `feat/licensing-fsl-engine`
-boundary commit onward. A solicited solicitor review of the boundary commit
-is pending; until that review returns, treat this file as stated intent.
-Contributions after the boundary are made under a DCO **plus a signed CLA**;
-no outside PR is merged under the DCO alone, because DCO alone does not
-carry relicence rights. Until the CLA bot is wired in, every outside PR is
-left unmerged. Note for the solicitor review: much of this code is AI-assisted
-(some release notes are marked as generated with Claude Code); authorship and
-ownership implications should be read at sign-off.
-
-## Copy discipline
-
-Product copy must say: the core and verifier are open source (Apache-2.0),
-the assurance engine is source-available (FSL-1.1-ALv2, converting to
-Apache-2.0 after two years). Do not describe the whole suite as open source.
-
-## Release conversion ledger
-
-Every FSL-covered release converts to Apache-2.0 two years after it is made
-available. The first FSL-boundary release is gated on the solicitor review;
-until then no FSL release is tagged. The ledger grows from that point:
-
-| Version | Release date | Converted to Apache-2.0 on |
-|---|---|---|
-| (first FSL release pending solicitor review) | | |
-
-## What the FSL allows (FAQ)
-
-- A bank running the engine in production for its own agents: **permitted**.
-- A consultancy running the engine for itself and its own clients'
-  operations: **permitted** (professional-services use of the Software,
-  not a competing product).
-- A managed-service provider hosting or reselling the engine for other
-  organisations: that is a **competing use**; contact us for a commercial
-  licence.
-- Redistributing modified copies with attribution per the licence terms:
-  **permitted**, including for internal use.
-
-Commercial-licence contact: `contact@epic28.com`.
-
-Import direction: the Apache-2 audit path never imports FSL-surface code; a CI check enforces it.
+Contributions are made under the DCO (`git commit -s`); see CONTRIBUTING.md.
+Because this repository will never be relicensed, a CLA is not required.
 
 ## Pack definitions, stated deliberately
 
@@ -76,3 +37,20 @@ The compliance pack definitions stay Apache-2.0 on purpose: auditors and
 customers can copy the crosswalk content. The value this project keeps is
 not the content; it is freshness, third-party reviewer engagement and
 signed attestation binding the packs to live evidence.
+
+## History note
+
+On 11 November 2026 this repository briefly adopted a two-licence model
+(Apache-2.0 audit path, FSL-1.1-ALv2 engine directories) in PRs #72-74. It
+was reverted the same day by owner decision, before any FSL-covered release
+was tagged: no release, tag or conversion-ledger entry was ever made under
+FSL terms. The decision record is
+docs/adr/0006-licensing-open-core-ee.md.
+
+Tree states inside that one-day window carry FSL notices. Those historical
+snapshots are the most restrictive states in this repository's history and
+there is no reason to rely on them: the identical code is available under
+Apache-2.0 at the revert commit and at HEAD. The repository's history
+before and after the window is Apache-2.0 throughout.
+
+Commercial-licence contact: `contact@epic28.com`.
