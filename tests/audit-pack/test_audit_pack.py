@@ -613,3 +613,126 @@ def test_policy_staging_tolerates_undecodable_store_entry(tmp_path: pathlib.Path
     staged = (pol_dir / "deployment_chain_receipts.jsonl").read_text(encoding="utf-8")
     assert "sha256:bbb" in staged
     assert "null" not in staged
+
+
+# ------------------------------------------------- path-traversal gate ----
+
+
+@pytest.mark.parametrize(
+    "member",
+    [
+        "/etc/passwd",
+        "/audit-pack/receipts.jsonl",
+        "..",
+        "../outside.json",
+        "keys/../../outside.json",
+        "receipts.jsonl\\",
+        "a\\b.json",
+        "..\\..\\outside",
+        "",
+    ],
+)
+def test_pack_member_refuses_traversal_payloads(tmp_path: pathlib.Path, member: str) -> None:
+    """Absolute paths, ``..`` segments, Windows separators and empty members
+    are refused outright; nothing is created inside the sandbox root."""
+    root = tmp_path / "pack-root"
+    root.mkdir()
+    with pytest.raises(ValueError, match="refus"):
+        pack._pack_member(root, member)
+    assert list(root.iterdir()) == []
+
+
+def test_pack_member_refuses_resolved_escape_via_symlink(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A member whose canonical path leaves the sandbox root (via a symlink
+    inside it) is refused: resolve-and-check containment, not just strings."""
+    root = tmp_path / "pack-root"
+    (root / "sub").mkdir(parents=True)
+    outside = tmp_path / "outside.txt"
+    outside.write_text("x", encoding="utf-8")
+    (root / "sub" / "link").symlink_to(outside)
+    with pytest.raises(ValueError, match="outside the pack root"):
+        pack._pack_member(root, "sub/link/target.json")
+    assert list((root / "sub").iterdir()) == [root / "sub" / "link"]
+
+
+def test_pack_member_allows_containerised_names(tmp_path: pathlib.Path) -> None:
+    """Literal pack members under the sandbox root keep resolving normally."""
+    root = tmp_path / "pack-root"
+    root.mkdir()
+    assert pack._pack_member(root, "receipts.jsonl") == root / "receipts.jsonl"
+    assert pack._pack_member(root, "keys/snapshot.jsonl") == root / "keys" / "snapshot.jsonl"
+
+
+def _mint_envelope(key: Ed25519PrivateKey, kid: str, payload: dict) -> str:
+    """Mint an Ed25519 envelope (the timestamp green-path recipe, factored)."""
+    hp = (
+        base64.urlsafe_b64encode(
+            json.dumps({"alg": "EdDSA", "kid": kid, "typ": "provenance-receipt/v1"}).encode()
+        )
+        .rstrip(b"=")
+        .decode()
+    )
+    pp = (
+        base64.urlsafe_b64encode(
+            json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
+        )
+        .rstrip(b"=")
+        .decode()
+    )
+    sig = base64.urlsafe_b64encode(key.sign(f"{hp}.{pp}".encode())).rstrip(b"=").decode()
+    return f"{hp}.{pp}.{sig}"
+
+
+def test_hostile_receipt_hash_is_refused_before_any_pack_write(
+    tmp_path: pathlib.Path,
+) -> None:
+    """End to end: a receipt_hash read from (hostile) store content never
+    becomes a pack path. A canonical-looking hash with a traversal suffix
+    aims `timestamps/…` outside the pack; the canonical sha256 guard refuses
+    it before staging, and nothing lands outside the output directory."""
+    key = Ed25519PrivateKey.generate()
+    kid = "0123456789abcdef"
+    pem = (
+        key.public_key()
+        .public_bytes(ser.Encoding.PEM, ser.PublicFormat.SubjectPublicKeyInfo)
+        .decode()
+    )
+    root_row = {
+        "key_id": kid,
+        "public_key_pem": pem,
+        "valid_from": "1970-01-01T00:00:00+00:00",
+        "valid_until": None,
+        "status": "current",
+        "note": "test-minted key",
+    }
+    payload = {
+        "agent_id": "agent:ts-test",
+        "iat": 1793781819,
+        "input_hash": "00" * 32,
+        "x_timestamp": {
+            "mode": "tsa",
+            "digest": "sha256:" + "00" * 32,
+            "token": base64.b64encode(b"EVIL-ESC-TOKEN").decode(),
+        },
+    }
+    jws = _mint_envelope(key, kid, payload)
+    # canonical-looking prefix, traversal suffix: the nastiest payload shape
+    hostile_rh = "sha256:" + "ab" * 32 + "/../../outside-evil"
+    store = tmp_path / "evidence_store.jsonl"
+    store.write_text(json.dumps({"receipt_hash": hostile_rh, "jws": jws}) + "\n")
+    roots = tmp_path / "trust_roots.jsonl"
+    roots.write_text(json.dumps(root_row) + "\n")
+    out = tmp_path / "out"
+    with pytest.raises(ValueError, match="not canonical"):
+        pack.build_pack(store, roots, out)
+    # every traversal payload aimed here must be absent
+    assert not (tmp_path / "outside-evil").exists()
+    assert not (out.parent / "outside-evil").exists()
+    stray = (
+        {str(p.relative_to(out)) for p in out.rglob("*") if p.is_file()} if out.exists() else set()
+    )
+    assert not any("outside-evil" in s for s in stray)
+    # no token file of any name was staged from the hostile envelope
+    assert not any(s.endswith(".token") for s in stray)
