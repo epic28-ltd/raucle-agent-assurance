@@ -68,6 +68,8 @@ until then no FSL release is tagged. The ledger grows from that point:
 
 Commercial-licence contact: `contact@epic28.com`.
 
+Import direction: the Apache-2 audit path never imports FSL-surface code; a CI check enforces it.
+
 ## Pack definitions, stated deliberately
 
 The compliance pack definitions stay Apache-2.0 on purpose: auditors and
