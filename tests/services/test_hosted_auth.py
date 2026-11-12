@@ -408,8 +408,9 @@ def test_session_cap_refuses_fail_closed(tmp_path, idp) -> None:
     env = enabled_env(tmp_path, overrides={"OAA_HOSTED_SESSIONS_MAX": "1"})
     hosted = boot_hosted(tmp_path, idp, env=env)
     first = hosted.sessions.open(hosted.principal_from_claims(idp.set_claims(sub="a")))
+    principal_b = hosted.principal_from_claims(idp.set_claims(sub="b"))
     with pytest.raises(SessionOpenError) as excinfo:
-        hosted.sessions.open(hosted.principal_from_claims(idp.set_claims(sub="b")))
+        hosted.sessions.open(principal_b)
     assert excinfo.value.status == 503
     assert "session limit" in excinfo.value.reason
     del first
