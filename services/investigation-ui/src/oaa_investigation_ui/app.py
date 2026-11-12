@@ -19,6 +19,14 @@ Views per the story 'Investigate tool calls':
   receipt/trace index plane (deterministic; unknown org renders 404
   unavailable, never a claimed zero).
 
+Auth (R2 slice 1, via the shared oaa_hosted_auth package): when the
+operator enables hosted OIDC (OAA_HOSTED_OIDC_ENABLED + issuer), operators
+authenticate via their organisation's identity provider; sessions are
+short-lived receipted bearers; a viewer/operator/security-admin role
+ladder enforces a route-level permission matrix (fail-closed default
+view-only), and mutating routes (ingest, triage, fleet writes) require
+operator. With the feature off, legacy open behaviour is byte-identical.
+
 UX hard rules (threat model T5):
 - all model/tool content renders as hostile text (server-rendered views
   escape with html.escape; the SPA renders with textContent — no innerHTML);
@@ -744,42 +752,103 @@ class _Routes:
         return _page("Verify offline", body)
 
 
-def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
-    """Build the FastAPI app; each route binds to a shared _Routes view."""
+def create_app(
+    data_dir: pathlib.Path | None = None,
+    hosted=None,
+    *,
+    env: dict[str, str] | None = None,
+    http_get=None,
+    http_post_form=None,
+    clock=None,
+) -> fastapi.FastAPI:
+    """Build the FastAPI app; each route binds to a shared _Routes view.
+
+    ``hosted`` may be a pre-built :class:`oaa_hosted_auth.HostedAuth`
+    (tests inject the provider transport there); when omitted, the surface
+    boots from the environment. Fail-closed: an enabled but misconfigured
+    or unreachable provider refuses the app entirely.
+    """
+    from oaa_hosted_auth import WRITE  # noqa: PLC0415
+
+    if hosted is None:
+        from oaa_hosted_auth import HostedAuth  # noqa: PLC0415
+
+        service_dir = pathlib.Path(__file__).resolve().parents[2]
+        hosted = HostedAuth.boot(
+            "assurance",
+            default_state_dir=str(service_dir / ".hosted-state"),
+            env=env,
+            http_get=http_get,
+            http_post_form=http_post_form,
+            clock=clock,
+        )
     app = fastapi.FastAPI(title="OAA Investigation UI (UI-01)", version="0.1.0")
     api = _Routes(data_dir or DATA_DIR)
 
     # ------------------------------------------------------------ API (JSON)
-    app.get("/api/runs")(api.runs)
-    app.get("/api/runs/{run_id}")(api.run)
-    app.get("/api/dashboard")(api.dashboard)
-    app.get("/api/counts")(api.counts)
-    app.get("/api/findings")(api.findings)
+    # Every route binds its R2 permission-matrix capability (route-level
+    # enforcement in enabled mode; legacy open mode when auth is off).
+    hosted.bind(app, "/api/runs", api.runs)
+    hosted.bind(app, "/api/runs/{run_id}", api.run)
+    hosted.bind(app, "/api/dashboard", api.dashboard)
+    hosted.bind(app, "/api/counts", api.counts)
+    hosted.bind(app, "/api/findings", api.findings)
     # ---------------------------------------------- RED-INTEGRATION intake
-    app.post("/api/findings/ingest")(api.ingest_findings)
-    app.get("/api/findings/red")(api.red_findings)
+    hosted.bind(
+        app, "/api/findings/ingest", api.ingest_findings, methods=("POST",), capability=WRITE
+    )
+    hosted.bind(app, "/api/findings/red", api.red_findings)
     # ------------------------------------------------- UI-02.4 findings board
-    app.get("/api/findings/board")(api.findings_board)
-    app.post("/api/findings/{finding_id}/triage")(api.triage)
+    hosted.bind(app, "/api/findings/board", api.findings_board)
+    hosted.bind(
+        app, "/api/findings/{finding_id}/triage", api.triage, methods=("POST",), capability=WRITE
+    )
     # --------------------------------------------- EPIC P2.C fleet rollup
-    app.get(_FLEET_ROLLUP_PATH)(api.fleet_view)
-    app.post(_FLEET_ROLLUP_PATH)(api.fleet_ingest)
-    app.delete(_FLEET_ROLLUP_PATH)(api.fleet_reset)
+    hosted.bind(app, _FLEET_ROLLUP_PATH, api.fleet_view)
+    hosted.bind(app, _FLEET_ROLLUP_PATH, api.fleet_ingest, methods=("POST",), capability=WRITE)
+    hosted.bind(app, _FLEET_ROLLUP_PATH, api.fleet_reset, methods=("DELETE",), capability=WRITE)
     # ------------------------------------------------- R1 coverage metric
-    app.get("/coverage/{org}")(api.coverage)
-    app.get("/api/receipts/{receipt_hash}")(api.receipt)
-    app.get("/api/receipts/{receipt_hash}/jws")(api.jws)
-    app.post("/api/receipts/{receipt_hash}/verify")(api.verify_receipt)
+    hosted.bind(app, "/coverage/{org}", api.coverage)
+    hosted.bind(app, "/api/receipts/{receipt_hash}", api.receipt)
+    hosted.bind(app, "/api/receipts/{receipt_hash}/jws", api.jws)
+    hosted.bind(app, "/api/receipts/{receipt_hash}/verify", api.verify_receipt, methods=("POST",))
     # ------------------------------------------------- optional live Langfuse
-    app.get("/api/live/traces")(api.live_traces)
+    hosted.bind(app, "/api/live/traces", api.live_traces)
     # ---------------------------------------------------- OV-2 assurance packet
-    app.post("/assurance/packet")(api.assurance_packet)
-    app.get("/assurance/summary", response_class=HTMLResponse)(api.assurance_summary)
+    hosted.bind(app, "/assurance/packet", api.assurance_packet, methods=("POST",))
+    hosted.bind(app, "/assurance/summary", api.assurance_summary, response_class=HTMLResponse)
     # --------------------------------------------- server-rendered (no-JS) views
-    app.get("/view/runs", response_class=HTMLResponse)(api.view_runs)
-    app.get("/view/run/{run_id}", response_class=HTMLResponse)(api.view_run)
-    app.get("/view/receipt/{receipt_hash}", response_class=HTMLResponse)(api.view_receipt)
-    app.post("/view/receipt/{receipt_hash}/verify", response_class=HTMLResponse)(api.view_verify)
+    # Data pages fail closed as an HTML login-required page (they are a
+    # human surface, so the refusal is human, not the JSON shape).
+    hosted.bind(app, "/view/runs", api.view_runs, response_class=HTMLResponse, html_denied=True)
+    hosted.bind(
+        app,
+        "/view/run/{run_id}",
+        api.view_run,
+        response_class=HTMLResponse,
+        html_denied=True,
+    )
+    hosted.bind(
+        app,
+        "/view/receipt/{receipt_hash}",
+        api.view_receipt,
+        response_class=HTMLResponse,
+        html_denied=True,
+    )
+    hosted.bind(
+        app,
+        "/view/receipt/{receipt_hash}/verify",
+        api.view_verify,
+        methods=("POST",),
+        response_class=HTMLResponse,
+        html_denied=True,
+    )
+    hosted.register_shared_routes(app)
+    # The default-deny net: enabled mode refuses every unbound path.
+    # Exemptions are the data-free shells only (index/legacy/fleet SPA HTML).
+    hosted.install_net(
+        app, exempt_exact=("/", "/legacy.html", "/view/fleet"), exempt_prefixes=("/static/",)
+    )
     app.get("/", include_in_schema=False)(index)
     app.get("/legacy.html", include_in_schema=False)(legacy)
     app.get("/view/fleet", include_in_schema=False, response_class=FileResponse)(fleet)
