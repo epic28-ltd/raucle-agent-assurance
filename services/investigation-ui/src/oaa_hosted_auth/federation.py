@@ -34,6 +34,7 @@ import hashlib
 import json
 import logging
 import os
+import stat
 import time
 from urllib.parse import urlencode
 
@@ -103,8 +104,6 @@ def client_secret_from_env(env: dict[str, str] | None = None) -> str:
     file_path = env.get("OAA_HOSTED_OIDC_CLIENT_SECRET_FILE", "").strip()
     if file_path:
         try:
-            import stat  # noqa: PLC0415 - stdlib, secret-file check only
-
             mode = stat.S_IMODE(os.stat(file_path).st_mode)
             if mode & 0o077:
                 raise _config_error(
