@@ -410,7 +410,8 @@ def test_role_change_grant_revoke_receipted_and_live(tmp_path, idp, monkeypatch)
     )
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["action"] == "grant" and body["subject"] == "sub-runtime"
+    assert body["action"] == "grant"
+    assert body["subject"] == "sub-runtime"
     assert body["effective_role"] == "operator"
     assert body["receipt_hash"]
 
