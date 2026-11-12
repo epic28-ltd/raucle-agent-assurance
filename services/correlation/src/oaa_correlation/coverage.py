@@ -109,6 +109,79 @@ def _flag_row(name: str, rollup: dict) -> dict:
     return row
 
 
+def _share(total: int, receipted: int) -> float | None:
+    """The receipted share, None at zero observations (never a fake 0.0)."""
+    return None if total == 0 else round(receipted / total, 4)
+
+
+def _receipted_share(rollups: dict[str, dict]) -> None:
+    """Attach receipted_share to every rollup bucket in place."""
+    for rollup in rollups.values():
+        rollup["receipted_share"] = _share(rollup["total"], rollup["receipted"])
+
+
+def _flag_rows(rollups: dict[str, dict]) -> list[dict]:
+    """Rollups with observed actions and zero correlated receipts, in name order."""
+    return [
+        _flag_row(name, rollup)
+        for name, rollup in sorted(rollups.items())
+        if rollup["total"] > 0 and rollup["receipted"] == 0
+    ]
+
+
+def _bucket_for(state: str) -> str:
+    """Partition an engine state into receipted / out_of_gate / pending."""
+    if state in RECEIPTED_STATES:
+        return "receipted"
+    if state in OUT_OF_GATE_STATES:
+        return "out_of_gate"
+    return "pending"
+
+
+def _accumulate_buckets(
+    rows_by_trace: dict[str, list[TraceRecord]],
+    states: dict[str, str],
+    total: int,
+) -> tuple[dict, dict[str, dict], dict[str, dict], dict[str, int]]:
+    """Breakdown counts, per-tool / per-agent rollups and per-state counts."""
+    breakdown = {"total": total, "receipted": 0, "out_of_gate": 0, "pending": 0}
+    by_tool: dict[str, dict] = {}
+    by_agent: dict[str, dict] = {}
+    state_counts: dict[str, int] = {}
+    for trace_id in sorted(rows_by_trace):
+        rows = rows_by_trace[trace_id]
+        state = states.get(trace_id, "pending")
+        state_counts[state] = state_counts.get(state, 0) + len(rows)
+        bucket = _bucket_for(state)
+        breakdown[bucket] += len(rows)
+        for tr in rows:
+            _fold(_rollup_bucket(by_tool, tr.tool_invocation, _NO_TOOL), bucket, 1)
+            _fold(_rollup_bucket(by_agent, tr.agent, _NO_AGENT), bucket, 1)
+    return breakdown, by_tool, by_agent, state_counts
+
+
+def _bypass_candidates(traces: list[TraceRecord], states: dict[str, str]) -> list[dict]:
+    """Observed actions beyond grace with no gate receipt (ADR-0004 candidates)."""
+    candidates: list[dict] = []
+    for tr in sorted(traces, key=lambda t: (t.trace_id, t.tool_invocation or "", t.agent or "")):
+        if states.get(tr.trace_id) in OUT_OF_GATE_STATES:
+            candidates.append(
+                {
+                    "trace_id": tr.trace_id,
+                    "tool": tr.tool_invocation if tr.tool_invocation is not None else _NO_TOOL,
+                    "agent": tr.agent if tr.agent is not None else _NO_AGENT,
+                    "state": "receipt_missing",
+                    "evidence_class": "trace_plane_only",
+                    "note": (
+                        "observed action with no gate receipt beyond grace "
+                        "(ADR-0004: candidate only; confirmation needs a "
+                        "tool-side or custody vantage)"
+                    ),
+                }
+            )
+    return candidates
+
+
 def coverage(
     receipts: list[ReceiptRecord],
     traces: list[TraceRecord],
@@ -140,61 +213,18 @@ def coverage(
 
     states = _trace_states(rows_by_trace, result)
 
-    breakdown = {"total": len(traces), "receipted": 0, "out_of_gate": 0, "pending": 0}
-    by_tool: dict[str, dict] = {}
-    by_agent: dict[str, dict] = {}
-    state_counts: dict[str, int] = {}
-    bypass_candidates: list[dict] = []
+    breakdown, by_tool, by_agent, state_counts = _accumulate_buckets(
+        rows_by_trace, states, len(traces)
+    )
 
-    for trace_id in sorted(rows_by_trace):
-        rows = rows_by_trace[trace_id]
-        state = states.get(trace_id, "pending")
-        state_counts[state] = state_counts.get(state, 0) + len(rows)
-        if state in RECEIPTED_STATES:
-            bucket = "receipted"
-        elif state in OUT_OF_GATE_STATES:
-            bucket = "out_of_gate"
-        else:
-            bucket = "pending"
-        breakdown[bucket] += len(rows)
-        for tr in rows:
-            _fold(_rollup_bucket(by_tool, tr.tool_invocation, _NO_TOOL), bucket, 1)
-            _fold(_rollup_bucket(by_agent, tr.agent, _NO_AGENT), bucket, 1)
-
-    for tr in sorted(traces, key=lambda t: (t.trace_id, t.tool_invocation or "", t.agent or "")):
-        if states.get(tr.trace_id) in OUT_OF_GATE_STATES:
-            bypass_candidates.append(
-                {
-                    "trace_id": tr.trace_id,
-                    "tool": tr.tool_invocation if tr.tool_invocation is not None else _NO_TOOL,
-                    "agent": tr.agent if tr.agent is not None else _NO_AGENT,
-                    "state": "receipt_missing",
-                    "evidence_class": "trace_plane_only",
-                    "note": (
-                        "observed action with no gate receipt beyond grace "
-                        "(ADR-0004: candidate only; confirmation needs a "
-                        "tool-side or custody vantage)"
-                    ),
-                }
-            )
+    bypass_candidates = _bypass_candidates(traces, states)
 
     # Flags derive from the frozen rollups, so a flag can never contradict
     # the per-tool / per-agent buckets it was computed from.
-    shadow_agents = [
-        _flag_row(agent, by_agent[agent])
-        for agent in sorted(by_agent)
-        if by_agent[agent]["total"] > 0 and by_agent[agent]["receipted"] == 0
-    ]
-    uninstrumented_tools = [
-        _flag_row(tool, by_tool[tool])
-        for tool in sorted(by_tool)
-        if by_tool[tool]["total"] > 0 and by_tool[tool]["receipted"] == 0
-    ]
+    shadow_agents = _flag_rows(by_agent)
+    uninstrumented_tools = _flag_rows(by_tool)
     for rollups in (by_tool, by_agent):
-        for rollup in rollups.values():
-            rollup["receipted_share"] = (
-                None if rollup["total"] == 0 else round(rollup["receipted"] / rollup["total"], 4)
-            )
+        _receipted_share(rollups)
 
     assert breakdown["total"] == (
         breakdown["receipted"] + breakdown["out_of_gate"] + breakdown["pending"]
@@ -203,11 +233,7 @@ def coverage(
     return {
         "schema_version": SCHEMA_VERSION,
         "metric": _METRIC,
-        "receipted_share": (
-            None
-            if breakdown["total"] == 0
-            else round(breakdown["receipted"] / breakdown["total"], 4)
-        ),
+        "receipted_share": _share(breakdown["total"], breakdown["receipted"]),
         "breakdown": breakdown,
         "flags": {
             "count": {
