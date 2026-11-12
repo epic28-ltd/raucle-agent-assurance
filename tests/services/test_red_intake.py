@@ -176,19 +176,41 @@ def test_invalid_findings_rejected(client: TestClient):
     assert client.post("/api/findings/ingest", json=[]).status_code == 422
 
 
-def test_corpus_jsonl_shape_accepted_end_to_end(client: TestClient):
-    corpora = pathlib.Path.home() / "Projects" / "raucle-agent-red" / "corpora" / "findings.jsonl"
-    if not corpora.is_file():
-        pytest.skip("red corpora not present")
+# R6: the corpus shape is exercised from the committed fixture below. The
+# fixture is locally-committed test data carrying the producer's wire shape
+# (regenerated, not symlinked to any machine-local red checkout) — the test
+# no longer depends on the raucle-agent-red repo being present.
+FIXTURE_CORPUS = REPO_ROOT / "tests" / "fixtures" / "red_corpus_sample.jsonl"
+
+
+def test_corpus_jsonl_shape_accepted_end_to_end(client: TestClient, tmp_path: pathlib.Path):
+    """The corpora SHAPE posts end to end, sourced from the committed fixture.
+
+    The fixture is valid finding rows in the ingest schema. Its single
+    fixture_store row (the kind the producer emits for path-backed
+    evidence) is bound at run time to a file the test writes into its own
+    tmp_path, so the row's sha256 matches the bytes on disk on every run;
+    the other rows are non-path references that stay format-checked only,
+    exactly like the corpora rows they stand in for.
+    """
+    evidence = tmp_path / "evidence_store.jsonl"
+    evidence.write_bytes(b"r6b fixture evidence store: deterministic bytes\n")
+    rows = [json.loads(line) for line in FIXTURE_CORPUS.read_text().splitlines() if line.strip()]
+    digest = hashlib.sha256(evidence.read_bytes()).hexdigest()
+    for row in rows:
+        if row["evidence_ref"]["kind"] == "fixture_store":
+            row["evidence_ref"]["value"] = str(evidence)
+            row["evidence_ref"]["sha256"] = digest
     r = client.post(
         "/api/findings/ingest",
-        content=corpora.read_text(),
+        content="\n".join(json.dumps(row) for row in rows) + "\n",
         headers={"content-type": "text/plain"},
     )
     assert r.status_code == 200
     counts = client.get("/api/counts").json()
     n = counts["red"]["ingested"]
     assert n > 0
+    assert n == len(rows)  # every fixture row ingested, not merely some
     assert counts["findings"]["total"] == len([f for f in client.get("/api/findings").json()]) + n
 
 
