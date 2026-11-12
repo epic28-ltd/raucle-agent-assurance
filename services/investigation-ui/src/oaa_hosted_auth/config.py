@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import os
 
-from .federation import OIDC_CONFIG_ERROR, HostedOIDCError
+from .federation import DEFAULT_SCOPE, OIDC_CONFIG_ERROR, HostedOIDCError
 
 TRUTHY = ("1", "true", "yes")
 
@@ -165,8 +165,6 @@ def from_env_for_surface(
     sessions_max = _int_value(env, "OAA_HOSTED_SESSIONS_MAX", 64)
     if sessions_max <= 0:
         raise HostedOIDCError(OIDC_CONFIG_ERROR, "OAA_HOSTED_SESSIONS_MAX must be positive")
-    from .federation import DEFAULT_SCOPE  # noqa: PLC0415 - cheap, avoids load order
-
     return SurfaceAuthConfig(
         issuer=issuer,
         client_id=client_id,

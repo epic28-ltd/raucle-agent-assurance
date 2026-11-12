@@ -147,11 +147,11 @@ def test_unknown_org_is_404_unavailable_not_zero(client: TestClient) -> None:
 
 
 def test_org_override_ids_the_instance(
-    monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
 ) -> None:
     monkeypatch.setenv("OAA_COVERAGE_ORG", "acme")
     assert _coverage_org() == "acme"
-    d = tmp_path_factory.mktemp("coverage-org-override")
+    d = tmp_path
     shutil.copytree(DATA_DIR, d, dirs_exist_ok=True)
     client = TestClient(create_app(d))
     ok = client.get("/coverage/acme")

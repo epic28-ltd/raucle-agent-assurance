@@ -278,7 +278,7 @@ class HostedAuth:
             return
         app.state.hosted_denial_handler_attached = True
 
-        async def _render(request, exc: HostedDenial):
+        def _render(request, exc: HostedDenial):
             return HTMLResponse(exc.page, status_code=403)
 
         app.add_exception_handler(HostedDenial, _render)
@@ -387,7 +387,7 @@ class HostedAuth:
             url = federation.authorization_url(state, nonce, verifier)
             return {"authorization_url": url, "state": state}
 
-        async def oidc_callback(body: dict) -> JSONResponse:
+        def oidc_callback(body: dict) -> JSONResponse:
             try:
                 claims = self._exchange(body)
             except HostedOIDCError as exc:
@@ -455,7 +455,7 @@ class HostedAuth:
                 "note": "env grant lists apply at boot; env values are never echoed here",
             }
 
-        async def role_change(
+        def role_change(
             subject: str,
             body: dict,
             # FastAPI dependency injection against a per-boot closure:

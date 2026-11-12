@@ -392,7 +392,8 @@ def test_session_refresh_extends_and_receipts(tmp_path, idp) -> None:
     # Unknown tokens never refresh.
     assert hosted.sessions.refresh(SESSION_TOKEN_PREFIX + "bogus") is None
     rows = hosted.ledger.entries("session_refresh")
-    assert len(rows) == 1 and rows[0]["payload"]["subject"] == "sub-console-op"
+    assert len(rows) == 1
+    assert rows[0]["payload"]["subject"] == "sub-console-op"
 
 
 def test_session_close_receipts_before_drop(tmp_path, idp) -> None:
@@ -407,8 +408,9 @@ def test_session_cap_refuses_fail_closed(tmp_path, idp) -> None:
     env = enabled_env(tmp_path, overrides={"OAA_HOSTED_SESSIONS_MAX": "1"})
     hosted = boot_hosted(tmp_path, idp, env=env)
     first = hosted.sessions.open(hosted.principal_from_claims(idp.set_claims(sub="a")))
+    principal_b = hosted.principal_from_claims(idp.set_claims(sub="b"))
     with pytest.raises(SessionOpenError) as excinfo:
-        hosted.sessions.open(hosted.principal_from_claims(idp.set_claims(sub="b")))
+        hosted.sessions.open(principal_b)
     assert excinfo.value.status == 503
     assert "session limit" in excinfo.value.reason
     del first
@@ -428,7 +430,8 @@ def test_disabled_by_default_and_flag_validation(tmp_path) -> None:
     cfg = from_env_for_surface(
         "OAA_HOSTED_OIDC_REDIRECT_URI_CONSOLE", env={}, default_state_dir="x"
     )
-    assert cfg.session_ttl == 3600 and cfg.sessions_max == 64
+    assert cfg.session_ttl == 3600
+    assert cfg.sessions_max == 64
     assert cfg.issuer == ""  # disabled surfaces carry no provider config
 
 
@@ -465,7 +468,8 @@ def test_secret_file_contract(tmp_path, idp) -> None:
     secret_file.chmod(0o644)
     with pytest.raises(HostedOIDCError) as excinfo:
         boot_hosted(tmp_path, idp, env=env)
-    assert OIDC_CONFIG_ERROR in str(excinfo.value) and "0600" in str(excinfo.value)
+    assert OIDC_CONFIG_ERROR in str(excinfo.value)
+    assert "0600" in str(excinfo.value)
 
 
 # ------------------------------------------------------------------- discovery
@@ -526,7 +530,9 @@ def test_oidc_login_and_callback_happy_path(tmp_path, idp) -> None:
     assert params["client_id"] == ["hosted-console"]
     assert params["redirect_uri"] == ["http://127.0.0.1:3412/"]
     assert params["scope"] == ["openid profile email"]
-    assert params["nonce"] and params["state"] and params["code_challenge"]
+    assert params["nonce"]
+    assert params["state"]
+    assert params["code_challenge"]
 
     idp.set_claims(sub="sub-console-op", email="op@example.org", nonce=params["nonce"][0])
     callback = client.post("/api/oidc/callback", json={"code": "c", "state": login.json()["state"]})
@@ -720,7 +726,8 @@ def test_logout_and_refresh_over_http(tmp_path, idp) -> None:
     token = body["session_token"]
     headers = {"Authorization": f"Bearer {token}"}
     refreshed = client.post("/api/session/refresh", headers=headers)
-    assert refreshed.status_code == 200 and refreshed.json()["subject"] == "sub-op"
+    assert refreshed.status_code == 200
+    assert refreshed.json()["subject"] == "sub-op"
     closed = client.post("/api/session/logout", headers=headers)
     assert closed.status_code == 200
     # The dead token is exactly like no token: fail closed.

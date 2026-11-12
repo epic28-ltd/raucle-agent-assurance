@@ -410,7 +410,8 @@ def test_role_change_grant_revoke_receipted_and_live(tmp_path, idp, monkeypatch)
     )
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["action"] == "grant" and body["subject"] == "sub-runtime"
+    assert body["action"] == "grant"
+    assert body["subject"] == "sub-runtime"
     assert body["effective_role"] == "operator"
     assert body["receipt_hash"]
 
@@ -542,8 +543,9 @@ def test_tampered_ledger_refuses_boot(tmp_path, idp, monkeypatch) -> None:
     ledger_path.write_text("\n".join(lines) + "\n")
     from oaa_hosted_auth import LedgerCorruptError  # noqa: PLC0415 - test-local
 
+    env = rbac_env(tmp_path)
     with pytest.raises(LedgerCorruptError):
-        boot_hosted(tmp_path, idp, env=rbac_env(tmp_path))
+        boot_hosted(tmp_path, idp, env=env)
 
 
 def test_unmapped_paths_fail_closed(tmp_path, idp) -> None:
