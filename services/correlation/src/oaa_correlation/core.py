@@ -97,13 +97,21 @@ class ReceiptRecord:
 
 @dataclass(frozen=True, eq=True)
 class TraceRecord:
-    """Trace-side record with its event window [window_start, window_end]."""
+    """Trace-side record with its event window [window_start, window_end].
+
+    ``agent`` (optional) attributes the record to the acting agent as the
+    producer instrumented it: coverage shadow detection (zero receipts for
+    an observed agent) reads it; it is evidence-plane INDEX metadata, not an
+    identity assertion, and ``None`` stays schema-distinguishable ("not
+    recorded on the trace side", never an empty-name agent).
+    """
 
     trace_id: str
     tool_invocation: str | None
     observed_at: dt.datetime
     window_start: dt.datetime | None = None
     window_end: dt.datetime | None = None
+    agent: str | None = None
 
     def __post_init__(self) -> None:
         if not self.trace_id:
@@ -395,7 +403,10 @@ def reconcile(
 
         records.extend(_both_sides_records(trace_id, recs, ts, grace))
 
-    assert seen_trace_ids  # every trace_id encountered was processed
+    assert seen_trace_ids == set(by_receipt_trace) | set(traces_by_id)
+    # every trace_id encountered was processed; an entirely empty plane
+    # (no receipts, no traces — an org with nothing observed) reconciles to
+    # an empty result rather than tripping this check vacuously.
     return CorrelationResult(records=records, pending=pending)
 
 
