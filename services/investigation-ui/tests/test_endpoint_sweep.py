@@ -558,7 +558,14 @@ def test_view_fleet_page_is_textcontent_only(client: TestClient) -> None:
     assert ".innerHTML" not in text  # no DOM writes but textContent
     assert "onclick" not in text
     assert "<script" in text
-    assert text.count("<script") == 1
+    # Two scripts: the shared hosted-login hook (one physical file served by
+    # this app; it must load BEFORE the module so window.fetch is interposed
+    # first) and the page's own module.
+    assert text.count("<script") == 2
+    hook_tag = '<script src="/static/hosted-auth-hook.js"></script>'
+    assert hook_tag in text
+    assert text.index(hook_tag) < text.index('<script type="module">')
+    assert client.get("/static/hosted-auth-hook.js").status_code == 200
     assert "/api/fleet/rollup" in text
     assert "ABSENT" in text  # absence is a first-class rendered state
 

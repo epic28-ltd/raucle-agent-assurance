@@ -20,6 +20,19 @@ Single-tenant alpha: one tenant (`default`). Org identity is derived by the
 server per the tenancy ADR contract; the console sets no cookies and accepts
 no tenant input. Authenticated multi-tenancy is a later epic.
 
+## Auth (R2 slice 1)
+
+Optional; OFF by default. When the operator enables it
+(`OAA_HOSTED_OIDC_ENABLED` + issuer + client id + secret, see
+`docs/architecture/hosted-surface-oidc-rbac-r2s1.md` for the full env
+contract), console operators authenticate via their organisation's OIDC
+identity provider, sessions are short-lived receipted bearers
+(`oas_`, digest-only store), and a viewer/operator/security-admin role
+ladder enforces the surface's route-level permission matrix with a
+fail-closed default of view-only. Role grants/revocations are
+receipted (hashed ledger) and take effect on the next request. With the
+feature off, every route behaves exactly as it did before.
+
 ## Configuration (environment at start-up)
 
 - `RAUCLE_ASSURANCE_URL` - iframe target for the Assurance add-in

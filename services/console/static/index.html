@@ -34,6 +34,8 @@
 </style>
 </head>
 <body>
+<!-- hosted login hook: one physical copy shared by the operator surfaces (no defer - it must interpose window.fetch before the page's own parse-time fetch calls) -->
+<script src="/static/hosted-auth-hook.js"></script>
 <div class="shell has-sidebar" id="shell">
 
   <!-- ---------------------------------------------------------- sidebar -->

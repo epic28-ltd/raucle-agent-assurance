@@ -30,11 +30,14 @@
 </p>
 <main id="app"></main>
 
+<!-- hosted login hook: one physical copy shared by the operator surfaces (no defer - it must interpose window.fetch before the page's own parse-time fetch calls) -->
+<script src="/static/hosted-auth-hook.js"></script>
 <script type="module">
 // SPDX-License-Identifier: Apache-2.0
 // Threat model T5 discipline: every dynamic value is set with textContent —
 // no innerHTML anywhere, no external fetches (only /api/fleet/rollup), and
 // ABSENT is rendered as an explicit state, never blank and never zero.
+
 "use strict";
 const app = document.getElementById("app");
 

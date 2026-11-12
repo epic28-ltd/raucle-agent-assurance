@@ -45,6 +45,22 @@ responses are an explicit `{available: false, reason: ...}` (skippable).
 Keys/values are never echoed. The pinned raucle worktree can be pointed at
 with `OAA_RAUCLE_SRC` for a working *Verify offline*.
 
+## Auth (R2 slice 1)
+
+Optional; OFF by default (legacy open behaviour when off). With the
+hosted OIDC feature enabled (`OAA_HOSTED_OIDC_ENABLED` + issuer; the
+console's README and `docs/architecture/hosted-surface-oidc-rbac-r2s1.md`
+carry the full env contract), operators authenticate via their
+organisation's identity provider; sessions are short-lived receipted
+bearers; the viewer/operator/security-admin ladder enforces a
+route-level permission matrix with a fail-closed default of view-only —
+mutating routes (findings intake, board triage, fleet writes) require
+operator; the receipted `/api/roles/{subject}` grant/revoke route
+requires security-admin, and roles take effect on the next request.
+No-JS data pages (`/view/*`) refuse unauthenticated and
+insufficient-role visitors with an explicit HTML login-required page,
+never a leaked page.
+
 ## Threat-model T5 (hard rules in the tested code path)
 
 - All model/tool content renders as hostile text: server-rendered views

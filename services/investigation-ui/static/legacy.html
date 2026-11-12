@@ -16,6 +16,8 @@
 </style>
 </head>
 <body>
+<!-- hosted login hook: one physical copy shared by the operator surfaces (no defer - it must interpose window.fetch before the page's own parse-time fetch calls) -->
+<script src="/static/hosted-auth-hook.js"></script>
 <nav>
   <strong>Open Agent Assurance — investigation (UI-01)</strong>
   <span id="nav-runs" class="crumbs">runs</span>

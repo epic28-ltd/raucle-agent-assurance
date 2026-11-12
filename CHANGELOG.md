@@ -5,6 +5,30 @@ Format based on Keep a Changelog; versioning will be semver from 0.1.0.
 
 ## Unreleased
 
+### 2026-11-12: hosted-surface auth (R2 slice 1)
+
+- Hosted OIDC identity federation for the console + investigation UI
+  (`oaa_hosted_auth`): org-IdP login end to end (discovery fail-closed at
+  boot, PKCE S256, strict id_token verification, single-use state/nonce)
+  matching the gateway admin-plane idiom (X3 slice 1), short-lived
+  receipted bearer sessions (`oas_`, digest-only store, capped, TTL
+  enforced, refresh live), OFF by default with a byte-identical legacy
+  open mode when disabled.
+- Route-level role ladder on both hosted surfaces: viewer / operator /
+  security-admin with a permission matrix bound at registration
+  (matrix-completeness test walks both apps in CI) and a default-deny
+  net for unbound paths; fail-closed default view-only for unlisted and
+  unknown-role identities; no-JS data pages refuse unauthenticated and
+  insufficient-role visitors as an explicit HTML login-required page.
+- Receipted role changes: security-admin-only grant/revoke with a
+  required reason, receipted in a tamper-evident hashed ledger
+  (chain-verified on load and boot; a truncated/edited ledger refuses
+  boot), effective on the next request, replayed across boots after the
+  env grant baseline.
+- SPAs: one inline login hook per page (fetch-bearer interposition from
+  sessionStorage, IdP-redirect capture into the callback exchange,
+  config-probe redirect to `/api/oidc/login`).
+
 ### 2026-11-05 → 07: sprint wave (PRs #26–#65)
 
 The 4-Nov spike imports below are followed by the merged sprint wave. Every

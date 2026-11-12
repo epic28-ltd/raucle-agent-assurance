@@ -27,3 +27,6 @@ nohup*.out
 
 .sonar/tokens/
 .scannerwork/
+
+# R2 hosted-auth runtime state (receipted ledgers): per-surface, never committed
+.hosted-state/

@@ -10,8 +10,14 @@ suite products are ADD-INS purchased separately:
 - Raucle Agent Red     - wave 2, not started (coming soon).
 
 Server contract: org identity is server-derived per the ADR contract; the
-console is a single-tenant alpha with one tenant ('default') and no cookie
-/ session handling - authenticated multi-tenancy is a later epic.
+console is a single-tenant alpha with one tenant ('default').
+Authenticated multi-tenancy is a later epic. R2 slice 1 adds the hosted
+auth layer (see oaa_hosted_auth): when the operator enables it
+(OAA_HOSTED_OIDC_ENABLED + issuer), console operators authenticate via
+their organisation's OIDC identity provider, sessions are short-lived
+receipted bearers, and a viewer/operator/security-admin role ladder is
+enforced at route level (fail-closed default view-only). With the feature
+off, the legacy open behaviour is byte-identical to before.
 
 UX hard rules (threat model T5, shared with investigation-ui):
 - the SPA renders with textContent only - no innerHTML anywhere;
@@ -38,6 +44,19 @@ from fastapi.staticfiles import StaticFiles
 ADDIN_OFFLINE = "add-in offline"
 
 _static_dir = pathlib.Path(__file__).resolve().parents[2] / "static"
+
+
+def _hosted_capabilities() -> tuple[str, str, str]:
+    """The R2 capability constants, imported lazily from oaa_hosted_auth.
+
+    The investigation-ui src dir is on sys.path only when the repo layout
+    exists (the console never installed a compiled dep on it), so this
+    stays lazy like every other cross-service import (see _trust_counts).
+    """
+    from oaa_hosted_auth import PUBLIC, READ, WRITE  # noqa: PLC0415
+
+    return PUBLIC, READ, WRITE
+
 
 # Shared counting module (UI-05 coherence pass): the console NEVER computes
 # its own numbers - its trust figures and offline fallbacks are the output
@@ -529,6 +548,17 @@ class _Routes:
         return FileResponse(_static_dir / "index.html")
 
 
+def hosted_auth_hook() -> FileResponse:
+    """The shared hosted-login hook, ONE physical copy from oaa_hosted_auth.
+
+    The console reaches the package through its existing sys.path import of
+    oaa_hosted_auth (same file the investigation UI serves at the same URL).
+    """
+    from oaa_hosted_auth import HOSTED_AUTH_HOOK_JS  # noqa: PLC0415 - lazy
+
+    return FileResponse(HOSTED_AUTH_HOOK_JS, media_type="application/javascript")
+
+
 def _assurance_url() -> str:
     return os.environ.get("RAUCLE_ASSURANCE_URL", ASSURANCE_URL_DEFAULT)
 
@@ -576,31 +606,76 @@ def _proxy_red(method: str, path: str, *, body=None):
         )
 
 
-def create_app() -> fastapi.FastAPI:
-    """Build the FastAPI app; each route binds to a shared _Routes view."""
+def create_app(
+    hosted=None,
+    *,
+    env: dict[str, str] | None = None,
+    http_get=None,
+    http_post_form=None,
+    clock=None,
+) -> fastapi.FastAPI:
+    """Build the FastAPI app; each route binds to a shared _Routes view.
+
+    ``hosted`` is the pre-built :class:`oaa_hosted_auth.HostedAuth` surface
+    (tests build one with injected provider transport); when omitted the
+    console boots its own from the environment. Fail-closed: an enabled
+    but misconfigured or unreachable provider refuses the app entirely.
+    """
+    PUBLIC, _read, WRITE = _hosted_capabilities()
+    if hosted is None:
+        from oaa_hosted_auth import HostedAuth  # noqa: PLC0415
+
+        service_dir = pathlib.Path(__file__).resolve().parents[2]
+        hosted = HostedAuth.boot(
+            "console",
+            default_state_dir=str(service_dir / ".hosted-state"),
+            env=env,
+            http_get=http_get,
+            http_post_form=http_post_form,
+            clock=clock,
+        )
     app = fastapi.FastAPI(title="Raucle Console (EPIC-N)", version="0.1.0")
     api = _Routes()
 
     # ------------------------------------------------------------ API (JSON)
-    app.get("/api/overview")(api.overview)
-    app.get("/api/config")(api.config)
-    app.get("/api/trust/policies/summary")(api.trust_policies_summary)
-    app.get("/api/assurance/dashboard")(api.assurance_dashboard)
-    app.get("/api/assurance/counts")(api.assurance_counts)
-    app.get("/api/assurance/findings")(api.assurance_findings)
-    app.get("/api/trends")(api.trends)
-    app.get("/api/red/dogfood")(api.red_dogfood)
-    app.get("/api/red/targets")(api.red_targets)
-    app.post("/api/red/run")(api.red_run)
-    app.get("/api/red/status")(api.red_status)
-    app.get("/api/red/results")(api.red_results)
-    app.post("/api/red/stop")(api.red_stop)
-    app.get("/api/assurance/findings/red")(api.assurance_findings_red)
-    app.post("/api/assurance/findings/ingest")(api.assurance_findings_ingest)
-    app.get("/api/health")(api.health)
+    # Every data route binds its R2 permission-matrix capability; the
+    # shared session/OIDC/roles routes register their own. With auth off
+    # these are plain registrations - legacy behaviour, byte-identical.
+    hosted.bind(app, "/api/overview", api.overview)
+    hosted.bind(app, "/api/config", api.config)
+    hosted.bind(app, "/api/trust/policies/summary", api.trust_policies_summary)
+    hosted.bind(app, "/api/assurance/dashboard", api.assurance_dashboard)
+    hosted.bind(app, "/api/assurance/counts", api.assurance_counts)
+    hosted.bind(app, "/api/assurance/findings", api.assurance_findings)
+    hosted.bind(app, "/api/trends", api.trends)
+    hosted.bind(app, "/api/red/dogfood", api.red_dogfood)
+    hosted.bind(app, "/api/red/targets", api.red_targets)
+    hosted.bind(app, "/api/red/run", api.red_run, methods=("POST",), capability=WRITE)
+    hosted.bind(app, "/api/red/status", api.red_status)
+    hosted.bind(app, "/api/red/results", api.red_results)
+    hosted.bind(app, "/api/red/stop", api.red_stop, methods=("POST",), capability=WRITE)
+    hosted.bind(app, "/api/assurance/findings/red", api.assurance_findings_red)
+    hosted.bind(
+        app,
+        "/api/assurance/findings/ingest",
+        api.assurance_findings_ingest,
+        methods=("POST",),
+        capability=WRITE,
+    )
+    hosted.bind(app, "/api/health", api.health, capability=PUBLIC)
+    hosted.register_shared_routes(app)
+    # The default-deny net: in enabled mode every unbound path refuses.
+    # Exemptions are the DATA-FREE shell only (the SPA renders itself empty
+    # until its authenticated API calls succeed).
+    hosted.install_net(app, exempt_exact=("/", "/static/index.html"), exempt_prefixes=("/static/",))
+
     # ------------------------------------------------------------ static SPA
     app.get("/", include_in_schema=False)(api.index)
     app.get("/static/index.html", include_in_schema=False)(api.spa)
+    # The shared hosted-login hook: ONE physical file from the oaa_hosted_auth
+    # package, served at the same URL every carrier surface exposes. Explicit
+    # route registered BEFORE the /static mount so it wins route matching.
+    app.get("/static/hosted-auth-hook.js", include_in_schema=False)(hosted_auth_hook)
 
     # Vendored UI assets (Inter font) and the token/app stylesheets are all
     # served locally only: the SPA never fetches anything external at
