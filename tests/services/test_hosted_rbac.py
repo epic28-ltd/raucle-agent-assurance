@@ -49,8 +49,8 @@ ROLE_SEC_EMAIL = "sec@example.org"
 
 # The data-free shell paths per surface (exempt from the matrix walk).
 SHELL_PATHS = {
-    "console": {"/", "/static/index.html"},
-    "assurance": {"/", "/legacy.html", "/view/fleet"},
+    "console": {"/", "/static/index.html", "/static/hosted-auth-hook.js"},
+    "assurance": {"/", "/legacy.html", "/view/fleet", "/static/hosted-auth-hook.js"},
 }
 AUTO_DOC_PATHS = {"/openapi.json", "/docs", "/redoc", "/docs/oauth2-redirect"}
 
@@ -346,9 +346,57 @@ def test_investigation_no_js_pages_html_fail_closed(tmp_path, idp, role: str) ->
     assert r.status_code == 200  # viewer: view-only reads stay readable
 
 
+# ----------------------------------------------- hosted login hook contract
+
+
+def test_hosted_login_hook_served_and_referenced_by_every_carrier_page(tmp_path, idp) -> None:
+    """The hosted-login hook is ONE physical file on BOTH carrier surfaces.
+
+    The pages must keep carrying the hook (a reference instead of the former
+    ~150-line inline copy) and both apps must serve the same file at
+    /static/hosted-auth-hook.js — inline duplication was the Sonar
+    new_duplicated_lines debt; the contract proves the behaviour moved
+    instead of disappearing.
+    """
+    console = TestClient(
+        create_console(hosted=boot_hosted(tmp_path, idp, env=rbac_env(tmp_path))),
+        raise_server_exceptions=False,
+    )
+    investigation_client_inst, _hosted = investigation_client(tmp_path, idp, rbac_env(tmp_path))
+    pages = {
+        "console": (
+            console,
+            ("/", "/static/index.html"),
+        ),
+        "assurance": (
+            investigation_client_inst,
+            ("/", "/legacy.html", "/view/fleet"),
+        ),
+    }
+    tag = '<script src="/static/hosted-auth-hook.js"></script>'
+    for surface, (client, paths) in pages.items():
+        for path in paths:
+            page = client.get(path)
+            assert page.status_code == 200, (surface, path)
+            assert tag in page.text, (surface, path)
+            # No page carries the former inline copy any more.
+            assert "oaa_hosted_session" not in page.text, (surface, path)
+        served = client.get("/static/hosted-auth-hook.js")
+        assert served.status_code == 200, surface
+        assert "javascript" in served.headers["content-type"]
+        # The served body is the interposer itself, not a 404 page.
+        for needle in ("window.fetch", "oaaAuthHeaders", "/api/oidc/callback"):
+            assert needle in served.text, (surface, needle)
+        # The plain script sits BEFORE the pages' own module scripts.
+        for path in paths:
+            text = client.get(path).text
+            tag_at = text.index(tag)
+            module_at = text.find('<script type="module">')
+            if module_at != -1:
+                assert tag_at < module_at, (surface, path)
+
+
 # ------------------------------------------------------- role lifecycle
-
-
 def test_role_change_grant_revoke_receipted_and_live(tmp_path, idp, monkeypatch) -> None:
     stub_console_outbound(monkeypatch, {"accepted": True})
     client, admin_token, hosted = console_with_session(tmp_path, idp, "security-admin")

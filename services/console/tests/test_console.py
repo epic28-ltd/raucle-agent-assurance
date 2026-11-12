@@ -149,9 +149,15 @@ def test_spa_textcontent_discipline():
     for forbidden in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval("):
         assert forbidden not in html
     assert "textContent" in html
-    # external scripts/stylesheets are not allowed
+    # external scripts/stylesheets are not allowed, except the shared
+    # hosted-login hook (one same-origin physical file, served by this app;
+    # it must still be present so the page keeps carrying the hook)
+    hook_src = "/static/hosted-auth-hook.js"
+    assert hook_src in html
+    assert html.count('src="' + hook_src + '"') == 1
     for src in re.findall(r'<script[^>]*src=["\']([^"\']+)', html):
-        assert src.startswith("http://127.0.0.1"), src
+        # same-origin allowed set: the hosted-auth hook file only
+        assert src == hook_src, src
     for href in re.findall(r'<link[^>]*href=["\']([^"\']+)', html):
         assert href.startswith(("http://127.0.0.1", "/")), href
     # the allowed cross-origin fetch targets are the pinned loopback add-in

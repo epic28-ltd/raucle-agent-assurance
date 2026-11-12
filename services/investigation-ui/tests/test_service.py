@@ -267,6 +267,14 @@ def test_index_no_inner_html_no_external_fetch(client: TestClient):
     for scheme in ("http", "https"):
         needle = scheme + "://"
         assert needle not in html.replace("xmlns=", "").replace('href="/', "")
+    # The SPA's ONE allowed src asset is the shared hosted-login hook: a
+    # same-origin file this app serves itself (R2 slice 1 moved the formerly
+    # inline block there). The discipline contract then still asserts pages
+    # carry the hook and NOTHING else is loaded.
+    hook_tag = '<script src="/static/hosted-auth-hook.js"></script>'
+    assert hook_tag in html
+    assert client.get("/static/hosted-auth-hook.js").status_code == 200
+    html = html.replace(hook_tag, "")
     for unsafe in ("src=", "import(", "eval("):
         assert unsafe not in html.replace("xmlns=", "").replace('href="/', "")
 

@@ -548,6 +548,17 @@ class _Routes:
         return FileResponse(_static_dir / "index.html")
 
 
+def hosted_auth_hook() -> FileResponse:
+    """The shared hosted-login hook, ONE physical copy from oaa_hosted_auth.
+
+    The console reaches the package through its existing sys.path import of
+    oaa_hosted_auth (same file the investigation UI serves at the same URL).
+    """
+    from oaa_hosted_auth import HOSTED_AUTH_HOOK_JS  # noqa: PLC0415 - lazy
+
+    return FileResponse(HOSTED_AUTH_HOOK_JS, media_type="application/javascript")
+
+
 def _assurance_url() -> str:
     return os.environ.get("RAUCLE_ASSURANCE_URL", ASSURANCE_URL_DEFAULT)
 
@@ -661,6 +672,10 @@ def create_app(
     # ------------------------------------------------------------ static SPA
     app.get("/", include_in_schema=False)(api.index)
     app.get("/static/index.html", include_in_schema=False)(api.spa)
+    # The shared hosted-login hook: ONE physical file from the oaa_hosted_auth
+    # package, served at the same URL every carrier surface exposes. Explicit
+    # route registered BEFORE the /static mount so it wins route matching.
+    app.get("/static/hosted-auth-hook.js", include_in_schema=False)(hosted_auth_hook)
 
     # Vendored UI assets (Inter font) and the token/app stylesheets are all
     # served locally only: the SPA never fetches anything external at

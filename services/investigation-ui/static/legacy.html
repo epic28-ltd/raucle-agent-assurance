@@ -16,72 +16,8 @@
 </style>
 </head>
 <body>
-<script>
-/* R2 slice 1 hosted login hook (investigation UI). No build toolchain: one inline
-   block, textContent discipline untouched (this block touches no DOM).
-   Three jobs, in order:
-   1. interpose same-origin fetches so every /api|/coverage|/assurance call
-      carries the session bearer once a session exists (sessionStorage only
-      - tab-scoped, never localStorage, never a cookie);
-   2. capture the IdP redirect (?code=...&state=...) and exchange it at
-      POST /api/oidc/callback; a login that fails yields no session and
-      the page stays on its shell (fail-closed);
-   3. probe /api/session/config (public) and, with OIDC enabled and no
-      valid session, send the operator to /api/oidc/login. */
-(function () {
-  'use strict';
-  var _fetch = window.fetch.bind(window);
-  var TOKEN_KEY = 'oaa_hosted_session';
-  function authHeaders() {
-    var t = null;
-    try { t = sessionStorage.getItem(TOKEN_KEY); } catch (e) { t = null; }
-    return t ? { 'Authorization': 'Bearer ' + t } : {};
-  }
-  window.oaaAuthHeaders = authHeaders;
-  window.fetch = function (input, init) {
-    try {
-      var url = typeof input === 'string' ? input : ((input && input.url) || '');
-      if (url.indexOf('/api/') === 0 || url.indexOf('/coverage/') === 0 ||
-          url.indexOf('/assurance/') === 0) {
-        init = init || {};
-        var headers = new Headers(init.headers || {});
-        var auth = authHeaders();
-        for (var k in auth) { headers.set(k, auth[k]); }
-        init.headers = headers;
-      }
-    } catch (e) { /* the interposer must never break a fetch */ }
-    return _fetch(input, init);
-  };
-  function qs(name) {
-    return new URLSearchParams(window.location.search).get(name);
-  }
-  var code = qs('code');
-  var state = qs('state');
-  if (code && state) {
-    history.replaceState(null, '', window.location.pathname);
-    fetch('/api/oidc/callback', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ code: code, state: state })
-    }).then(function (r) { return r.json(); }).then(function (d) {
-      if (d && d.session_token) {
-        try { sessionStorage.setItem(TOKEN_KEY, d.session_token); } catch (e) {}
-        window.location.reload();
-      } else {
-        /* no session on doubt: stay on the shell, honest empty state */
-      }
-    }).catch(function () { /* exchange failed: fail closed, stay here */ });
-    return;
-  }
-  if (qs('error')) { history.replaceState(null, '', window.location.pathname); }
-  fetch('/api/session/config').then(function (r) { return r.json(); }).then(function (cfg) {
-    if (!cfg || !cfg.oidc_enabled) { return; }
-    return fetch('/api/session/me', { headers: authHeaders() }).then(function (me) {
-      if (me.status === 403) { window.location.href = '/api/oidc/login'; }
-    });
-  }).catch(function () { /* config probe failed: leave the page as-is */ });
-})();
-</script>
+<!-- hosted login hook: one physical copy shared by the operator surfaces (no defer - it must interpose window.fetch before the page's own parse-time fetch calls) -->
+<script src="/static/hosted-auth-hook.js"></script>
 <nav>
   <strong>Open Agent Assurance — investigation (UI-01)</strong>
   <span id="nav-runs" class="crumbs">runs</span>

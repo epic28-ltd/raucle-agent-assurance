@@ -226,6 +226,17 @@ def fleet() -> FileResponse:
     return FileResponse(_static_dir / "fleet.html")  # EPIC P2.C fleet view
 
 
+def hosted_auth_hook() -> FileResponse:
+    """The shared hosted-login hook, ONE physical copy from oaa_hosted_auth.
+
+    Every carrier surface serves this same file at /static/hosted-auth-hook.js
+    so the SPAs can reference it instead of each carrying an inline copy.
+    """
+    from oaa_hosted_auth import HOSTED_AUTH_HOOK_JS  # noqa: PLC0415 - lazy
+
+    return FileResponse(HOSTED_AUTH_HOOK_JS, media_type="application/javascript")
+
+
 class _Routes:
     """Endpoint logic for UI-01; bodies live here so ``create_app`` stays a
     pure router registration (S3776): no counting logic in the factory."""
@@ -852,6 +863,9 @@ def create_app(
     app.get("/", include_in_schema=False)(index)
     app.get("/legacy.html", include_in_schema=False)(legacy)
     app.get("/view/fleet", include_in_schema=False, response_class=FileResponse)(fleet)
+    # The shared hosted-login hook (one physical file for all surfaces). The
+    # /static/ prefix stays exempt from the fail-closed net (data-free asset).
+    app.get("/static/hosted-auth-hook.js", include_in_schema=False)(hosted_auth_hook)
     return app
 
 

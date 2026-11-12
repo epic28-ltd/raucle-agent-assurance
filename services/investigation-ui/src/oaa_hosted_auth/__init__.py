@@ -10,6 +10,8 @@ hosted-surface-oidc-rbac-r2s1.md in this repository.
 """
 # SPDX-License-Identifier: Apache-2.0
 
+import pathlib
+
 from .config import parse_enabled
 from .federation import (
     DEFAULT_SCOPE,
@@ -46,10 +48,19 @@ from .sessions import (
     hash_session_token,
 )
 
+# The hosted-login SPA hook, ONE physical copy under assets/ and served by
+# EVERY carrier surface at /static/hosted-auth-hook.js (see
+# assets/hosted_auth_hook.js for the contract: it must interpose window.fetch
+# before the pages' own scripts run their first fetch).
+HOSTED_AUTH_HOOK_JS = pathlib.Path(__file__).resolve().parent / "assets" / "hosted_auth_hook.js"
+if not HOSTED_AUTH_HOOK_JS.is_file():  # pragma: no cover - packaging drift guard
+    raise RuntimeError(f"missing bundled asset: {HOSTED_AUTH_HOOK_JS}")
+
 __all__ = [
     "DEFAULT_MAX_SESSIONS",
     "DEFAULT_SCOPE",
     "DEFAULT_SESSION_TTL_SECONDS",
+    "HOSTED_AUTH_HOOK_JS",
     "OIDC_CONFIG_ERROR",
     "OIDC_DISCOVERY_ERROR",
     "OIDC_EXCHANGE_ERROR",
