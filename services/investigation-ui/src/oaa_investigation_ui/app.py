@@ -13,7 +13,11 @@ Views per the story 'Investigate tool calls':
   ``classify`` over the canonical bytes; the raw JWS is shown as
   "available for download" only;
 - findings panel: rule_id, severity, confidence, suppressed findings
-  retained with suppression_reason (RULE-01).
+  retained with suppression_reason (RULE-01);
+- coverage (R1): GET /coverage/{org} — the receipted-share metric computed
+  from the COR-01 correlation engine's own states over this instance's
+  receipt/trace index plane (deterministic; unknown org renders 404
+  unavailable, never a claimed zero).
 
 UX hard rules (threat model T5):
 - all model/tool content renders as hostile text (server-rendered views
@@ -70,6 +74,17 @@ _static_dir = pathlib.Path(__file__).resolve().parents[2] / "static"
 
 
 _FLEET_ROLLUP_PATH = "/api/fleet/rollup"
+
+
+def _coverage_org() -> str:
+    """Org id this assurance instance exposes coverage for.
+
+    The deployment serves ONE org (this instance's ingested/observed data
+    plane). The default ids the reference/demo deployment; an operator names
+    their org with OAA_COVERAGE_ORG rather than silently serving another
+    tenant's id under it.
+    """
+    return os.environ.get("OAA_COVERAGE_ORG", "demo")
 
 
 def esc(value) -> str:
@@ -546,6 +561,46 @@ class _Routes:
         persist_artifacts(self.data_dir, [])
         return {"fleet": "reset"}
 
+    def coverage(self, org: str):
+        """R1: the receipted-share coverage metric (GET /coverage/{org}).
+
+        Computed from the COR-01 correlation engine's own terminal states
+        over this instance's receipt/trace index plane — deterministic
+        (``at=None``: reconciled as if every window had closed; no wall
+        clock enters the number). Data an org does not hold is 404 with the
+        gap named: coverage for an org with no observed actions is
+        UNAVAILABLE, never zero (absence is a first-class state, and zero
+        would claim evidence that does not exist).
+        """
+        known = _coverage_org()
+        if org != known:
+            return JSONResponse(
+                {
+                    "org": org,
+                    "error": (
+                        f"no observed agent actions recorded for org {org!r}; "
+                        "coverage is unavailable here, never zero"
+                    ),
+                    "known_orgs": [known],
+                },
+                status_code=404,
+            )
+        # R1 metric lives in the correlation engine; ``.data`` (imported at
+        # module top) has already put the correlation service src on
+        # sys.path — the repo's importability convention for cross-service
+        # modules keeps this import inside the request path.
+        from oaa_correlation import coverage  # noqa: PLC0415
+
+        payload = coverage(self.data.receipt_records, self.data.trace_records, at=None)
+        return {
+            "org": org,
+            "basis": (
+                "observed agent actions = ADR-0002 trace-side records; "
+                "receipts counted via correlated x_gate.trace_id only"
+            ),
+            **payload,
+        }
+
     def live_traces(self) -> dict:
         base = os.environ.get("OAA_LANGFUSE_BASE_URL")
         public_key = os.environ.get("OAA_LANGFUSE_PUBLIC_KEY")
@@ -710,6 +765,8 @@ def create_app(data_dir: pathlib.Path | None = None) -> fastapi.FastAPI:
     app.get(_FLEET_ROLLUP_PATH)(api.fleet_view)
     app.post(_FLEET_ROLLUP_PATH)(api.fleet_ingest)
     app.delete(_FLEET_ROLLUP_PATH)(api.fleet_reset)
+    # ------------------------------------------------- R1 coverage metric
+    app.get("/coverage/{org}")(api.coverage)
     app.get("/api/receipts/{receipt_hash}")(api.receipt)
     app.get("/api/receipts/{receipt_hash}/jws")(api.jws)
     app.post("/api/receipts/{receipt_hash}/verify")(api.verify_receipt)

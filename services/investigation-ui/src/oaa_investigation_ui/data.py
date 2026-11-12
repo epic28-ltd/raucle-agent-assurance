@@ -303,11 +303,16 @@ class DemoData:
                 observed_at=dt.datetime.fromisoformat(t["window_start"]),
                 window_start=dt.datetime.fromisoformat(t["window_start"]),
                 window_end=dt.datetime.fromisoformat(t["window_end"]),
+                agent=run.get("agent"),
                 # type: ignore[arg-type]  # observed_at unused when windows set
             )
             for run in self.runs
             for t in run["traces"]
         ]
+        # Coverage (R1) reads the same receipt/trace index plane the engine
+        # reconciled: retained read-only, engine states, UI overrides aside.
+        self.receipt_records: list[ReceiptRecord] = receipts
+        self.trace_records: list[TraceRecord] = traces
         result = reconcile(receipts, traces, at=None)
         for record in result.records:
             # UI-02.4: hand-built fallback-pairing demo rows may declare
