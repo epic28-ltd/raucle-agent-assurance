@@ -14,7 +14,7 @@ authors = [{ name = "Open Agent Assurance contributors" }]
 dependencies = []  # raucle is an OPTIONAL, pinned dependency — see README
 
 [project.optional-dependencies]
-raucle = []  # raucle==0.23.5 pinned via worktree install or PyPI; see README
+raucle = []  # raucle==0.23.6 pinned via worktree install or PyPI; see README
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/oaa_raucle_adapter"]

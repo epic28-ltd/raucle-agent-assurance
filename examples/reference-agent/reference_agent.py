@@ -29,7 +29,7 @@ for line in (BASE / "obs.env").read_text().splitlines():
 
 BASEURL = os.environ.get("OAA_LF_URL", "http://localhost:3301")
 RUN_ID = f"oaa-run-{uuid.uuid4().hex[:12]}"
-RELEASE_VERSION = "v0.23.5+63edacd"
+RELEASE_VERSION = "v0.23.6+645f5de"
 SESSION_ID = f"sess-{RUN_ID}"
 
 provider = TracerProvider(

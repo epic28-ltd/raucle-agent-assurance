@@ -3,7 +3,7 @@
 """EVD-02 full harness — conformance fixture sweep + rotation demo.
 
 Example script adapted from the EVD spike (`run_evd.py`). Requires the pinned
-raucle distribution (v0.23.5, git 63edacd); see the package README.
+raucle distribution (v0.23.6, git 645f5de); see the package README.
 
 Usage (from the repository root, with the package importable — either
 ``pip install -e packages/raucle-adapter`` or PYTHONPATH=packages/raucle-adapter/src):

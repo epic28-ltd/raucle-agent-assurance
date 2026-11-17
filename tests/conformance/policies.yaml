@@ -1,0 +1,16 @@
+
+version: 1
+issuer: evd.demo
+policies:
+  - tool: read_file
+    agent_id: agent:evd
+    ttl_seconds: 300
+    constraints:
+      allow:
+        path: ["/var/oaa-demo/evd-allow.txt"]
+  - tool: write_file
+    agent_id: agent:evd
+    ttl_seconds: 300
+    constraints:
+      allow:
+        path: ["/var/oaa-demo/evd-only.txt"]

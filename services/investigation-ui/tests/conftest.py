@@ -8,7 +8,7 @@ import importlib.util
 import os
 import pathlib
 
-_DEFAULT_WORKTREE = pathlib.Path.home() / "Projects" / "oaa-spike-4nov" / "evd" / "raucle-63edacd"
+_DEFAULT_WORKTREE = pathlib.Path.home() / "Projects" / "oaa-spike-4nov" / "evd" / "raucle-645f5de"
 
 if (
     importlib.util.find_spec("raucle") is None

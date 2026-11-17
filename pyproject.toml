@@ -21,7 +21,7 @@ omit = [
   # The pinned raucle worktree (checked out under oaa-spike-4nov and imported
   # through the local pin) is CROSS-REPO code that belongs to raucle's own
   # coverage campaign - counting it here would double-report.
-  "**/raucle-63edacd/**",
+  "**/raucle-645f5de/**",
 ]
 
 [tool.ruff]

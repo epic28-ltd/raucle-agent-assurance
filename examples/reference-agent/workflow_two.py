@@ -68,7 +68,7 @@ OI_RETRIEVAL_DOCUMENTS = "retrieval.documents"
 OI_TOOL_NAME = "tool.name"
 OI_TOOL_PARAMETERS = "tool.parameters"
 
-RELEASE_VERSION = "v0.23.5+63edacd"
+RELEASE_VERSION = "v0.23.6+645f5de"
 SERVICE_NAME = "oaa-workflow-two"
 TRACER_NAME = "oaa.workflowtwo"
 RUN_ID_PREFIX = "oaa-run2"  # run-two prefix distinguishes workflow two from OBS-01

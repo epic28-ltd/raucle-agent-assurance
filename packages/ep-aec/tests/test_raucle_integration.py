@@ -3,7 +3,7 @@
 oaa-raucle-adapter.evidence_plane and generate VERIFIED AEC components.
 
 Skipped (with a reason) whenever raucle is not importable in this env —
-raucle is an OPTIONAL pinned dependency (raucle 0.23.5, git 63edacd).
+raucle is an OPTIONAL pinned dependency (raucle 0.23.6, git 645f5de).
 """
 
 from __future__ import annotations
@@ -134,7 +134,7 @@ def test_supplied_classification_matches_integrated_shape(tmp_path):
         classifications={
             hashes[0]: {
                 "verification_status": "valid",
-                "verifier_version": "raucle 0.23.5 (git 63edacd)",
+                "verifier_version": "raucle 0.23.6 (git 645f5de)",
                 "trust_policy_version": "evd-trust-1",
                 "checked_at": "2026-11-04T12:00:00+00:00",
                 "checks_performed": ["jose_header_parsed"],
@@ -144,4 +144,4 @@ def test_supplied_classification_matches_integrated_shape(tmp_path):
     )
     comp = env["replay"]["components"][0]
     assert comp["result"] == "VERIFIED"
-    assert comp["native_verifier_profile_digest"] == "oaa-raucle-verifier:0.23.5:63edacd"
+    assert comp["native_verifier_profile_digest"] == "oaa-raucle-verifier:0.23.6:645f5de"

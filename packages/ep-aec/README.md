@@ -17,5 +17,5 @@ verbatim evidence store produced by `oaa-raucle-adapter`.
 
 raucle is an OPTIONAL dependency; without it the generator still builds AECs
 from classification results supplied by the caller. Integration tests that
-classify real fixtures via the pinned raucle v0.23.5 worktree (git 63edacd)
+classify real fixtures via the pinned raucle v0.23.6 worktree (git 645f5de)
 skip when raucle is absent. Findings: `docs/spikes/K1-epaec-findings.md`.

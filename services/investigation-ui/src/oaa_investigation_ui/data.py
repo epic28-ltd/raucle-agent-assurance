@@ -12,7 +12,7 @@ Loads the demo data dir (read-only, invariant 1):
 - ``verification_index.jsonl`` per-receipt verification status rows (index
   plane only; the UI never re-verifies at rest).
 - ``trust_roots.jsonl`` trust roots for the offline verifier (public half
-  only; raucle 0.23.5 wants ``dict[str, bytes]``, hence bytes-encoded PEMs).
+  only; raucle 0.23.6 wants ``dict[str, bytes]``, hence bytes-encoded PEMs).
 - ``rules_fixture.json`` documented suppressions for the RULE-01 findings
   panel (suppressed findings are retained, never dropped).
 - ``synthetic_audit_events.jsonl`` UI-02.4: hand-built audit-plane INDEX
@@ -557,7 +557,7 @@ class DemoData:
             if not line.strip() or line.startswith("#"):
                 continue
             row = json.loads(line)
-            # raucle 0.23.5 ProvenanceVerifier expects dict[str, bytes] PEMs.
+            # raucle 0.23.6 ProvenanceVerifier expects dict[str, bytes] PEMs.
             reg.add(
                 TrustRoot(
                     row["key_id"],

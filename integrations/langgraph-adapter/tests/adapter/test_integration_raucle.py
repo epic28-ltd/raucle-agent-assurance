@@ -2,7 +2,7 @@
 """Skippable integration test against the pinned raucle worktree.
 
 Runs a REAL allow and a REAL deny through ``RaucleGateway.check_tool_call``
-(v0.23.5, git 63edacd) wrapped by ``InProcessRaucleGate`` and enforced by
+(v0.23.6, git 645f5de) wrapped by ``InProcessRaucleGate`` and enforced by
 ``RaucleGateMiddleware``. Skipped (never failed) when the pinned raucle is
 not importable: set PYTHONPATH to the worktree, or point RAUCLE_WORKTREE at it.
 """
@@ -15,8 +15,8 @@ import pytest
 
 pytest.importorskip(
     "raucle",
-    reason="raucle (pinned v0.23.5, git 63edacd) not installed — "
-    "PYTHONPATH=~/Projects/oaa-spike-4nov/evd/raucle-63edacd",
+    reason="raucle (pinned v0.23.6, git 645f5de) not installed — "
+    "PYTHONPATH=~/Projects/oaa-spike-4nov/evd/raucle-645f5de",
 )
 
 from oaa_langgraph_adapter import InProcessRaucleGate, RaucleGateMiddleware
