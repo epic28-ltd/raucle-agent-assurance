@@ -550,6 +550,86 @@
       "evidence_field": null,
       "status": "UNSUPPORTED",
       "unsat_reason": "No change-approval register, impact documentation, duty-separation or sign-off record exists in the repo or the evidence schema; repository-level reviewed-PR traces exist but are not an evidence plane field."
+    },
+    {
+      "framework": "HITRUST AI Security Framework",
+      "control_id": "AI system inventory",
+      "title": "Inventory of AI systems and the components that run them",
+      "evidence_field": "coverage.gate_covered_tools",
+      "status": "PARTIAL",
+      "basis": "The custody-coverage map (ops/assurance/config/coverage.yaml, ADR-0004) and the packet's coverage section enumerate every gated tool in the agent plane, so the technically-deployed surface has a machine-readable inventory; no organisation-wide register of AI systems, models or datasets exists in the repo."
+    },
+    {
+      "framework": "HITRUST AI Security Framework",
+      "control_id": "AI system accountability",
+      "title": "Assigned accountability and ownership for AI systems",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "No named ownership, accountability or oversight-role record for AI systems exists in the evidence plane: roles and approval workflows are organisation-level artefacts (the same gap the ISO 42001 pack records for A.3.2)."
+    },
+    {
+      "framework": "HITRUST AI Security Framework",
+      "control_id": "AI third-party and inherited controls",
+      "title": "Third-party AI services and inherited control coverage",
+      "evidence_field": "coverage.unverified_tools",
+      "status": "PARTIAL",
+      "basis": "The packet's coverage.unverified_tools list makes coverage gaps over the gated tool plane visible rather than silently passed, which is honest coverage accounting for third-party-connected tools; no shared-responsibility or inherited-controls record (HITRUST inheritance model) exists in the repo."
+    },
+    {
+      "framework": "HITRUST AI Security Framework",
+      "control_id": "AI system change management",
+      "title": "Change management over AI systems and their controls",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "No change-approval register, impact documentation or sign-off workflow over AI systems exists in the repo or the evidence schema (the same gap the PCI DSS pack records for 6.5); reviewed-PR traces are repository practice, not an evidence plane field."
+    },
+    {
+      "framework": "HITRUST AI Security Framework",
+      "control_id": "AI system change verification",
+      "title": "Verification and validation of AI system behaviour under change",
+      "evidence_field": "risk_annotations",
+      "status": "PARTIAL",
+      "basis": "Red-run suites (policy fuzz, gateway HTTP/MCP, tamper, forge) and the offline verifier exercise control behaviour with receipted outcomes and risk annotations, so control behaviour is verified against its requirements; the verified surface is the agent tool plane, not an AI model's outputs."
+    },
+    {
+      "framework": "HITRUST AI Security Framework",
+      "control_id": "AI system data protection",
+      "title": "Protection of AI system data (training, input, output)",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The plane records actions, not data: no dataset classification, data-at-rest/in-transit protection or AI data-handling control exists in the evidence plane (the same gap the ISO 42001 pack records for Annex A.7); the redaction stage is a bounded-disclosure behaviour, not a data-protection control."
+    },
+    {
+      "framework": "HITRUST AI Security Framework",
+      "control_id": "AI record integrity",
+      "title": "Protection of AI records from improper alteration",
+      "evidence_field": "receipt_chain.receipt_hashes",
+      "status": "SUPPORTED",
+      "basis": "Every gated tool call produces a sha256-pinned, tamper-evident receipt (receipts.jsonl, ADR-0001/0002) and the assurance packet revalidates content against its signing key offline, so alteration of records is detectable and verifiable."
+    },
+    {
+      "framework": "HITRUST AI Security Framework",
+      "control_id": "AI logging and monitoring",
+      "title": "Logging and continuous monitoring of AI system activity",
+      "evidence_field": "receipt_chain.verified_count",
+      "status": "SUPPORTED",
+      "basis": "Every gated tool call produces a receipt (receipts.jsonl) and the custody-coverage map plus deterministic security rules (services/rules SEC-001..SEC-011) monitor the plane continuously, so AI-system activity (the agent tool plane) is logged and monitored."
+    },
+    {
+      "framework": "HITRUST AI Security Framework",
+      "control_id": "AI incident detection and response updates",
+      "title": "Detection of AI-specific security events feeding incident response",
+      "evidence_field": "receipt_chain.invalid_or_missing_count",
+      "status": "PARTIAL",
+      "basis": "Missing or invalid receipts are first-class deterministic findings (SEC-001, SEC-002), so integrity incidents on the AI tool plane are detected and evidenced; no organisational incident playbooks, tabletop exercises or response process exists in the repo."
+    },
+    {
+      "framework": "HITRUST AI Security Framework",
+      "control_id": "AI incident recording",
+      "title": "Recording of AI-specific security incidents that have occurred",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "No record of AI-specific security incidents, or of their specifics (threat type, impact, recovery), exists in the evidence plane: the plane records detections, not an incident lifecycle (the same gap the DORA pack records for Art 11 incident reporting)."
     }
   ]
 }

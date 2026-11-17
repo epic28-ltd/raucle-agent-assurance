@@ -5,6 +5,25 @@ Format based on Keep a Changelog; versioning will be semver from 0.1.0.
 
 ## Unreleased
 
+### 2026-11-17: HITRUST AI Security Framework compliance pack v1
+
+- Fifth enterprise checklist pack: a mapping of the evidence plane (gate
+  receipts, receipt chain, custody coverage, red-run findings, packet
+  revalidation) to the HITRUST CSF v11 AI-specific control topics, in four
+  areas (AI system inventory and accountability, AI change management, AI
+  data protection, AI incident response): 10 crosswalk rows (2 SUPPORTED,
+  4 PARTIAL, 4 UNSUPPORTED), honest verdicts per the fixed vocabulary, row
+  structure identical to the other packs.
+- HITRUST is licence-restricted: the pack reproduces no control text, only
+  descriptive topic ids and short titles, with an explicit numbering
+  caveat that the topic structure follows the public AI assessment outlines
+  and must be verified against the licensed CSF before buyer-facing use.
+- Machine-readable rows in `ops/assurance-profiles/crosswalk.json` export
+  through the existing `grc_evidence_graph/v1` export unchanged; consistency
+  tests in `tests/assurance/test_hitrust_ai_pack.py` (load-path parity with
+  the other packs, bidirectional pack/crosswalk checks, claim-language and
+  vendor guards, no-text-reproduction guard, export coverage, index check).
+
 ### 2026-11-17: distribution-pin re-key raucle 0.23.6 + fixture regeneration
 
 - Re-keyed `RAUCLE_DISTRIBUTION_PIN` from `raucle 0.23.5 (git 63edacd)` to
