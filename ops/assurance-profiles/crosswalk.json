@@ -81,19 +81,107 @@
     },
     {
       "framework": "ISO 42001",
-      "control_id": "A.7.2 AI system impact assessment",
-      "title": "Documented AI-system impact assessment",
+      "control_id": "Clause 4.3 AIMS scope",
+      "title": "Determining the scope of the AI management system",
+      "evidence_field": "governance.ISO 42001",
+      "status": "PARTIAL",
+      "basis": "ADRs (docs/adr/0001-0005) and the governance profiles (ops/assurance-profiles) declare the deliberately narrow scope of the evidence plane, and the packet carries the ISO 42001 mapping slot the firm fills; no organisation-level AIMS scope statement or interested-parties analysis exists in the repo."
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "A.2.2 AI policy",
+      "title": "AI policy",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "No organisational AI policy artefact exists in the repo: the signed gate policies bind tool calls, they are not a top-management-approved AI policy communicated across an organisation."
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "A.3.2 AI roles and responsibilities",
+      "title": "AI roles and responsibilities",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "No AIMS roles, responsibilities or reporting lines exist in the evidence plane: there are no oversight-operator roles or approval workflows (the same gap the EU AI Act pack records for Art 14 human oversight)."
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "A.5.3 documentation of AI system impact assessments",
+      "title": "Documentation of AI system impact assessments",
       "evidence_field": "risk_annotations",
       "status": "PARTIAL",
       "basis": "The GOV-01 scoped assurance report (ops/assurance/generate_report.py, structural no-claim guard) and documented legal-compliance boundary provide assessment inputs, but no formal impact-assessment artefact is produced."
     },
     {
       "framework": "ISO 42001",
-      "control_id": "A.9.7 AI system operation and monitoring",
-      "title": "Ongoing monitoring of AI system operation",
+      "control_id": "Clause 6.1.3 AI risk treatment",
+      "title": "AI risk treatment",
+      "evidence_field": "policy_proof_refs",
+      "status": "PARTIAL",
+      "basis": "Enforced, signed policies plus deterministic rules (services/rules SEC-001..SEC-011) treat the evidence plane's identified risks (unauthorised tool calls, tampered receipts, capability drift); no organisation-level AI risk register or treatment plan artefact exists."
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "Clause 7.2 competence",
+      "title": "Competence",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "No competence, training or awareness artefact for AI-related personnel exists in the repo; competence is an organisational control the evidence plane cannot produce."
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "Clause 7.5 documented information",
+      "title": "Documented information",
+      "evidence_field": "receipt_chain.verified_count",
+      "status": "PARTIAL",
+      "basis": "Receipt bytes are staged into the offline audit pack (ops/audit-pack/pack.py) and re-verified outside the production plane, so the AIMS's technical records can be kept and independently checked; no retention-period, archival or destruction lifecycle control exists in the repo."
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "A.6.2.4 AI system verification and validation",
+      "title": "AI system verification and validation",
+      "evidence_field": "risk_annotations",
+      "status": "PARTIAL",
+      "basis": "Red-run suites (policy fuzz, gateway HTTP/MCP, tamper, forge) and the offline verifier exercise and verify control behaviour with receipted outcomes; no verification of an AI model against its requirements exists, the agent tool plane is the only verified surface."
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "A.6.2.6 AI system operation and monitoring",
+      "title": "AI system operation and monitoring",
       "evidence_field": "coverage.gate_covered_tools",
       "status": "SUPPORTED",
       "basis": "Custody-coverage map (ops/assurance/config/coverage.yaml, ADR-0004) plus deterministic security rules (services/rules SEC-001..SEC-011) monitor every gated tool call continuously."
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "A.6.2.8 AI system recording of event logs",
+      "title": "AI system recording of event logs",
+      "evidence_field": "receipt_chain.verified_count",
+      "status": "SUPPORTED",
+      "basis": "Every gated tool call produces a sha256-pinned, tamper-evident receipt (receipts.jsonl, ADR-0001/0002); the chain is independently re-verified offline and missing or invalid receipts are first-class findings (SEC-001, SEC-002)."
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "Clause 9.1 monitoring, measurement and evaluation",
+      "title": "Monitoring, measurement, analysis and evaluation",
+      "evidence_field": "coverage.gate_covered_tools",
+      "status": "PARTIAL",
+      "basis": "The custody-coverage map and its receipted-share coverage metric plus deterministic findings rules continuously measure the evidence plane's technical performance; no AIMS-wide performance-evaluation programme exists."
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "Clause 9.2 internal audit",
+      "title": "Internal audit",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "No internal AIMS audit programme, audit schedule or management review exists in the repo; the offline pack verifier re-verifies technical evidence, it does not audit a management system."
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "Clause 10.2 continual improvement",
+      "title": "Continual improvement",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "Findings are produced and evidenced (SEC-001..SEC-011 findings, red-run findings) but no documented continual-improvement or corrective-action process over the management system exists in the repo."
     },
     {
       "framework": "SOC 2",
@@ -145,19 +233,83 @@
     },
     {
       "framework": "NIST AI RMF",
-      "control_id": "MEASURE 2.5 monitoring efficacy",
-      "title": "The AI system is monitored for effectiveness of deployed controls",
+      "control_id": "GOVERN 1.6 AI system inventory mechanisms",
+      "title": "Mechanisms are in place to inventory AI systems",
+      "evidence_field": "coverage.gate_covered_tools",
+      "status": "PARTIAL",
+      "basis": "The custody-coverage map is an inventory mechanism for the agent's tool surface, fail-visible when a tool is not under gate custody (ADR-0004, SEC-006); it inventories tools per agent, not the organisation's AI systems, and is not resourced against organisation risk priorities."
+    },
+    {
+      "framework": "NIST AI RMF",
+      "control_id": "GOVERN 2.1 roles and responsibilities",
+      "title": "Roles and responsibilities for AI risk are documented and clear",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "No AI risk-management roles, responsibilities or lines of communication are documented in the evidence plane; no oversight-operator or accountability-role artefact exists (the same gap the EU AI Act pack records for Art 14)."
+    },
+    {
+      "framework": "NIST AI RMF",
+      "control_id": "MAP 3.3 targeted application scope",
+      "title": "Targeted application scope is specified and documented",
+      "evidence_field": "policy_proof_refs",
+      "status": "PARTIAL",
+      "basis": "Signed, versioned policies pin each agent's targeted tool scope and constraints, and receipts evidence what actually ran inside it; the documented scope covers the agent tool plane only, not the system's intended application context, benefits or costs."
+    },
+    {
+      "framework": "NIST AI RMF",
+      "control_id": "MAP 4.2 internal risk controls",
+      "title": "Internal risk controls for components of the AI system are identified and documented",
+      "evidence_field": "capability_chain",
+      "status": "PARTIAL",
+      "basis": "Enforced policies and deterministic rules (services/rules SEC-001..SEC-011) are identified, documented risk controls for the agent tool plane (ADRs 0001-0005); no controls for non-tool components such as the model layer or third-party AI technologies are identified in the evidence plane."
+    },
+    {
+      "framework": "NIST AI RMF",
+      "control_id": "MEASURE 1.2 effectiveness of controls",
+      "title": "Appropriateness of AI metrics and effectiveness of existing controls are regularly assessed and updated",
       "evidence_field": "risk_annotations",
       "status": "SUPPORTED",
       "basis": "Red-run suites measure control efficacy directly: policy fuzz, gateway HTTP, mcp, tamper and forge attempts are receipted, counted and ingested as findings."
     },
     {
       "framework": "NIST AI RMF",
-      "control_id": "MANAGE 2.2 issue response",
-      "title": "Mechanisms for responding to identified AI-system issues",
+      "control_id": "MEASURE 2.5 validity and reliability",
+      "title": "The AI system to be deployed is demonstrated to be valid and reliable",
       "evidence_field": null,
       "status": "UNSUPPORTED",
-      "unsat_reason": "Findings are produced and evidenced but no remediation workflow, ticketing integration or response SLA exists in the repo; detection is honest, remediation is out of scope."
+      "unsat_reason": "No validity or reliability measurement of an AI system exists in the evidence plane: red-run suites measure attack resistance of the gate's controls (the MEASURE 1.2 and MEASURE 2.7 rows), not model validity, accuracy or generalisability."
+    },
+    {
+      "framework": "NIST AI RMF",
+      "control_id": "MEASURE 2.7 security and resilience evaluation",
+      "title": "AI system security and resilience are evaluated and documented",
+      "evidence_field": "risk_annotations",
+      "status": "PARTIAL",
+      "basis": "Red-run tamper, forge and policy-fuzz suites evaluate the gate's attack resistance and are ingested as documented findings; resilience beyond attack resistance (fail-safe behaviour, graceful degradation of the agent as a whole) is not evaluated."
+    },
+    {
+      "framework": "NIST AI RMF",
+      "control_id": "MEASURE 2.10 privacy risk examination",
+      "title": "Privacy risk of the AI system is examined and documented",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "Findings never carry content (INDEX-PLANE only) and no privacy-risk examination or disclosure-scanning control exists in the evidence plane (the same gap the crosswalk records for OWASP LLM06)."
+    },
+    {
+      "framework": "NIST AI RMF",
+      "control_id": "MANAGE 2.3 response to unknown risks",
+      "title": "Procedures are followed to respond to and recover from a previously unknown risk when it is identified",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "Findings are produced and evidenced but no remediation workflow, response or recovery procedures or ticketing integration exists in the repo; detection is honest, response is out of scope."
+    },
+    {
+      "framework": "NIST AI RMF",
+      "control_id": "MANAGE 3.1 third-party risk monitoring",
+      "title": "AI risks and benefits from third-party resources are regularly monitored, and risk controls are applied and documented",
+      "evidence_field": "coverage.unverified_tools",
+      "status": "PARTIAL",
+      "basis": "Per-tool custody coverage observes tool-side calls with uncovered tools reported fail-visible (ADR-0004, SEC-006), monitoring the third-party tool surface; no supplier risk assessment or third-party AI technology register exists in the repo."
     },
     {
       "framework": "OWASP LLM Top 10",

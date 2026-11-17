@@ -56,7 +56,7 @@ def _fixture_packet(**overrides) -> dict:
                 "Art 15(1) robustness and accuracy": {"status": "PARTIAL"},
             },
             "SOC 2": {"CC7.1 configuration monitoring": {"status": "SUPPORTED"}},
-            "NIST AI RMF": {"MEASURE 2.5 monitoring efficacy": {"status": "SUPPORTED"}},
+            "NIST AI RMF": {"MEASURE 1.2 effectiveness of controls": {"status": "SUPPORTED"}},
             "OWASP LLM Top 10": {
                 "LLM01 Prompt Injection": {"status": "SUPPORTED"},
                 "LLM03 Inadequate Sandboxing": {"status": "SUPPORTED"},
@@ -136,11 +136,13 @@ def test_unverified_tools_warn_under_basic_fail_under_regulated() -> None:
 
 def test_regulated_profile_is_partial_on_a_clean_packet() -> None:
     # Honest by design: crosswalk PARTIAL rows (DORA Art 5(1), EU AI Act
-    # Art 15(1), ISO 42001 A.7.2) keep regulated at PARTIAL, never PASS.
+    # Art 15(1), ISO 42001 A.5.3) keep regulated at PARTIAL, never PASS.
     packet = _fixture_packet(
         governance={
             **_fixture_packet()["governance"],
-            "ISO 42001": {"A.7.2 AI system impact assessment": {"status": "PARTIAL"}},
+            "ISO 42001": {
+                "A.5.3 documentation of AI system impact assessments": {"status": "PARTIAL"}
+            },
             "NCSC CAF": {},
         }
     )
@@ -148,7 +150,7 @@ def test_regulated_profile_is_partial_on_a_clean_packet() -> None:
     assert result["verdict"] == validator.PARTIAL
     diff_ids = {c["check_id"] for c in validator.diff(result)}
     assert "crosswalk:DORA:Art 5(1) ICT risk framework" in diff_ids
-    assert "crosswalk:ISO 42001:A.7.2 AI system impact assessment" in diff_ids
+    assert "crosswalk:ISO 42001:A.5.3 documentation of AI system impact assessments" in diff_ids
 
 
 def test_regulated_fails_on_missing_frameworks() -> None:

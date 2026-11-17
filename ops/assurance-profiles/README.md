@@ -11,11 +11,13 @@ offline-verifiable raucle evidence, or stating honestly that none exists.
   outcome semantics (gap type -> release blocker `fail` or warned finding
   `warn`).
 - `crosswalk.json`: framework controls (DORA, EU AI Act, ISO 42001, SOC 2,
-  NCSC CAF, NIST AI RMF, OWASP LLM Top 10) mapped to the raucle evidence field
+  NCSC CAF, NIST AI RMF, OWASP LLM Top 10, AIUC-1, HIPAA, PCI DSS) mapped to
+  the raucle evidence field
   (`evidence_field`, a dotted path into the assurance packet) and the repo
   artifact that backs it (`basis`). UNSUPPORTED rows state in `unsat_reason`
   why nothing in the current evidence plane satisfies the control. These are
-  honest gaps, never padded green.
+  honest gaps, never padded green. The pack docs that read out framework
+  slices live in `docs/compliance/`.
 - `validator.py`: validate(packet, profile) -> PASS/PARTIAL/FAIL with a
   machine-readable diff (every unsatisfied check with expected/actual/note).
 
@@ -40,7 +42,7 @@ wrong `kind` fails.
   any absent required framework or UNSUPPORTED required control.
 
 Note: under `regulated` the shipped crosswalk currently tops out at PARTIAL
-(DORA Art 5(1), EU AI Act Art 15(1), ISO 42001 A.7.2): a regulated release
+(DORA Art 5(1), EU AI Act Art 15(1), ISO 42001 A.5.3): a regulated release
 today cannot honestly reach PASS. That is the intended, honest boundary until
 those controls gain full packet evidence.
 
