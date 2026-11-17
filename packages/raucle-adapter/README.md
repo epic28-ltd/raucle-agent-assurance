@@ -24,26 +24,26 @@ raucle is an OPTIONAL dependency, imported lazily. Signature-verification
 paths (classify, fixture generation) require it; the store/registry semantics
 run without it (hence the raucle-free test suite in `tests/conformance`).
 
-**Pin: raucle v0.23.5, git commit `63edacd`** — the version the fixtures,
+**Pin: raucle v0.23.6, git commit `645f5de`** — the version the fixtures,
 findings and behaviour were verified against.
 
 Install from ONE of, and document which you used when reporting results:
 
 1. **Pinned git worktree** (preferred; this is what the 4 Nov spikes used):
    ```bash
-   git -C ~/Projects/raucle worktree add ../raucle-63edacd 63edacd
-   pip install -e ~/Projects/raucle-63edacd   # or PYTHONPATH it
+   git -C ~/Projects/raucle worktree add ../raucle-645f5de 645f5de
+   pip install -e ~/Projects/raucle-645f5de   # or PYTHONPATH it
    ```
    Do NOT point at a drifting main checkout — code-level findings were made at
-   the pin and main has demonstrably drifted past `63edacd`.
-2. **PyPI**: `pip install raucle==0.23.5` (verify the released tag matches the
+   the pin and main has demonstrably drifted past `645f5de`.
+2. **PyPI**: `pip install raucle==0.23.6` (verify the released tag matches the
    pin before use).
 
 ## Version provenance caveat
 
-`raucle.__version__` is STALE (reported 0.22.0 at the 0.23.5 pin). Anything
+`raucle.__version__` is STALE (reported 0.22.0 at the 0.23.6 pin). Anything
 recording `verifier_version` must key on this package's
-`RAUCLE_DISTRIBUTION_PIN` constant ("raucle 0.23.5 (git 63edacd)"), not the
+`RAUCLE_DISTRIBUTION_PIN` constant ("raucle 0.23.6 (git 645f5de)"), not the
 package constant.
 
 ## Usage

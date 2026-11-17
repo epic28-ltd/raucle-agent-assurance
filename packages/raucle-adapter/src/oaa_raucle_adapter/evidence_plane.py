@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Open Agent Assurance — evidence-plane module (EVD-01/EVD-02).
 
-Implements ADR-0001 section 2 semantics against raucle v0.23.5:
+Implements ADR-0001 section 2 semantics against raucle v0.23.6:
 
 - EvidenceStore: write canonical {receipt_hash, jws} JSONL verbatim;
   read back with sha256 integrity check. Never mutates bytes.
@@ -25,7 +25,7 @@ raucle-free unit tests (and CI without the signed-key environment) run the
 store / trust-root / registry semantics alone.
 
 Version provenance: raucle.__version__ has been stale behind actual releases
-(reported 0.22.0 at the 0.23.5 pin), so verifier_version is keyed on the
+(reported 0.22.0 at the 0.23.6 pin), so verifier_version is keyed on the
 distribution pin below, not the package constant. See the package README.
 """
 
@@ -42,8 +42,8 @@ import tempfile
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-# Distro pin for raucle (verified code-level at commit 63edacd, released 0.23.5).
-RAUCLE_DISTRIBUTION_PIN = "raucle 0.23.5 (git 63edacd)"
+# Distro pin for raucle (verified code-level at commit 645f5de, released 0.23.6).
+RAUCLE_DISTRIBUTION_PIN = "raucle 0.23.6 (git 645f5de)"
 
 TRUST_POLICY_VERSION = "evd-trust-1"
 
@@ -90,8 +90,8 @@ def _raucle():
     except ImportError as exc:
         raise ImportError(
             "raucle is required for signature verification but is not installed. "
-            "Install it from the pinned v0.23.5 worktree (git 63edacd) or "
-            "PyPI raucle==0.23.5 — see packages/raucle-adapter/README.md."
+            "Install it from the pinned v0.23.6 worktree (git 645f5de) or "
+            "PyPI raucle==0.23.6 — see packages/raucle-adapter/README.md."
         ) from exc
     _check_raucle_pin(raucle)
     return raucle

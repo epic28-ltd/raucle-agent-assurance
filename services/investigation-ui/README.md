@@ -34,7 +34,7 @@ JS rendered with `textContent` only).
   `receipts.jsonl` (sha256 `0afe93c937b96c...` matches the p5 report).
 - `runs.json`, `synthetic_receipt_index.jsonl`,
   `verification_index.jsonl`, `trust_roots.jsonl` (PUBLIC half only — derived
-  from the spike's PEM; trust-root PEMs are bytes-encoded for raucle 0.23.5),
+  from the spike's PEM; trust-root PEMs are bytes-encoded for raucle 0.23.6),
   `rules_fixture.json` (documented SEC-001 suppression).
 - Correlation index rows are computed at load time with the COR-01 engine.
 

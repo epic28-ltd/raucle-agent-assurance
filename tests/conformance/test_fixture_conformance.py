@@ -17,7 +17,7 @@ import pytest
 
 raucle = pytest.importorskip(
     "raucle",
-    reason="raucle (pinned v0.23.5, git 63edacd) is not installed — "
+    reason="raucle (pinned v0.23.6, git 645f5de) is not installed — "
     "install per packages/raucle-adapter/README.md to run signature "
     "verification conformance tests",
 )
@@ -114,5 +114,5 @@ def test_unknown_key_is_distinct_from_invalid(sweep):
 def test_verifier_version_is_pin_keyed(sweep):
     corpus, _results, _rec_uk = sweep
     assert corpus.records, "corpus must be non-empty"
-    assert RAUCLE_DISTRIBUTION_PIN.startswith("raucle 0.23.5")
+    assert RAUCLE_DISTRIBUTION_PIN.startswith("raucle 0.23.6")
     assert TRUST_POLICY_VERSION == "evd-trust-1"

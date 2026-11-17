@@ -14,7 +14,7 @@ authors = [{ name = "Open Agent Assurance contributors" }]
 dependencies = []  # raucle / oaa-raucle-adapter are OPTIONAL — integration tests skip without them
 
 [project.optional-dependencies]
-raucle = []  # pinned raucle 0.23.5 (git 63edacd) worktree install; see packages/raucle-adapter/README.md
+raucle = []  # pinned raucle 0.23.6 (git 645f5de) worktree install; see packages/raucle-adapter/README.md
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/oaa_epaec"]

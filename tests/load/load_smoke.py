@@ -74,7 +74,7 @@ def emit_run(tracer, seq: int, run_id: str) -> None:
         attributes={
             "openinference.span.kind": "AGENT",
             "oaa.run_id": run_id,
-            "oaa.release_version": "v0.23.5+63edacd",
+            "oaa.release_version": "v0.23.6+645f5de",
             "oaa.trace_label": f"oaa-load-{run_id}",
             "oaa.content_class": "synthetic_public",
             "langfuse.session.id": f"sess-{run_id}",

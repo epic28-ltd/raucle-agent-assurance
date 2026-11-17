@@ -7,7 +7,7 @@ raucle's own real signing path (never hand-constructed), plus a sanity pass
 that every genuine envelope verifies under its own trust root before freezing.
 
 Deterministic per run against the pinned raucle distribution. raucle is
-imported lazily; see the package README for the v0.23.5 pin (git 63edacd).
+imported lazily; see the package README for the v0.23.6 pin (git 645f5de).
 """
 
 from __future__ import annotations

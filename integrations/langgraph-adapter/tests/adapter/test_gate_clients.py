@@ -89,7 +89,7 @@ def test_http_unreachable_failmodes():
 
 
 def test_pin_constant_is_distribution_not_version():
-    assert RAUCLE_DISTRIBUTION_PIN == "raucle 0.23.5 (git 63edacd)"
+    assert RAUCLE_DISTRIBUTION_PIN == "raucle 0.23.6 (git 645f5de)"
 
 
 def test_default_timeout_is_latency_budget():

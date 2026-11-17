@@ -15,7 +15,10 @@ imported from the 4 Nov spike.
 - `p3_outage.py` — P3 probe: backend-outage behaviour (stock OTLP exporter
   silently drops spans on connection refused → bounded-retry requirement).
 - `originals.json`, `p1_report.json`, `p2_report.json`, `p3_report.json`,
-  `p5_receipts_report.json` — outputs from the recorded spike run.
+  `p5_receipts_report.json` — outputs from the recorded spike run. These are
+  historical artifacts of the 4 Nov run and still carry
+  `v0.23.5+63edacd` (the release pinned at the time); re-running the scripts
+  with the current code writes `v0.23.6+645f5de` instead.
 
 ## Running
 
@@ -32,6 +35,9 @@ python verify_p1.py && python p2_p5_correlation.py && python p3_outage.py
 
 `sample-receipts.jsonl` is a truncated sample receipt envelope pair from the
 recorded run (display shorthand, not byte-complete — see findings).
+`services/investigation-ui/transcript.txt` line with
+`verifier_version: "raucle 0.23.5 (git 63edacd)"` is likewise a historical
+record of the 4 Nov verification session, not the active pin.
 
 ## OBS-03 — second workflow: adapter contract reuses without core rewrites
 

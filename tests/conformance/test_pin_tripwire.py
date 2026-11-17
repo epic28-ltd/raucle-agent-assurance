@@ -39,7 +39,7 @@ def fake_raucle(monkeypatch: pytest.MonkeyPatch):
 
 def test_pin_passes_on_matching_version(fake_raucle, monkeypatch):
     monkeypatch.setattr(
-        "oaa_raucle_adapter.evidence_plane._inst_raucle_version", lambda m: "0.23.5"
+        "oaa_raucle_adapter.evidence_plane._inst_raucle_version", lambda m: "0.23.6"
     )
     assert _raucle() is fake_raucle
 

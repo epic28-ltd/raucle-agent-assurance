@@ -150,7 +150,7 @@ with tracer.start_as_current_span(
     attributes={
         "openinference.span.kind": "AGENT",
         "oaa.run_id": RUN_ID,
-        "oaa.release_version": "v0.23.5+63edacd",
+        "oaa.release_version": "v0.23.6+645f5de",
         "oaa.trace_label": trace_label,
         "oaa.content_class": "synthetic_public",
     },

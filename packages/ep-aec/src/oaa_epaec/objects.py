@@ -39,7 +39,7 @@ EVALUATOR_PROFILE_DIGEST = "EP-AEC-EVALUATOR-08-v1"
 # Normalised facts carry a native-verifier PROFILE digest, not a live pin:
 # the relying party pins the native verifier out-of-band; this digest only
 # describes which verifier profile produced the recorded facts.
-NATIVE_VERIFIER_PROFILE_DIGEST = "oaa-raucle-verifier:0.23.5:63edacd"
+NATIVE_VERIFIER_PROFILE_DIGEST = "oaa-raucle-verifier:0.23.6:645f5de"
 
 # Draft-fixed evaluator limits. These are constants of the profile, not knobs.
 MAX_REQUIREMENT_BYTES = 4096

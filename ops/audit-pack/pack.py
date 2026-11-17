@@ -598,7 +598,7 @@ def _stage_policies(
 
 def _chain_graph_resolver_path() -> pathlib.Path | None:
     """Opt-in resolver source: ``RAUCLE_OSS_HOME``, when it ships chain_graph."""
-    # The assurance venv pins raucle 0.23.5 (pinned worktree); the resolver
+    # The assurance venv pins raucle 0.23.6 (git 645f5de); the resolver
     # ships in the OSS tree. Honour RAUCLE_OSS_HOME as an explicit, opt-in
     # source for the wire-up; without it the pack degrades to the pending
     # slot - never a fake graph.
