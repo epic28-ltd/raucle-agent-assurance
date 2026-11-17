@@ -74,6 +74,46 @@ def test_control_node_carries_unsat_reason_for_the_honest_gap():
     assert control["unsat_reason"]
 
 
+def test_graph_includes_the_iso42001_and_nist_ai_rmf_pack_rows():
+    _, graph = _build(_green_with_receipts())
+    crosswalk = json.loads(CROSSWALK.read_text())
+    exporter = _load_exporter()
+    for framework in ("ISO 42001", "NIST AI RMF"):
+        rows = [r for r in crosswalk["rows"] if r["framework"] == framework]
+        assert rows, f"no crosswalk rows for {framework}"
+        nodes = {
+            n["control_id"]: n
+            for n in graph["nodes"]
+            if n["kind"] == "control" and n["framework"] == framework
+        }
+        # every pack row exports as a control node with the crosswalk status
+        assert set(nodes) == {r["control_id"] for r in rows}
+        for row in rows:
+            assert nodes[row["control_id"]]["status"] == row["status"]
+            assert nodes[row["control_id"]]["status"] in {
+                "SUPPORTED",
+                "PARTIAL",
+                "UNSUPPORTED",
+            }
+    # the green fixture carries the receipt chain, so the SUPPORTED ISO 42001
+    # event-log row gets its evidence edge through the same binding as v1
+    sat = {e["target"] for e in graph["edges"] if e["kind"] == "evidence_satisfies_control"}
+    iso_log = next(
+        r
+        for r in crosswalk["rows"]
+        if r["framework"] == "ISO 42001" and r["control_id"].startswith("A.6.2.8")
+    )
+    nid = f"control:{exporter._slug(iso_log['framework'])}:{exporter._slug(iso_log['control_id'])}"
+    assert nid in sat
+    measure = next(
+        r
+        for r in crosswalk["rows"]
+        if r["framework"] == "NIST AI RMF" and r["control_id"].startswith("MEASURE 1.2")
+    )
+    nid = f"control:{exporter._slug(measure['framework'])}:{exporter._slug(measure['control_id'])}"
+    assert nid in sat
+
+
 # ------------------------------------------------------ schema + edges
 
 
