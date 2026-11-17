@@ -5,6 +5,20 @@ Format based on Keep a Changelog; versioning will be semver from 0.1.0.
 
 ## Unreleased
 
+### 2026-11-17: distribution-pin re-key raucle 0.23.6 + fixture regeneration
+
+- Re-keyed `RAUCLE_DISTRIBUTION_PIN` from `raucle 0.23.5 (git 63edacd)` to
+  `raucle 0.23.6 (git 645f5de)` (the v0.23.6 git tag in epic28-ltd/raucle),
+  across the evidence plane, the LangGraph gate client, the EP-AEC native
+  verifier profile digest, tests, examples and docs.
+- Regenerated the conformance fixture corpus against the raucle 0.23.6 chain
+  (receipt hashes/JWS in `tests/conformance/corpus.jsonl` re-issued; no other
+  committed artifact asserts the old receipt digests).
+- Pinned `raucle==0.23.6` in the SonarQube workflow install (was unpinned
+  `>=0.23.5`), which was the root cause: 0.23.6 published to PyPI after
+  main's last green run, tripping `DistributionPinDrift` x9 on the next run.
+  Prerequisite for SonarQube green on all assurance PRs.
+
 ### 2026-11-12: hosted-surface auth (R2 slice 1)
 
 - Hosted OIDC identity federation for the console + investigation UI

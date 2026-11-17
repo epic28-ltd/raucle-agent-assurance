@@ -5,7 +5,7 @@ The adapter CALLS the gate through one of these clients; it is never the gate
 itself (monitoring never enforcement-authority). Every client returns the same
 ``GateDecision`` result so the middleware is transport-agnostic.
 
-Both implementations are lazy: ``raucle`` (the pinned v0.23.5 / git 63edacd
+Both implementations are lazy: ``raucle`` (the pinned v0.23.6 / git 645f5de
 worktree) and ``urllib``-level HTTP are only touched when the corresponding
 client is actually constructed.
 """
@@ -24,10 +24,10 @@ from typing import Any, Protocol
 
 #: Distro pin keyed by the raucle distribution, NOT ``raucle.__version__``
 #: (which is stale) — see packages/raucle-adapter/evidence_plane.py.
-RAUCLE_DISTRIBUTION_PIN = "raucle 0.23.5 (git 63edacd)"
+RAUCLE_DISTRIBUTION_PIN = "raucle 0.23.6 (git 645f5de)"
 
 #: Default location of the pinned raucle worktree used by local tests.
-DEFAULT_RAUCLE_WORKTREE = Path.home() / "Projects" / "oaa-spike-4nov" / "evd" / "raucle-63edacd"
+DEFAULT_RAUCLE_WORKTREE = Path.home() / "Projects" / "oaa-spike-4nov" / "evd" / "raucle-645f5de"
 
 _ALLOW = "allow"
 _DENY = "deny"
