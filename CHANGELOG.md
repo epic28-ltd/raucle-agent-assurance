@@ -5,6 +5,22 @@ Format based on Keep a Changelog; versioning will be semver from 0.1.0.
 
 ## Unreleased
 
+### 2026-11-18: pack-shelf test hardening (checker minors B6)
+
+- The six compliance pack test files' status checks now parse the packs' own
+  markdown table Status column and match it bidirectionally against the
+  machine crosswalk (per pack: parsed id set equals the framework's crosswalk
+  row set, each status uses the fixed SUPPORTED/PARTIAL/UNSUPPORTED
+  vocabulary and equals the crosswalk status, and SUPPORTED rows cite their
+  evidence field), so genuine status drift between pack markdown and
+  crosswalk data now fails. Red evidence: a scratch-copy drift check with a
+  single injected `SUPPORTED` -> `PARTIAL` flip was caught by the parser
+  (`status drift: Art 12(1) logging pack=PARTIAL crosswalk=SUPPORTED`).
+- The vendor-copy guard (`test_pack_copy_names_no_vendors`) now covers the
+  shared compliance index (`docs/compliance/README.md`) as well as the pack
+  doc for every pack, aligned on the ISO 42001 variant (previously only the
+  ISO 42001 and, pack-doc-only, NIST AI RMF and HITRUST variants carried it).
+
 ### 2026-11-17: HITRUST AI Security Framework compliance pack v1
 
 - Fifth enterprise checklist pack: a mapping of the evidence plane (gate
