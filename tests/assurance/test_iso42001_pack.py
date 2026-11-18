@@ -7,6 +7,8 @@ Guards the contract between the pack document
 must exist as an ISO 42001 crosswalk row with the same status, every focus
 area must have at least one row, and the validator self-check must stay
 empty so no row drifts into claiming more than the evidence plane supports.
+The pack's Status column is parsed from the markdown tables and matched
+bidirectionally against the crosswalk statuses, so genuine drift fails.
 The pack copy must stay a mapping: no compliance, certification or
 conformance claims, and no vendor names anywhere in the pack docs or the
 shared compliance index.
@@ -64,6 +66,30 @@ def _iso42001_rows() -> dict[str, dict]:
     return {row["control_id"]: row for row in CROSSWALK["rows"] if row["framework"] == "ISO 42001"}
 
 
+def _pack_status_rows(text: str) -> dict[str, str]:
+    """Parse every pack table row from the markdown: control id -> Status.
+
+    House table shape: ``| Crosswalk control | <mapping> | Status | Evidence |``
+    rows under a ``| ---`` separator, with backticked ids in the first cell.
+    """
+    statuses: dict[str, str] = {}
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if not line.startswith("| Crosswalk control |"):
+            continue
+        assert "| Status |" in line, "pack table has no Status column"
+        assert lines[i + 1].startswith("| ---"), "pack table has no separator row"
+        j = i + 2
+        while j < len(lines) and lines[j].startswith("| `"):
+            cells = [c.strip() for c in lines[j].strip().strip("|").split("|")]
+            control_id = cells[0].strip("`")
+            assert _ID.fullmatch(f"`{control_id}`"), f"unparsed control id: {control_id}"
+            assert control_id not in statuses, f"duplicate pack table row: {control_id}"
+            statuses[control_id] = cells[2]
+            j += 1
+    return statuses
+
+
 def test_validator_self_check_stays_empty() -> None:
     assert validator.self_check(profiles=validator.load_profiles(), crosswalk=CROSSWALK) == []
 
@@ -92,16 +118,22 @@ def test_pack_cited_controls_match_crosswalk_rows() -> None:
 def test_pack_status_column_matches_crosswalk_statuses() -> None:
     rows = _iso42001_rows()
     text = PACK_DOC.read_text()
-    for area in FOCUS_AREAS:
-        match = re.search(rf"## Focus area [0-9]+: {re.escape(area)}(.*?)## ", text, re.S)
-        assert match is not None
-        for control_id in _ID.findall(match.group(1)):
-            row = rows[control_id]
-            if row["evidence_field"]:
-                assert (
-                    f"`{row['evidence_field']}`" in match.group(1) or row["status"] != "SUPPORTED"
-                )
-            assert row["status"] in {"SUPPORTED", "PARTIAL", "UNSUPPORTED"}
+    table = _pack_status_rows(text)
+    # bidirectional: the parsed Status column covers exactly the ISO 42001
+    # crosswalk rows (no silent rows, no unknown ids), so a genuine status
+    # drift between pack markdown and crosswalk data now fails here
+    assert set(table) == set(rows), f"table/crosswalk id drift: {set(table) ^ set(rows)}"
+    for control_id, status in table.items():
+        assert status in {"SUPPORTED", "PARTIAL", "UNSUPPORTED"}, (
+            f"bad status vocabulary: {control_id}={status!r}"
+        )
+        assert status == rows[control_id]["status"], (
+            f"status drift: {control_id} pack={status} crosswalk={rows[control_id]['status']}"
+        )
+        # a SUPPORTED row must cite its crosswalk evidence field in its row text
+        if rows[control_id]["status"] == "SUPPORTED":
+            evidence_field = rows[control_id]["evidence_field"]
+            assert evidence_field in text, f"SUPPORTED row lacks evidence citation: {control_id}"
 
 
 def test_unsupported_rows_carry_honest_reasons() -> None:
