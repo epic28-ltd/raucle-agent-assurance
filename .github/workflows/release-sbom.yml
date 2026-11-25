@@ -1,6 +1,7 @@
 name: release-sbom
 
 on:
+  pull_request:
   release:
     types: [published]
 
@@ -40,7 +41,7 @@ jobs:
           output-file: ./sbom.cdx.json
           artifact-name: raucle-agent-assurance-source-sbom
           upload-artifact: true
-          upload-release-assets: true
+          upload-release-assets: ${{ github.event_name == 'release' }}
 
       - name: Generate and attach SBOM digest and release identity
         env:
