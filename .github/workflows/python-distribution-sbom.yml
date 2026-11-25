@@ -54,33 +54,61 @@ jobs:
           python -m build --no-isolation --sdist --wheel --outdir dist "$PROJECT_DIR"
           test "$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 1
           test "$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 1
-          (
-            cd dist
-            sha256sum *.whl *.tar.gz
-          ) > "evidence/${{ matrix.id }}/${{ matrix.id }}-evidence-sha256.txt"
 
-      - name: Generate CycloneDX SBOM for built distributions
+      - name: Identify exact distribution files
+        id: distributions
+        run: |
+          wheel="$(find dist -maxdepth 1 -type f -name '*.whl' -print -quit)"
+          sdist="$(find dist -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
+          test -n "$wheel"
+          test -n "$sdist"
+          printf 'wheel=%s\n' "$wheel" >> "$GITHUB_OUTPUT"
+          printf 'sdist=%s\n' "$sdist" >> "$GITHUB_OUTPUT"
+
+      - name: Generate wheel CycloneDX SBOM
         uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
         with:
-          path: ./dist
+          file: ${{ steps.distributions.outputs.wheel }}
           format: cyclonedx-json
           syft-version: v1.57.2
-          output-file: ./evidence/${{ matrix.id }}/${{ matrix.id }}-distributions.cdx.json
+          output-file: ./evidence/${{ matrix.id }}/${{ matrix.id }}-wheel.cdx.json
           upload-artifact: false
           upload-release-assets: false
 
-      - name: Record build identity and verify evidence
+      - name: Generate sdist CycloneDX SBOM
+        uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
+        with:
+          file: ${{ steps.distributions.outputs.sdist }}
+          format: cyclonedx-json
+          syft-version: v1.57.2
+          output-file: ./evidence/${{ matrix.id }}/${{ matrix.id }}-sdist.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Bind SBOMs and distributions to exact SHA-256 digests
         env:
           PROJECT: ${{ matrix.project }}
           RELEASE_TAG: ${{ github.event.release.tag_name || 'pull-request' }}
+          WHEEL: ${{ steps.distributions.outputs.wheel }}
+          SDIST: ${{ steps.distributions.outputs.sdist }}
         run: |
-          test -s "evidence/${{ matrix.id }}/${{ matrix.id }}-distributions.cdx.json"
-          sha256sum "evidence/${{ matrix.id }}/${{ matrix.id }}-distributions.cdx.json" >> "evidence/${{ matrix.id }}/${{ matrix.id }}-evidence-sha256.txt"
+          wheel_sbom="evidence/${{ matrix.id }}/${{ matrix.id }}-wheel.cdx.json"
+          sdist_sbom="evidence/${{ matrix.id }}/${{ matrix.id }}-sdist.cdx.json"
+          test -s "$wheel_sbom"
+          test -s "$sdist_sbom"
+          (
+            sha256sum "$WHEEL" "$wheel_sbom"
+            sha256sum "$SDIST" "$sdist_sbom"
+          ) > "evidence/${{ matrix.id }}/${{ matrix.id }}-artifact-sbom-sha256.txt"
           {
             printf 'project=%s\n' "$PROJECT"
             printf 'release_tag=%s\n' "$RELEASE_TAG"
             printf 'commit=%s\n' "$(git rev-parse HEAD)"
-            printf 'inventory_scope=combined-wheel-and-sdist-directory\n'
+            printf 'wheel_file=%s\n' "$(basename "$WHEEL")"
+            printf 'wheel_sbom=%s\n' "$(basename "$wheel_sbom")"
+            printf 'sdist_file=%s\n' "$(basename "$SDIST")"
+            printf 'sdist_sbom=%s\n' "$(basename "$sdist_sbom")"
+            printf 'inventory_scope=separate-file-scan-for-each-built-distribution\n'
           } > "evidence/${{ matrix.id }}/${{ matrix.id }}-build-provenance.txt"
 
       - name: Upload candidate distribution evidence
@@ -112,5 +140,6 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          test -n "$(find evidence -type f -name '*.cdx.json' -print -quit)"
+          sbom_count="$(find evidence -type f -name '*.cdx.json' | wc -l)"
+          test "$sbom_count" -eq 12
           gh release upload "$RELEASE_TAG" evidence/* --clobber
