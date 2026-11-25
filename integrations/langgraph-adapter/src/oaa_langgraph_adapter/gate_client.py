@@ -20,8 +20,8 @@ import urllib.request
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from urllib.parse import urlsplit
 from typing import Any, Protocol
+from urllib.parse import urlsplit
 
 #: Distro pin keyed by the raucle distribution, NOT ``raucle.__version__``
 #: (which is stale) — see packages/raucle-adapter/evidence_plane.py.
