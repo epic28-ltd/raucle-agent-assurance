@@ -42,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           docker pull "$IMAGE"
-          DIGEST_REF="$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$IMAGE" | sort -u | head -n 1)"
+          DIGEST_REF="$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$IMAGE" | sort -u | sed -n '1p')"
           test -n "$DIGEST_REF"
           case "$DIGEST_REF" in
             *@sha256:*) ;;
