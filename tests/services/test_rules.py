@@ -655,9 +655,7 @@ def test_sec010_requires_same_prior_non_revoked_lease(
                 lease_id="L1",
             )
         )
-    findings = _findings_for(
-        "SEC-010", events, {"custody_covered_tools": frozenset({"shell"})}
-    )
+    findings = _findings_for("SEC-010", events, {"custody_covered_tools": frozenset({"shell"})})
     assert len(findings) == expected
 
 
@@ -682,9 +680,7 @@ def test_sec010_does_not_require_optional_lease_id_when_not_present_on_use():
             tool="shell",
         ),
     ]
-    assert not _findings_for(
-        "SEC-010", events, {"custody_covered_tools": frozenset({"shell"})}
-    )
+    assert not _findings_for("SEC-010", events, {"custody_covered_tools": frozenset({"shell"})})
 
 
 def test_sec010_missing_lease_identity_does_not_match_known_use_identity():
