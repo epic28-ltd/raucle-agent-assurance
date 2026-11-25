@@ -8,6 +8,8 @@ Status: imported planning documents (ARCH-01, 4 Nov 2026, raucle pinned v0.23.5 
 - `adr/0002-event-contract.md`: canonical model (eight entities), dual-taxonomy adapter for OTel GenAI plus OpenInference, conformance fixtures as the portability mechanism.
 - `adr/0003-backend-adapter.md`: Langfuse-first adapter, evidence index outside the backend, licence hygiene, three de-risking probes required before UI work.
 - `threat-model/threat-model-v0.md`: ten threat scenarios across six trust boundaries, with controls mapped to plan backlog IDs and residual risks accepted in writing.
+- `security/independent-vantage-adversarial-test-matrix.md`: per-tool vantage coverage, bypass/custody scenarios, test references and explicit assurance boundaries.
+- `adr/0004-bypass-detection.md`: independent-vantage model for gate-circumvention detection and custody coverage.
 
 ## Rules carried into the code
 
