@@ -57,6 +57,7 @@ jobs:
       - name: Generate SBOM digest and release identity
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name || 'pull-request' }}
+          SOURCE_REF: ${{ github.event.release.tag_name || github.sha }}
         run: |
           test -s sbom.cdx.json
           sha256sum sbom.cdx.json > sbom.cdx.json.sha256
