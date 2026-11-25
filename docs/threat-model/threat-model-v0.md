@@ -1,6 +1,6 @@
 # Threat model: Open Agent Assurance companion
 
-Status: Draft (pending review)
+Status: Historical baseline; superseded for current review by threat-model-v1.md
 Date: 2026-11-04
 Method: asset-centred; per-trust-boundary STRIDE; residual risks stated explicitly.
 
