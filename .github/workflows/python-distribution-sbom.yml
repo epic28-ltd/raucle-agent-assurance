@@ -85,10 +85,27 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
 
-      - name: Verify normalized SBOM inventory repeatability
-        env:
-          WHEEL: ${{ steps.distributions.outputs.wheel }}
-          SDIST: ${{ steps.distributions.outputs.sdist }}
+      - name: Repeat wheel SBOM scan
+        uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
+        with:
+          file: ${{ steps.distributions.outputs.wheel }}
+          format: cyclonedx-json
+          syft-version: v1.57.2
+          output-file: ./wheel-repeat.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Repeat sdist SBOM scan
+        uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
+        with:
+          file: ${{ steps.distributions.outputs.sdist }}
+          format: cyclonedx-json
+          syft-version: v1.57.2
+          output-file: ./sdist-repeat.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Compare normalized SBOM component inventories
         run: |
           set -euo pipefail
           normalize() {
@@ -109,10 +126,6 @@ jobs:
               }
             ' "$1"
           }
-          # Re-scan the same immutable build outputs; compare component
-          # inventories, not timestamps, tool metadata, or serial numbers.
-          syft "$WHEEL" -o cyclonedx-json > wheel-repeat.cdx.json
-          syft "$SDIST" -o cyclonedx-json > sdist-repeat.cdx.json
           normalize "evidence/${{ matrix.id }}/${{ matrix.id }}-wheel.cdx.json" > wheel-first.normalized.json
           normalize wheel-repeat.cdx.json > wheel-repeat.normalized.json
           normalize "evidence/${{ matrix.id }}/${{ matrix.id }}-sdist.cdx.json" > sdist-first.normalized.json
