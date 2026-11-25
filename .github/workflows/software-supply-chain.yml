@@ -1,0 +1,51 @@
+name: software-supply-chain
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sbom:
+    name: Generate CycloneDX SBOM
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate repository SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          artifact-name: raucle-agent-assurance-cyclonedx
+          output-file: ./sbom.cdx.json
+          upload-artifact: true
+          upload-release-assets: false
+      - name: Validate SBOM exists and is non-empty
+        run: test -s sbom.cdx.json
+
+  dependency-audit:
+    name: Python dependency vulnerability audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install CI runtime and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest cryptography pyyaml fastapi httpx opentelemetry-sdk
+          pip install opentelemetry-exporter-otlp-proto-http jsonschema pip-audit
+      - name: Audit installed Python environment
+        run: pip-audit --local --strict --progress-spinner off
