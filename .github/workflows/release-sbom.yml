@@ -1,0 +1,87 @@
+name: release-sbom
+
+on:
+  pull_request:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-sbom-${{ github.event.release.tag_name || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  source-release-sbom:
+    name: Generate source-release SBOM
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the exact release tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.sha }}
+          fetch-depth: 0
+
+      - name: Verify checked-out commit matches the published tag
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          test "$(git describe --tags --exact-match HEAD)" = "$RELEASE_TAG"
+          printf 'tag=%s\ncommit=%s\n' "$RELEASE_TAG" "$(git rev-parse HEAD)" > release-source.txt
+
+      - name: Generate CycloneDX source-tree SBOM
+        uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
+        with:
+          path: .
+          format: cyclonedx-json
+          syft-version: v1.57.2
+          output-file: ./sbom.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Generate SBOM digest and release identity
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || 'pull-request' }}
+        run: |
+          test -s sbom.cdx.json
+          sha256sum sbom.cdx.json > sbom.cdx.json.sha256
+          {
+            printf 'release_tag=%s\n' "$RELEASE_TAG"
+            printf 'commit=%s\n' "$(git rev-parse HEAD)"
+            cat sbom.cdx.json.sha256
+          } > release-sbom-provenance.txt
+
+      - name: Upload SBOM evidence bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: raucle-agent-assurance-source-sbom
+          path: |
+            sbom.cdx.json
+            sbom.cdx.json.sha256
+            release-sbom-provenance.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-release-evidence:
+    name: Attach SBOM evidence to GitHub Release
+    if: github.event_name == 'release'
+    needs: source-release-sbom
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download SBOM evidence bundle
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: raucle-agent-assurance-source-sbom
+
+      - name: Attach SBOM evidence to the published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" sbom.cdx.json sbom.cdx.json.sha256 release-sbom-provenance.txt --clobber
