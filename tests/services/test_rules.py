@@ -430,7 +430,15 @@ CASES: list[tuple[str, str, list[Event], dict, int, str | None]] = [
         "SEC-010",
         "negative-matching-lease-issued",
         [
-            ev("custody", ref="l2", action="lease_issued", credential_id="cred-2", tool="shell", agent_id="a1", lease_id="lease-2"),
+            ev(
+                "custody",
+                ref="l2",
+                action="lease_issued",
+                credential_id="cred-2",
+                tool="shell",
+                agent_id="a1",
+                lease_id="lease-2",
+            ),
             ev(
                 "custody",
                 ref="l3",
@@ -557,21 +565,62 @@ CASES: list[tuple[str, str, list[Event], dict, int, str | None]] = [
 ]
 
 
-
 @pytest.mark.parametrize(
     "lease_fields,use_fields,lease_mins,revocation_mins,expected",
     [
         # A lease from another agent or tool must never cover this invocation.
-        ({"agent_id": "other", "tool": "shell"}, {"agent_id": "a1", "tool": "shell"}, -1, None, 1),
-        ({"agent_id": "a1", "tool": "http_fetch"}, {"agent_id": "a1", "tool": "shell"}, -1, None, 1),
+        (
+            {"agent_id": "other", "tool": "shell"},
+            {"agent_id": "a1", "tool": "shell"},
+            -1,
+            None,
+            1,
+        ),
+        (
+            {"agent_id": "a1", "tool": "http_fetch"},
+            {"agent_id": "a1", "tool": "shell"},
+            -1,
+            None,
+            1,
+        ),
         # Explicit lease and release identifiers are binding, not advisory.
-        ({"agent_id": "a1", "tool": "shell", "lease_id": "L1"}, {"agent_id": "a1", "tool": "shell", "lease_id": "L2"}, -1, None, 1),
-        ({"agent_id": "a1", "tool": "shell", "release_id": "R1"}, {"agent_id": "a1", "tool": "shell", "release_id": "R2"}, -1, None, 1),
+        (
+            {"agent_id": "a1", "tool": "shell", "lease_id": "L1"},
+            {"agent_id": "a1", "tool": "shell", "lease_id": "L2"},
+            -1,
+            None,
+            1,
+        ),
+        (
+            {"agent_id": "a1", "tool": "shell", "release_id": "R1"},
+            {"agent_id": "a1", "tool": "shell", "release_id": "R2"},
+            -1,
+            None,
+            1,
+        ),
         # A future-issued lease cannot authorise an earlier use.
-        ({"agent_id": "a1", "tool": "shell"}, {"agent_id": "a1", "tool": "shell"}, 1, None, 1),
+        (
+            {"agent_id": "a1", "tool": "shell"},
+            {"agent_id": "a1", "tool": "shell"},
+            1,
+            None,
+            1,
+        ),
         # Revocation before use invalidates the lease; revocation after use does not.
-        ({"agent_id": "a1", "tool": "shell", "lease_id": "L1"}, {"agent_id": "a1", "tool": "shell", "lease_id": "L1"}, -2, -1, 1),
-        ({"agent_id": "a1", "tool": "shell", "lease_id": "L1"}, {"agent_id": "a1", "tool": "shell", "lease_id": "L1"}, -2, 1, 0),
+        (
+            {"agent_id": "a1", "tool": "shell", "lease_id": "L1"},
+            {"agent_id": "a1", "tool": "shell", "lease_id": "L1"},
+            -2,
+            -1,
+            1,
+        ),
+        (
+            {"agent_id": "a1", "tool": "shell", "lease_id": "L1"},
+            {"agent_id": "a1", "tool": "shell", "lease_id": "L1"},
+            -2,
+            1,
+            0,
+        ),
     ],
 )
 def test_sec010_requires_same_prior_non_revoked_lease(
