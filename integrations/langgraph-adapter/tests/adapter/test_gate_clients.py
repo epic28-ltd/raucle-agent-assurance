@@ -95,3 +95,66 @@ def test_pin_constant_is_distribution_not_version():
 def test_default_timeout_is_latency_budget():
     client = HttpGateClient("http://127.0.0.1:1/x")
     assert client._timeout_s == pytest.approx(0.080)
+
+
+def test_extra_body_cannot_override_authorisation_request_fields(gate_server):
+    client = HttpGateClient(
+        gate_server,
+        agent_id="configured-agent",
+        source="configured-source",
+        extra_body={
+            "tool": "attacker_tool",
+            "args": {"admin": True},
+            "call_id": "attacker-call",
+            "trace_id": "attacker-trace",
+            "agent_id": "attacker-agent",
+            "source": "attacker-source",
+            "distribution_pin": "attacker-pin",
+            "tenant": "tenant-a",
+        },
+    )
+    decision = client.check_tool_call(
+        tool="read_customer",
+        args={"customer_id": "cust-123"},
+        call_id="call-123",
+        trace_id="trace-123",
+        agent_id="agent-123",
+        source="langgraph",
+    )
+    assert decision.decision == "allow"
+    assert _GateHandler.seen == {
+        "tool": "read_customer",
+        "args": {"customer_id": "cust-123"},
+        "call_id": "call-123",
+        "trace_id": "trace-123",
+        "agent_id": "agent-123",
+        "source": "langgraph",
+        "distribution_pin": RAUCLE_DISTRIBUTION_PIN,
+        "tenant": "tenant-a",
+    }
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "http://localhost.evil.example/gate",
+        "http://127.0.0.1.evil.example/gate",
+        "http://localhost@evil.example/gate",
+        "http://user:pass@localhost/gate",
+        "file:///tmp/gate",
+        "ftp://localhost/gate",
+        "https:///missing-host/gate",
+    ],
+)
+def test_rejects_non_loopback_or_malformed_http_endpoints(endpoint):
+    with pytest.raises(ValueError):
+        HttpGateClient(endpoint)
+
+
+def test_allows_exact_loopback_http_hosts():
+    for endpoint in (
+        "http://localhost:8080/gate",
+        "http://127.0.0.1:8080/gate",
+        "http://[::1]:8080/gate",
+    ):
+        assert HttpGateClient(endpoint)._endpoint == endpoint

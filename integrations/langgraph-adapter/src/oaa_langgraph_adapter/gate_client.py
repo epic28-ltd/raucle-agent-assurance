@@ -21,6 +21,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
+from urllib.parse import urlsplit
 
 #: Distro pin keyed by the raucle distribution, NOT ``raucle.__version__``
 #: (which is stale) — see packages/raucle-adapter/evidence_plane.py.
@@ -191,18 +192,25 @@ class HttpGateClient:
         # Security: urlopen follows redirects and historically permits file://
         # (bandit B310). Enforce https in production; plain http only for
         # explicit local development targeting loopback.
-        if endpoint.startswith("https://"):
-            parsed_scheme = "https"
-        elif endpoint.startswith("http://"):
-            parsed_scheme = "http"
-        else:
-            raise ValueError(f"HttpGateClient unsupported endpoint scheme: {endpoint!r}")
-        if parsed_scheme == "http" and not endpoint.startswith(
-            ("http://127.0.0.1", "http://localhost")
+        try:
+            parsed = urlsplit(endpoint)
+            hostname = parsed.hostname
+            # Accessing .port validates malformed port syntax as well.
+            _ = parsed.port
+        except ValueError as exc:
+            raise ValueError(f"HttpGateClient invalid endpoint: {endpoint!r}") from exc
+        if (
+            parsed.scheme not in {"https", "http"}
+            or not hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.fragment
         ):
+            raise ValueError(f"HttpGateClient invalid endpoint: {endpoint!r}")
+        if parsed.scheme == "http" and hostname not in {"127.0.0.1", "localhost", "::1"}:
             raise ValueError(
-                "HttpGateClient endpoint must be https:// (plain http is allowed "
-                "only for loopback endpoints)"
+                "HttpGateClient endpoint must use https:// (plain http is allowed "
+                "only for exact loopback hosts: localhost, 127.0.0.1 or ::1)"
             )
         self._endpoint = endpoint
         self._timeout_s = timeout_s
@@ -221,7 +229,10 @@ class HttpGateClient:
         agent_id: str,
         source: str,
     ) -> GateDecision:
+        # Optional extension fields must never override the identity or
+        # request fields that define what the gate is being asked to authorise.
         body = {
+            **self._extra_body,
             "tool": tool,
             "args": args,
             "call_id": call_id,
@@ -229,7 +240,6 @@ class HttpGateClient:
             "agent_id": agent_id or self._agent_id,
             "source": source or self._source,
             "distribution_pin": RAUCLE_DISTRIBUTION_PIN,
-            **self._extra_body,
         }
         req = urllib.request.Request(
             self._endpoint,
