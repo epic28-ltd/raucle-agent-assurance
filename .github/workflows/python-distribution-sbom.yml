@@ -57,7 +57,7 @@ jobs:
           (
             cd dist
             sha256sum *.whl *.tar.gz
-          ) > "evidence/${{ matrix.id }}/distribution-sha256.txt"
+          ) > "evidence/${{ matrix.id }}/${{ matrix.id }}-distribution-sha256.txt"
 
       - name: Generate CycloneDX SBOM for built distributions
         uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
@@ -65,7 +65,7 @@ jobs:
           path: ./dist
           format: cyclonedx-json
           syft-version: v1.57.2
-          output-file: ./evidence/${{ matrix.id }}/distributions.cdx.json
+          output-file: ./evidence/${{ matrix.id }}/${{ matrix.id }}-distributions.cdx.json
           upload-artifact: false
           upload-release-assets: false
 
@@ -74,13 +74,13 @@ jobs:
           PROJECT: ${{ matrix.project }}
           RELEASE_TAG: ${{ github.event.release.tag_name || 'pull-request' }}
         run: |
-          test -s "evidence/${{ matrix.id }}/distributions.cdx.json"
+          test -s "evidence/${{ matrix.id }}/${{ matrix.id }}-distributions.cdx.json"
           {
             printf 'project=%s\n' "$PROJECT"
             printf 'release_tag=%s\n' "$RELEASE_TAG"
             printf 'commit=%s\n' "$(git rev-parse HEAD)"
             printf 'inventory_scope=combined-wheel-and-sdist-directory\n'
-          } > "evidence/${{ matrix.id }}/build-provenance.txt"
+          } > "evidence/${{ matrix.id }}/${{ matrix.id }}-build-provenance.txt"
 
       - name: Upload candidate distribution evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -112,4 +112,4 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           test -n "$(find evidence -type f -name '*.cdx.json' -print -quit)"
-          gh release upload "$RELEASE_TAG" evidence/*/* --clobber
+          gh release upload "$RELEASE_TAG" evidence/* --clobber
