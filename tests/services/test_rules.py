@@ -430,7 +430,7 @@ CASES: list[tuple[str, str, list[Event], dict, int, str | None]] = [
         "SEC-010",
         "negative-matching-lease-issued",
         [
-            ev("custody", ref="l2", action="lease_issued", credential_id="cred-2", tool="shell"),
+            ev("custody", ref="l2", action="lease_issued", credential_id="cred-2", tool="shell", agent_id="a1", lease_id="lease-2"),
             ev(
                 "custody",
                 ref="l3",
@@ -438,6 +438,7 @@ CASES: list[tuple[str, str, list[Event], dict, int, str | None]] = [
                 credential_id="cred-2",
                 tool="shell",
                 agent_id="a1",
+                lease_id="lease-2",
             ),
         ],
         {"custody_covered_tools": frozenset({"shell"})},
@@ -554,6 +555,106 @@ CASES: list[tuple[str, str, list[Event], dict, int, str | None]] = [
         None,
     ),
 ]
+
+
+
+@pytest.mark.parametrize(
+    "lease_fields,use_fields,lease_mins,revocation_mins,expected",
+    [
+        # A lease from another agent or tool must never cover this invocation.
+        ({"agent_id": "other", "tool": "shell"}, {"agent_id": "a1", "tool": "shell"}, -1, None, 1),
+        ({"agent_id": "a1", "tool": "http_fetch"}, {"agent_id": "a1", "tool": "shell"}, -1, None, 1),
+        # Explicit lease and release identifiers are binding, not advisory.
+        ({"agent_id": "a1", "tool": "shell", "lease_id": "L1"}, {"agent_id": "a1", "tool": "shell", "lease_id": "L2"}, -1, None, 1),
+        ({"agent_id": "a1", "tool": "shell", "release_id": "R1"}, {"agent_id": "a1", "tool": "shell", "release_id": "R2"}, -1, None, 1),
+        # A future-issued lease cannot authorise an earlier use.
+        ({"agent_id": "a1", "tool": "shell"}, {"agent_id": "a1", "tool": "shell"}, 1, None, 1),
+        # Revocation before use invalidates the lease; revocation after use does not.
+        ({"agent_id": "a1", "tool": "shell", "lease_id": "L1"}, {"agent_id": "a1", "tool": "shell", "lease_id": "L1"}, -2, -1, 1),
+        ({"agent_id": "a1", "tool": "shell", "lease_id": "L1"}, {"agent_id": "a1", "tool": "shell", "lease_id": "L1"}, -2, 1, 0),
+    ],
+)
+def test_sec010_requires_same_prior_non_revoked_lease(
+    lease_fields, use_fields, lease_mins, revocation_mins, expected
+):
+    events = [
+        ev(
+            "custody",
+            ref="lease",
+            mins=lease_mins,
+            action="lease_issued",
+            credential_id="cred",
+            **lease_fields,
+        ),
+        ev(
+            "custody",
+            ref="use",
+            mins=0,
+            action="use",
+            credential_id="cred",
+            **use_fields,
+        ),
+    ]
+    if revocation_mins is not None:
+        events.append(
+            ev(
+                "custody",
+                ref="revoke",
+                mins=revocation_mins,
+                action="lease_revoked",
+                credential_id="cred",
+                lease_id="L1",
+            )
+        )
+    findings = _findings_for(
+        "SEC-010", events, {"custody_covered_tools": frozenset({"shell"})}
+    )
+    assert len(findings) == expected
+
+
+def test_sec010_does_not_require_optional_lease_id_when_not_present_on_use():
+    events = [
+        ev(
+            "custody",
+            ref="lease",
+            action="lease_issued",
+            credential_id="cred",
+            agent_id="a1",
+            tool="shell",
+            lease_id="L1",
+        ),
+        ev(
+            "custody",
+            ref="use",
+            mins=1,
+            action="use",
+            credential_id="cred",
+            agent_id="a1",
+            tool="shell",
+        ),
+    ]
+    assert not _findings_for(
+        "SEC-010", events, {"custody_covered_tools": frozenset({"shell"})}
+    )
+
+
+def test_sec010_missing_lease_identity_does_not_match_known_use_identity():
+    events = [
+        ev("custody", ref="lease", action="lease_issued", credential_id="cred", tool="shell"),
+        ev(
+            "custody",
+            ref="use",
+            mins=1,
+            action="use",
+            credential_id="cred",
+            agent_id="a1",
+            tool="shell",
+        ),
+    ]
+    findings = _findings_for(
+        "SEC-010", events, {"custody_covered_tools": frozenset({"shell"})}
+    )
+    assert len(findings) == 1
 
 
 def _findings_for(rule_id: str, events, cfg_kwargs: dict):
