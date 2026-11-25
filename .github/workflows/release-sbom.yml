@@ -63,8 +63,10 @@ jobs:
           sha256sum sbom.cdx.json > sbom.cdx.json.sha256
           {
             printf 'release_tag=%s\n' "$RELEASE_TAG"
+            printf 'source_ref=%s\n' "$SOURCE_REF"
             printf 'commit=%s\n' "$(git rev-parse HEAD)"
             cat sbom.cdx.json.sha256
+            cat source-release.tar.gz.sha256
           } > release-sbom-provenance.txt
 
       - name: Upload SBOM evidence bundle
