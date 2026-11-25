@@ -44,13 +44,12 @@ jobs:
           upload-release-assets: false
 
       - name: Download and identify the exact GitHub source archive
-        if: github.event_name == 'release'
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          SOURCE_REF: ${{ github.event.release.tag_name || github.sha }}
           GH_REPO: ${{ github.repository }}
         run: |
           curl --fail --location --silent --show-error \
-            "https://github.com/${GH_REPO}/archive/refs/tags/${RELEASE_TAG}.tar.gz" \
+            "https://github.com/${GH_REPO}/archive/${SOURCE_REF}.tar.gz" \
             --output source-release.tar.gz
           test -s source-release.tar.gz
           sha256sum source-release.tar.gz > source-release.tar.gz.sha256
