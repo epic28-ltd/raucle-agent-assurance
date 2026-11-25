@@ -116,7 +116,9 @@ def test_export_contains_soc2_controls_and_honest_gaps() -> None:
     assert spec is not None
     exporter = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(exporter)  # type: ignore[union-attr]
-    packet = json.loads((REPO_ROOT / "ops" / "assurance-profiles" / "fixtures" / "green.json").read_text())
+    packet = json.loads(
+        (REPO_ROOT / "ops" / "assurance-profiles" / "fixtures" / "green.json").read_text()
+    )
     graph = exporter.build_graph(CROSSWALK, packet)
     nodes = {
         node["control_id"]: node
