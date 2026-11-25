@@ -102,11 +102,12 @@ def test_existing_soc2_governance_profile_references_remain_valid() -> None:
     required = validator.load_profiles()["profiles"]["regulated"]["required_controls"]
     for control_id in (
         "CC7.1 configuration monitoring",
-        "CC7.2 anomaly detection",
         "CC9.1 access risk mitigation",
     ):
         assert f"SOC 2:{control_id}" in required
         assert control_id in _rows()
+    # CC7.2 remains in the crosswalk but is not a required regulated-profile row.
+    assert "CC7.2 anomaly detection" in _rows()
 
 
 def test_export_contains_soc2_controls_and_honest_gaps() -> None:
