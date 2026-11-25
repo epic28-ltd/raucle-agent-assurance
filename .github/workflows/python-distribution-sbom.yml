@@ -85,6 +85,54 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
 
+      - name: Repeat wheel SBOM scan
+        uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
+        with:
+          file: ${{ steps.distributions.outputs.wheel }}
+          format: cyclonedx-json
+          syft-version: v1.57.2
+          output-file: ./wheel-repeat.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Repeat sdist SBOM scan
+        uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
+        with:
+          file: ${{ steps.distributions.outputs.sdist }}
+          format: cyclonedx-json
+          syft-version: v1.57.2
+          output-file: ./sdist-repeat.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Compare normalized SBOM component inventories
+        run: |
+          set -euo pipefail
+          normalize() {
+            jq -S '
+              {
+                components: (
+                  (.components // [])
+                  | map({
+                      type: (.type // ""),
+                      name: (.name // ""),
+                      version: (.version // ""),
+                      purl: (.purl // ""),
+                      scope: (.scope // ""),
+                      licenses: (.licenses // [])
+                    })
+                  | sort_by(.purl, .name, .version, .type)
+                )
+              }
+            ' "$1"
+          }
+          normalize "evidence/${{ matrix.id }}/${{ matrix.id }}-wheel.cdx.json" > wheel-first.normalized.json
+          normalize wheel-repeat.cdx.json > wheel-repeat.normalized.json
+          normalize "evidence/${{ matrix.id }}/${{ matrix.id }}-sdist.cdx.json" > sdist-first.normalized.json
+          normalize sdist-repeat.cdx.json > sdist-repeat.normalized.json
+          diff -u wheel-first.normalized.json wheel-repeat.normalized.json
+          diff -u sdist-first.normalized.json sdist-repeat.normalized.json
+
       - name: Bind SBOMs and distributions to exact SHA-256 digests
         env:
           PROJECT: ${{ matrix.project }}
