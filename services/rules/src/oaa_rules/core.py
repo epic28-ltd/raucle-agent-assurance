@@ -614,31 +614,56 @@ class _BypassSuspected:
 
 
 class _CustodyViolation:
-    """SEC-010: credential consumed with no matching issued lease.
+    """SEC-010: credential consumed without a live, matching issued lease.
 
-    Only evaluated for tools declared in the custody coverage map (ADR-0004:
-    detection strength scales with custody coverage). A lease covers a use
-    when a ``lease_issued`` event for the same credential exists.
+    Only evaluates tools explicitly declared in the custody coverage map.
+    A lease must precede the use and match credential plus every identity,
+    tool, release and lease identifier supplied by the use event. A lease
+    revoked before use cannot cover that use. Missing identifiers never widen
+    a match. Lease expiry is not inferred because the event model has no
+    expiry field.
     """
 
     id = "SEC-010"
-    version = "1.0.0"
-    description = "Credential used with no matching issued lease (custody deployment)"
+    version = "1.1.0"
+    description = "Credential used without a matching active lease (custody deployment)"
 
     def evaluate(self, events: Sequence[Event], config: RulesConfig) -> list[Finding]:
         findings: list[Finding] = []
-        leased = {
-            e.credential_id
-            for e in events
-            if e.kind == "custody" and e.action == "lease_issued" and e.credential_id
-        }
+        custody_events = [e for e in events if e.kind == "custody"]
+        issued = [e for e in custody_events if e.action == "lease_issued"]
+        revoked = [e for e in custody_events if e.action == "lease_revoked"]
+
+        def covered_by_lease(use: Event) -> bool:
+            for lease in issued:
+                if lease.at > use.at or lease.credential_id != use.credential_id:
+                    continue
+                if use.lease_id is not None and lease.lease_id != use.lease_id:
+                    continue
+                if use.agent_id is not None and lease.agent_id != use.agent_id:
+                    continue
+                if use.tool is not None and lease.tool != use.tool:
+                    continue
+                if use.release_id is not None and lease.release_id != use.release_id:
+                    continue
+                if lease.lease_id is not None and any(
+                    event.lease_id == lease.lease_id
+                    and event.credential_id == lease.credential_id
+                    and event.action == "lease_revoked"
+                    and event.at <= use.at
+                    for event in revoked
+                ):
+                    continue
+                return True
+            return False
+
         for e in _sort(events):
             if (
                 e.kind == "custody"
                 and e.action == "use"
                 and e.credential_id
                 and e.tool in config.custody_covered_tools
-                and e.credential_id not in leased
+                and not covered_by_lease(e)
             ):
                 findings.append(
                     Finding(
@@ -649,9 +674,9 @@ class _CustodyViolation:
                         evidence_refs=(e.ref or "",),
                         explanation=(
                             f"credential {e.credential_id!r} consumed for "
-                            f"custody-covered tool {e.tool!r} with no "
-                            f"matching issued lease — custody violation "
-                            f"(ADR-0004 high-confidence signal)"
+                            f"custody-covered tool {e.tool!r} without a "
+                            f"matching prior, non-revoked lease — custody "
+                            f"violation (ADR-0004 high-confidence signal)"
                         ),
                         subject=e.agent_id or e.credential_id,
                     )
