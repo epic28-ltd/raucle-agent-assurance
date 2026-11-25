@@ -1,0 +1,58 @@
+name: release-sbom
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-sbom-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  source-release-sbom:
+    name: Generate and attach source-release SBOM
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the exact release tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
+
+      - name: Verify checked-out commit matches the published tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          test "$(git describe --tags --exact-match HEAD)" = "$RELEASE_TAG"
+          printf 'tag=%s\ncommit=%s\n' "$RELEASE_TAG" "$(git rev-parse HEAD)" > release-source.txt
+
+      - name: Generate CycloneDX source-tree SBOM
+        uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
+        with:
+          path: .
+          format: cyclonedx-json
+          syft-version: v1.57.2
+          output-file: ./sbom.cdx.json
+          artifact-name: raucle-agent-assurance-source-sbom
+          upload-artifact: true
+          upload-release-assets: true
+
+      - name: Generate and attach SBOM digest and release identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          test -s sbom.cdx.json
+          sha256sum sbom.cdx.json > sbom.cdx.json.sha256
+          {
+            printf 'release_tag=%s\n' "$RELEASE_TAG"
+            printf 'commit=%s\n' "$(git rev-parse HEAD)"
+            cat sbom.cdx.json.sha256
+          } > release-sbom-provenance.txt
+          gh release upload "$RELEASE_TAG" sbom.cdx.json.sha256 release-sbom-provenance.txt --clobber
