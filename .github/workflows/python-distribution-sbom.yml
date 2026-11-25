@@ -57,7 +57,7 @@ jobs:
           (
             cd dist
             sha256sum *.whl *.tar.gz
-          ) > "evidence/${{ matrix.id }}/${{ matrix.id }}-distribution-sha256.txt"
+          ) > "evidence/${{ matrix.id }}/${{ matrix.id }}-evidence-sha256.txt"
 
       - name: Generate CycloneDX SBOM for built distributions
         uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
@@ -75,6 +75,7 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name || 'pull-request' }}
         run: |
           test -s "evidence/${{ matrix.id }}/${{ matrix.id }}-distributions.cdx.json"
+          sha256sum "evidence/${{ matrix.id }}/${{ matrix.id }}-distributions.cdx.json" >> "evidence/${{ matrix.id }}/${{ matrix.id }}-evidence-sha256.txt"
           {
             printf 'project=%s\n' "$PROJECT"
             printf 'release_tag=%s\n' "$RELEASE_TAG"
