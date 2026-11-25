@@ -21,6 +21,7 @@ deployment.
 - [NIST AI RMF pack v1](nist-ai-rmf-pack-v1.md) - GOVERN, MAP, MEASURE and
   MANAGE core functions, with the existing OWASP LLM Top 10 crosswalk slice
   noted alongside.
+- [SOC 2 Trust Services Criteria mapping v1](soc2-pack-v1.md) - Common Criteria CC1-CC9 and additional Availability, Confidentiality, Processing Integrity and Privacy criteria, with evidence-plane-only verdicts.
 - [HITRUST AI Security Framework pack v1](hitrust-ai-pack-v1.md) - CSF v11
   AI control topics (inventory, change management, data protection,
   incident response), referenced by id and title only (HITRUST is

@@ -630,6 +630,390 @@
       "evidence_field": null,
       "status": "UNSUPPORTED",
       "unsat_reason": "No record of AI-specific security incidents, or of their specifics (threat type, impact, recovery), exists in the evidence plane: the plane records detections, not an incident lifecycle (the same gap the DORA pack records for Art 11 incident reporting)."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC1.1",
+      "title": "Governance oversight and integrity",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC1.2",
+      "title": "Board oversight responsibilities",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC1.3",
+      "title": "Organisational structure and authority",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC1.4",
+      "title": "Competence and accountability",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC1.5",
+      "title": "Individual accountability",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC2.1",
+      "title": "Internal and external communication",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC2.2",
+      "title": "Communication of objectives and responsibilities",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC2.3",
+      "title": "External communication",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC3.1",
+      "title": "Objectives and risk identification",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC3.2",
+      "title": "Risk analysis",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC3.3",
+      "title": "Fraud risk consideration",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC3.4",
+      "title": "Change-related risk assessment",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC4.1",
+      "title": "Ongoing and separate evaluations",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC4.2",
+      "title": "Deficiency evaluation and communication",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC5.1",
+      "title": "Control activities selected and developed",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC5.2",
+      "title": "Technology general controls",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC5.3",
+      "title": "Policies and procedures",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC6.1",
+      "title": "Logical access security",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC6.2",
+      "title": "Credential issuance and removal",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC6.3",
+      "title": "Authorisation and access provisioning",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC6.4",
+      "title": "Access removal and modification",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC6.5",
+      "title": "Physical access restrictions",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC6.6",
+      "title": "External threat protection",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC6.7",
+      "title": "Data transmission and movement",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC6.8",
+      "title": "Malicious software prevention",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC7.3",
+      "title": "Security event evaluation",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC7.4",
+      "title": "Incident response",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC7.5",
+      "title": "Recovery and business continuity",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC8.1",
+      "title": "Change authorisation and implementation",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "CC9.2",
+      "title": "Business disruption risk mitigation",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "A1.1",
+      "title": "Availability commitments and capacity",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "A1.2",
+      "title": "Environmental and infrastructure protection",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "A1.3",
+      "title": "Recovery testing and restoration",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "C1.1",
+      "title": "Confidential information identification and protection",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "C1.2",
+      "title": "Confidential information disposal",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "PI1.1",
+      "title": "Processing integrity objectives",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "PI1.2",
+      "title": "System input completeness and accuracy",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "PI1.3",
+      "title": "Processing completeness and accuracy",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "PI1.4",
+      "title": "Output completeness and accuracy",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "PI1.5",
+      "title": "Data storage and retention integrity",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "P1.1",
+      "title": "Privacy notice and purpose communication",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "P1.2",
+      "title": "Choice and consent",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "P1.3",
+      "title": "Collection limitation",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "P1.4",
+      "title": "Use, retention and disposal limitation",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "P1.5",
+      "title": "Access and correction rights",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "P1.6",
+      "title": "Disclosure to third parties",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "P1.7",
+      "title": "Data quality",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
+    },
+    {
+      "framework": "SOC 2",
+      "control_id": "P1.8",
+      "title": "Privacy-related monitoring and enforcement",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "The repository evidence plane does not produce the organisation-level policies, operating records, system configurations or independent assessment evidence needed to support this SOC 2 criterion. Agent-tool receipts and coverage data are not a substitute; the gap remains explicitly unclaimed."
     }
   ]
 }

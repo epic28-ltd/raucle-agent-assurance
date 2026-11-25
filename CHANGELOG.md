@@ -5,6 +5,11 @@ Format based on Keep a Changelog; versioning will be semver from 0.1.0.
 
 ## Unreleased
 
+### 2026-11-25: SOC 2 TSC mapping v1
+
+- Added a machine-readable mapping for all 33 Common Criteria and 18 additional Availability, Confidentiality, Processing Integrity and Privacy criteria (51 total). Existing CC7.1, CC7.2 and CC9.1 mappings retain their identifiers and governance-profile compatibility; all other criteria are explicitly UNSUPPORTED until suitable evidence exists.
+- Added the SOC 2 evidence pack, compliance-index entry and tests for full criterion inventory, status parity, unsupported-gap reasons, GRC export coverage and claim boundaries. This is a technical evidence crosswalk only, not a SOC 2 report, audit opinion or compliance claim.
+
 ### 2026-11-18: pack-shelf test hardening (checker minors B6)
 
 - The six compliance pack test files' status checks now parse the packs' own
