@@ -17,14 +17,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      actions: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Generate repository SBOM
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
         with:
           path: .
           format: cyclonedx-json
+          syft-version: v1.57.2
           artifact-name: raucle-agent-assurance-cyclonedx
           output-file: ./sbom.cdx.json
           upload-artifact: true
@@ -38,8 +38,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
       - name: Install CI runtime and test dependencies
