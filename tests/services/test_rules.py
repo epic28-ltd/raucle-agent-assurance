@@ -696,9 +696,7 @@ def test_sec010_missing_lease_identity_does_not_match_known_use_identity():
             tool="shell",
         ),
     ]
-    findings = _findings_for(
-        "SEC-010", events, {"custody_covered_tools": frozenset({"shell"})}
-    )
+    findings = _findings_for("SEC-010", events, {"custody_covered_tools": frozenset({"shell"})})
     assert len(findings) == 1
 
 
