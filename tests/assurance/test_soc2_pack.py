@@ -24,11 +24,7 @@ FRAMEWORK = "SOC 2"
 
 
 def _rows() -> dict[str, dict]:
-    return {
-        row["control_id"]: row
-        for row in CROSSWALK["rows"]
-        if row["framework"] == FRAMEWORK
-    }
+    return {row["control_id"]: row for row in CROSSWALK["rows"] if row["framework"] == FRAMEWORK}
 
 
 def _table(text: str) -> dict[str, str]:
@@ -50,10 +46,7 @@ def _table(text: str) -> dict[str, str]:
 
 
 def test_validator_self_check_stays_empty() -> None:
-    assert (
-        validator.self_check(profiles=validator.load_profiles(), crosswalk=CROSSWALK)
-        == []
-    )
+    assert validator.self_check(profiles=validator.load_profiles(), crosswalk=CROSSWALK) == []
 
 
 def test_full_criteria_inventory_is_present() -> None:
@@ -123,15 +116,7 @@ def test_export_contains_soc2_controls_and_honest_gaps() -> None:
     assert spec is not None
     exporter = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(exporter)  # type: ignore[union-attr]
-    packet = json.loads(
-        (
-            REPO_ROOT
-            / "ops"
-            / "assurance-profiles"
-            / "fixtures"
-            / "green.json"
-        ).read_text()
-    )
+    packet = json.loads((REPO_ROOT / "ops" / "assurance-profiles" / "fixtures" / "green.json").read_text())
     graph = exporter.build_graph(CROSSWALK, packet)
     nodes = {
         node["control_id"]: node
