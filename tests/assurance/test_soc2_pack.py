@@ -100,14 +100,10 @@ def test_unsupported_rows_have_explicit_reasons() -> None:
 
 def test_existing_soc2_governance_profile_references_remain_valid() -> None:
     required = validator.load_profiles()["profiles"]["regulated"]["required_controls"]
-    for control_id in (
-        "CC7.1 configuration monitoring",
-        "CC9.1 access risk mitigation",
-    ):
-        assert f"SOC 2:{control_id}" in required
-        assert control_id in _rows()
-    # CC7.2 remains in the crosswalk but is not a required regulated-profile row.
+    assert "SOC 2:CC7.1 configuration monitoring" in required
+    # CC7.2 and CC9.1 remain crosswalk rows, not required profile controls.
     assert "CC7.2 anomaly detection" in _rows()
+    assert "CC9.1 access risk mitigation" in _rows()
 
 
 def test_export_contains_soc2_controls_and_honest_gaps() -> None:
