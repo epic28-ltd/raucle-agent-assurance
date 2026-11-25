@@ -43,6 +43,18 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
 
+      - name: Download and identify the exact GitHub source archive
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          curl --fail --location --silent --show-error \
+            "https://github.com/${GH_REPO}/archive/refs/tags/${RELEASE_TAG}.tar.gz" \
+            --output source-release.tar.gz
+          test -s source-release.tar.gz
+          sha256sum source-release.tar.gz > source-release.tar.gz.sha256
+
       - name: Generate SBOM digest and release identity
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name || 'pull-request' }}
@@ -63,6 +75,8 @@ jobs:
             sbom.cdx.json
             sbom.cdx.json.sha256
             release-sbom-provenance.txt
+            source-release.tar.gz
+            source-release.tar.gz.sha256
           if-no-files-found: error
           retention-days: 30
 
@@ -84,4 +98,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
-        run: gh release upload "$RELEASE_TAG" sbom.cdx.json sbom.cdx.json.sha256 release-sbom-provenance.txt --clobber
+        run: gh release upload "$RELEASE_TAG" sbom.cdx.json sbom.cdx.json.sha256 release-sbom-provenance.txt source-release.tar.gz source-release.tar.gz.sha256 --clobber
