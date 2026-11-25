@@ -317,7 +317,6 @@ def test_window_boundary_degrades_out() -> None:
     assert [r.state for r in result.records] == ["bypass_suspected", "receipt_only_gap"]
 
 
-
 def test_actor_mismatch_never_degrades_into_a_receipt_match() -> None:
     """Identity mismatch leaves both independent observations unmatched."""
     cand = AuditCandidate(
