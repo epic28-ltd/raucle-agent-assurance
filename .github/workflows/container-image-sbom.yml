@@ -41,13 +41,19 @@ jobs:
           IMAGE: ${{ matrix.image }}
         run: |
           set -euo pipefail
-          docker pull "$IMAGE"
-          DIGEST_REF="$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$IMAGE" | sort -u | sed -n '1p')"
-          test -n "$DIGEST_REF"
-          case "$DIGEST_REF" in
-            *@sha256:*) ;;
-            *) echo "Resolved image reference is not digest-pinned: $DIGEST_REF" >&2; exit 1 ;;
+          # Capture the registry digest reported by the pull itself. Some
+          # registries/runners do not populate RepoDigests in local image
+          # metadata even when the pull succeeds.
+          docker pull "$IMAGE" 2>&1 | tee pull.log
+          DIGEST="$(awk '/^Digest: sha256:/ { digest=$2 } END { print digest }' pull.log)"
+          test -n "$DIGEST"
+          case "$DIGEST" in
+            sha256:*) ;;
+            *) echo "Registry did not report a SHA-256 digest: $DIGEST" >&2; exit 1 ;;
           esac
+          # The current reference-image matrix contains no registry ports.
+          IMAGE_REPOSITORY="${IMAGE%:*}"
+          DIGEST_REF="${IMAGE_REPOSITORY}@${DIGEST}"
           echo "digest_ref=$DIGEST_REF" >> "$GITHUB_OUTPUT"
           mkdir -p "evidence/${{ matrix.id }}"
           printf 'declared_image=%s\nresolved_digest_ref=%s\n' "$IMAGE" "$DIGEST_REF" > "evidence/${{ matrix.id }}/${{ matrix.id }}-image-provenance.txt"
