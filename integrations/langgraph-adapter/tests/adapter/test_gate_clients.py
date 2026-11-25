@@ -97,7 +97,6 @@ def test_default_timeout_is_latency_budget():
     assert client._timeout_s == pytest.approx(0.080)
 
 
-
 def test_extra_body_cannot_override_authorisation_request_fields(gate_server):
     client = HttpGateClient(
         gate_server,
