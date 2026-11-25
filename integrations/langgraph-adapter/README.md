@@ -35,3 +35,18 @@ Invariants honoured here (ADR-0001 / EPIC M):
 - **fail closed by default** — a gate error vetoes the call unless
   `fail_open=True` is explicitly set.
 - **no retries in the enforcement path** — one gate call per tool call.
+
+## Security configuration
+
+- Use an `https://` endpoint for every non-local deployment. Plain HTTP is
+  accepted only for the exact loopback hosts `localhost`, `127.0.0.1` and
+  `::1`, intended for local development and tests.
+- Keep the default `fail_open=False` in production. Setting
+  `fail_open=True` converts a gate transport or response failure into an
+  allow decision without a signed receipt. Use it only for an explicitly
+  approved, non-production fallback experiment; it weakens the default-deny
+  security boundary and must be recorded in the deployment risk assessment.
+- `extra_body` is for non-authoritative extension metadata. The adapter
+  always overwrites extension values for the tool, arguments, call/trace
+  identifiers, agent identity, source and distribution pin with the canonical
+  values supplied to `check_tool_call`.
