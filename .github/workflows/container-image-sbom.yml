@@ -1,0 +1,120 @@
+name: container-image-sbom
+
+on:
+  pull_request:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-image-sbom-${{ github.event.release.tag_name || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  inventory-reference-images:
+    name: Inventory ${{ matrix.id }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: langfuse-web
+            image: docker.langfuse.com/langfuse/langfuse:4.74.0
+          - id: langfuse-worker
+            image: docker.langfuse.com/langfuse/langfuse-worker:4.74.0
+          - id: clickhouse
+            image: docker.io/clickhouse/clickhouse-server:26.3.62.3
+          - id: minio
+            image: cgr.dev/chainguard/minio
+          - id: redis
+            image: docker.io/library/redis:7
+          - id: postgres
+            image: docker.io/library/postgres:17
+          - id: evidence-index-python
+            image: docker.io/library/python:3.12-alpine
+    steps:
+      - name: Pull declared image and resolve immutable registry digest
+        id: resolve
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          set -euo pipefail
+          # Capture the registry digest reported by the pull itself. Some
+          # registries/runners do not populate RepoDigests in local image
+          # metadata even when the pull succeeds.
+          docker pull "$IMAGE" 2>&1 | tee pull.log
+          DIGEST="$(awk '/^Digest: sha256:/ { digest=$2 } END { print digest }' pull.log)"
+          test -n "$DIGEST"
+          case "$DIGEST" in
+            sha256:*) ;;
+            *) echo "Registry did not report a SHA-256 digest: $DIGEST" >&2; exit 1 ;;
+          esac
+          # The current reference-image matrix contains no registry ports.
+          IMAGE_REPOSITORY="${IMAGE%:*}"
+          DIGEST_REF="${IMAGE_REPOSITORY}@${DIGEST}"
+          echo "digest_ref=$DIGEST_REF" >> "$GITHUB_OUTPUT"
+          mkdir -p "evidence/${{ matrix.id }}"
+          printf 'declared_image=%s\nresolved_digest_ref=%s\n' "$IMAGE" "$DIGEST_REF" > "evidence/${{ matrix.id }}/${{ matrix.id }}-image-provenance.txt"
+
+      - name: Generate CycloneDX SBOM for exact image digest
+        uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
+        with:
+          image: ${{ steps.resolve.outputs.digest_ref }}
+          format: cyclonedx-json
+          syft-version: v1.57.2
+          output-file: evidence/${{ matrix.id }}/${{ matrix.id }}.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Bind SBOM checksum to image digest and release identity
+        env:
+          IMAGE: ${{ matrix.image }}
+          DIGEST_REF: ${{ steps.resolve.outputs.digest_ref }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || 'pull-request' }}
+        run: |
+          set -euo pipefail
+          SBOM="evidence/${{ matrix.id }}/${{ matrix.id }}.cdx.json"
+          test -s "$SBOM"
+          sha256sum "$SBOM" > "$SBOM.sha256"
+          {
+            printf 'declared_image=%s\n' "$IMAGE"
+            printf 'resolved_digest_ref=%s\n' "$DIGEST_REF"
+            printf 'release_tag=%s\n' "$RELEASE_TAG"
+            printf 'source_commit=%s\n' "$GITHUB_SHA"
+            cat "$SBOM.sha256"
+          } > "evidence/${{ matrix.id }}/${{ matrix.id }}-provenance.txt"
+
+      - name: Upload image SBOM evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: container-image-sbom-${{ matrix.id }}
+          path: evidence/${{ matrix.id }}/
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-release-evidence:
+    name: Attach container image SBOMs to GitHub Release
+    if: github.event_name == 'release'
+    needs: inventory-reference-images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download image evidence bundles
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: container-image-sbom-*
+          path: evidence
+          merge-multiple: true
+
+      - name: Attach container SBOM evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          test "$(find evidence -type f -name '*.cdx.json' | wc -l)" -eq 7
+          gh release upload "$RELEASE_TAG" evidence/* --clobber
