@@ -85,6 +85,41 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
 
+      - name: Verify normalized SBOM inventory repeatability
+        env:
+          WHEEL: ${{ steps.distributions.outputs.wheel }}
+          SDIST: ${{ steps.distributions.outputs.sdist }}
+        run: |
+          set -euo pipefail
+          normalize() {
+            jq -S '
+              {
+                components: (
+                  (.components // [])
+                  | map({
+                      type: (.type // ""),
+                      name: (.name // ""),
+                      version: (.version // ""),
+                      purl: (.purl // ""),
+                      scope: (.scope // ""),
+                      licenses: (.licenses // [])
+                    })
+                  | sort_by(.purl, .name, .version, .type)
+                )
+              }
+            ' "$1"
+          }
+          # Re-scan the same immutable build outputs; compare component
+          # inventories, not timestamps, tool metadata, or serial numbers.
+          syft "$WHEEL" -o cyclonedx-json > wheel-repeat.cdx.json
+          syft "$SDIST" -o cyclonedx-json > sdist-repeat.cdx.json
+          normalize "evidence/${{ matrix.id }}/${{ matrix.id }}-wheel.cdx.json" > wheel-first.normalized.json
+          normalize wheel-repeat.cdx.json > wheel-repeat.normalized.json
+          normalize "evidence/${{ matrix.id }}/${{ matrix.id }}-sdist.cdx.json" > sdist-first.normalized.json
+          normalize sdist-repeat.cdx.json > sdist-repeat.normalized.json
+          diff -u wheel-first.normalized.json wheel-repeat.normalized.json
+          diff -u sdist-first.normalized.json sdist-repeat.normalized.json
+
       - name: Bind SBOMs and distributions to exact SHA-256 digests
         env:
           PROJECT: ${{ matrix.project }}
