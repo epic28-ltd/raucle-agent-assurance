@@ -1,0 +1,116 @@
+name: python-distribution-sbom
+
+on:
+  pull_request:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: python-distribution-sbom-${{ github.event.release.tag_name || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  build-python-distributions:
+    name: Build and inventory ${{ matrix.id }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: raucle-adapter
+            project: packages/raucle-adapter
+          - id: instrumentation
+            project: packages/instrumentation
+          - id: ep-aec
+            project: packages/ep-aec
+          - id: audit-sources
+            project: integrations/audit-sources
+          - id: langgraph-adapter
+            project: integrations/langgraph-adapter
+          - id: correlation
+            project: services/correlation
+    steps:
+      - name: Check out release tag or pull request commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned Python build frontend and backend
+        run: python -m pip install --disable-pip-version-check "build==1.2.2.post1" "hatchling==1.27.0"
+
+      - name: Build wheel and source distribution
+        env:
+          PROJECT_DIR: ${{ matrix.project }}
+        run: |
+          mkdir -p dist evidence/${{ matrix.id }}
+          python -m build --no-isolation --sdist --wheel --outdir dist "$PROJECT_DIR"
+          test "$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 1
+          test "$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 1
+          (
+            cd dist
+            sha256sum *.whl *.tar.gz
+          ) > "evidence/${{ matrix.id }}/${{ matrix.id }}-evidence-sha256.txt"
+
+      - name: Generate CycloneDX SBOM for built distributions
+        uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
+        with:
+          path: ./dist
+          format: cyclonedx-json
+          syft-version: v1.57.2
+          output-file: ./evidence/${{ matrix.id }}/${{ matrix.id }}-distributions.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Record build identity and verify evidence
+        env:
+          PROJECT: ${{ matrix.project }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || 'pull-request' }}
+        run: |
+          test -s "evidence/${{ matrix.id }}/${{ matrix.id }}-distributions.cdx.json"
+          sha256sum "evidence/${{ matrix.id }}/${{ matrix.id }}-distributions.cdx.json" >> "evidence/${{ matrix.id }}/${{ matrix.id }}-evidence-sha256.txt"
+          {
+            printf 'project=%s\n' "$PROJECT"
+            printf 'release_tag=%s\n' "$RELEASE_TAG"
+            printf 'commit=%s\n' "$(git rev-parse HEAD)"
+            printf 'inventory_scope=combined-wheel-and-sdist-directory\n'
+          } > "evidence/${{ matrix.id }}/${{ matrix.id }}-build-provenance.txt"
+
+      - name: Upload candidate distribution evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: python-dist-evidence-${{ matrix.id }}
+          path: evidence/${{ matrix.id }}/
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-release-evidence:
+    name: Attach Python distribution SBOM evidence to release
+    if: github.event_name == 'release'
+    needs: build-python-distributions
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all distribution evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: python-dist-evidence-*
+          path: evidence
+          merge-multiple: true
+
+      - name: Attach distribution SBOM evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          test -n "$(find evidence -type f -name '*.cdx.json' -print -quit)"
+          gh release upload "$RELEASE_TAG" evidence/* --clobber
