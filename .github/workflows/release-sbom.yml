@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-sbom-${{ github.event.release.tag_name }}
+  group: release-sbom-${{ github.event.release.tag_name || github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -44,11 +44,9 @@ jobs:
           upload-artifact: true
           upload-release-assets: ${{ github.event_name == 'release' }}
 
-      - name: Generate and attach SBOM digest and release identity
+      - name: Generate SBOM digest and release identity
         env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || 'pull-request' }}
         run: |
           test -s sbom.cdx.json
           sha256sum sbom.cdx.json > sbom.cdx.json.sha256
@@ -57,4 +55,11 @@ jobs:
             printf 'commit=%s\n' "$(git rev-parse HEAD)"
             cat sbom.cdx.json.sha256
           } > release-sbom-provenance.txt
-          gh release upload "$RELEASE_TAG" sbom.cdx.json.sha256 release-sbom-provenance.txt --clobber
+
+      - name: Attach digest and release identity
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" sbom.cdx.json.sha256 release-sbom-provenance.txt --clobber
