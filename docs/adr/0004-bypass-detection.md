@@ -50,4 +50,14 @@ Design rule: **bypass detection must never rely on T alone.** A spoofed trace sh
 ## Alternatives considered
 
 - Trace-instrumented interception proxies for every tool: rejected for MVP (operational weight, and the plan's non-goal of becoming the enforcement path); retained as a later-scope custody enforcement option.
-- Relying on agent attestation of its own tool calls: rejected outright (attast-self semantics; the agent is the compromised party in the threat model).
+- Relying on agent attestation of its own tool calls: rejected outright (attast-self semantics; the agent is the compromised party in the threat model)
+
+   SEC-010 lease matching is deliberately strict: the lease must be issued no
+   later than the use and match the credential. Every identity, tool, release
+   or lease identifier present on the use event must also match the issuance
+   event; a missing issuance-side value does not satisfy a known use-side
+   identity. A `lease_revoked` event for the same lease and credential before
+   use invalidates that lease. The current event model has no expiry timestamp,
+   so the rule must not infer expiry; deployments that require expiry
+   enforcement must supply explicit revocation events or extend the event
+   contract..

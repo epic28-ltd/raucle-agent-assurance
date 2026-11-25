@@ -317,6 +317,65 @@ def test_window_boundary_degrades_out() -> None:
     assert [r.state for r in result.records] == ["bypass_suspected", "receipt_only_gap"]
 
 
+def test_actor_mismatch_never_degrades_into_a_receipt_match() -> None:
+    """Identity mismatch leaves both independent observations unmatched."""
+    cand = AuditCandidate(
+        source="aws_cloudtrail",
+        source_event_id="ev-identity-mismatch",
+        event_time="2026-11-04T10:00:00Z",
+        actor="agent:expected",
+        action="ec2.run_instances",
+        resource=None,
+        session_binding=None,
+        synthetic=True,
+    )
+    row = ReceiptIndexRow(
+        receipt_hash=RECEIPT_HASH,
+        event_time=dt.datetime(2026, 11, 4, 10, 0, 30, tzinfo=dt.UTC),
+        actor="agent:other",
+        decision="allow",
+        synthetic=True,
+    )
+    result = reconcile([cand], [row], CONVENTIONS, at=NOW)
+    assert [record.state for record in result.records] == [
+        "bypass_suspected",
+        "receipt_only_gap",
+    ]
+
+
+@pytest.mark.parametrize(
+    "offset_seconds,expected",
+    [
+        (-120, ["matched_degraded"]),
+        (120, ["matched_degraded"]),
+        (-121, ["bypass_suspected", "receipt_only_gap"]),
+        (121, ["bypass_suspected", "receipt_only_gap"]),
+    ],
+)
+def test_time_window_boundaries_are_symmetric(offset_seconds, expected) -> None:
+    """Clock skew at either edge is treated symmetrically and deterministically."""
+    cand = AuditCandidate(
+        source="aws_cloudtrail",
+        source_event_id=f"ev-boundary-{offset_seconds}",
+        event_time="2026-11-04T10:00:00Z",
+        actor="agent:raucle-e2e",
+        action="ec2.run_instances",
+        resource=None,
+        session_binding=None,
+        synthetic=True,
+    )
+    candidate_time = dt.datetime(2026, 11, 4, 10, 0, 0, tzinfo=dt.UTC)
+    row = ReceiptIndexRow(
+        receipt_hash=RECEIPT_HASH,
+        event_time=candidate_time + dt.timedelta(seconds=offset_seconds),
+        actor="agent:raucle-e2e",
+        decision="allow",
+        synthetic=True,
+    )
+    result = reconcile([cand], [row], CONVENTIONS, at=NOW)
+    assert [record.state for record in result.records] == expected
+
+
 def test_candidates_from_real_normalizer_flow_end_to_end() -> None:
     """CloudTrail export -> candidates -> reconcile against gate-set tokens."""
     cands = normalize_cloudtrail([cloudtrail_event()], synthetic=True)
