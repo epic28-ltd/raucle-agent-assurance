@@ -47,7 +47,7 @@ The console and investigation UI lockfiles are the authoritative resolved sets f
 The following are explicit inventory gaps requiring a product decision before they can be called supported runtime extras:
 
 - **OpenTelemetry instrumentation:** the README identifies `opentelemetry-sdk`, `opentelemetry-exporter-otlp-proto-http` and `pyyaml`, but `otel=[]` in the package metadata. CI currently installs these packages by unpinned names. The package needs a declared extra and a lock/constraints source before a reproducible optional-runtime SBOM can be claimed.
-- **Raucle adapter / EP-AEC integration:** READMEs document Raucle 0.23.6 at git `645f5de` (or a matching PyPI release), while their `raucle=[]` extras are empty. The pinned worktree is operational guidance, not a dependency resolution artifact. Convert this into a verifiable immutable source pin or a verified package pin before claiming the extra is locked.
+- **Raucle adapter / EP-AEC integration:** READMEs document Raucle 0.23.6 at git `645f5de` (or a matching PyPI release), while their `raucle=[]` extras are empty. The pinned worktree is operational guidance, not a dependency resolution artefact. Convert this into a verifiable immutable source pin or a verified package pin before claiming the extra is locked.
 - **LangGraph adapter:** the package intentionally avoids requiring LangGraph/LangChain for the core middleware path and conditionally integrates when available. No runtime extra currently resolves those packages. Do not add them to the base runtime inventory merely because the integration name contains LangGraph.
 - **Audit sources:** pytest and Ruff are development-only dependencies in the `dev` extra and lockfile; they are not runtime dependencies of the published connector.
 - **CI root environment:** `.github/workflows/ci.yml` installs Ruff, pytest, cryptography, PyYAML, FastAPI, HTTPX, OpenTelemetry SDK/exporter and jsonschema by imperative unpinned pip commands. This is a test environment, not a production lockfile. Pinning and scanning it is a separate CI-supply-chain task; it must not be conflated with product runtime.
@@ -66,7 +66,7 @@ The following are explicit inventory gaps requiring a product decision before th
 | `postgres` | `docker.io/postgres:17` |
 | `evidence-index` | `docker.io/library/python:3.12-alpine` |
 
-The workflow pulls each declared image, captures the registry-reported SHA-256 digest and runs Syft against the digest reference. The MinIO, Redis and Postgres tags are not version-qualified immutable references in the Compose file; the workflow's resolved digest is therefore essential evidence for each run. The packaged reference Compose file is covered; `deploy/compose/docker-compose.yml` is an earlier six-image spike and is not an additional production artifact.
+The workflow pulls each declared image, captures the registry-reported SHA-256 digest and runs Syft against the digest reference. The MinIO, Redis and Postgres tags are not version-qualified immutable references in the Compose file; the workflow's resolved digest is therefore essential evidence for each run. The packaged reference Compose file is covered; `deploy/compose/docker-compose.yml` is an earlier six-image spike and is not an additional production artefact.
 
 The optional OTel collector described in `deploy/reference/README.md` is not part of the shipped Compose stack. If it becomes a supported deployment overlay, it needs its own pinned image and SBOM entry before inclusion in release claims.
 
