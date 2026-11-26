@@ -5,30 +5,26 @@ The adapter CALLS the gate through one of these clients; it is never the gate
 itself (monitoring never enforcement-authority). Every client returns the same
 ``GateDecision`` result so the middleware is transport-agnostic.
 
-Both implementations are lazy: ``raucle`` (the pinned v0.23.6 / git 645f5de
-worktree) and ``urllib``-level HTTP are only touched when the corresponding
-client is actually constructed.
+Both implementations are lazy: the installed ``raucle`` distribution and
+``urllib``-level HTTP are only touched when the corresponding client is
+actually constructed. Install the documented pinned distribution explicitly;
+this adapter does not search developer home directories for a source checkout.
 """
 
 from __future__ import annotations
 
 import importlib
 import json
-import os
 import urllib.error
 import urllib.request
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import urlsplit
 
 #: Distro pin keyed by the raucle distribution, NOT ``raucle.__version__``
 #: (which is stale) — see packages/raucle-adapter/evidence_plane.py.
 RAUCLE_DISTRIBUTION_PIN = "raucle 0.23.6 (git 645f5de)"
-
-#: Default location of the pinned raucle worktree used by local tests.
-DEFAULT_RAUCLE_WORKTREE = Path.home() / "Projects" / "oaa-spike-4nov" / "evd" / "raucle-645f5de"
 
 _ALLOW = "allow"
 _DENY = "deny"
@@ -71,26 +67,15 @@ class GateClient(Protocol):
 
 
 def _ensure_raucle_importable() -> tuple[Any, Any, Any]:
-    """Import the pinned raucle, adding the default worktree to sys.path first.
+    """Import the installed, pinned raucle distribution.
 
-    Returns (raucle module, RaucleGateway, GatewayConfig) or raises
-    ``ImportError`` naming the pin so operators know exactly what to fix.
+    The adapter intentionally has no developer-home/worktree fallback:
+    runtime behaviour must be determined by the environment's declared
+    package installation, not by whichever stale checkout happens to exist.
+    Returns (raucle module, RaucleGateway, GatewayConfig) or raises ImportError.
     """
-    try:
-        raucle = importlib.import_module("raucle")
-        importlib.import_module("raucle.gateway")
-    except ImportError:
-        if DEFAULT_RAUCLE_WORKTREE.is_dir():
-            # lazy: only when the worktree fallback runs
-            import sys  # noqa: PLC0415
-
-            worktree = str(DEFAULT_RAUCLE_WORKTREE)
-            if worktree not in sys.path:
-                sys.path.insert(0, worktree)
-            raucle = importlib.import_module("raucle")
-            importlib.import_module("raucle.gateway")
-        else:
-            raise
+    raucle = importlib.import_module("raucle")
+    importlib.import_module("raucle.gateway")
     return raucle, raucle.gateway.RaucleGateway, raucle.gateway.GatewayConfig
 
 
@@ -269,15 +254,3 @@ class HttpGateClient:
             raw=payload,
         )
 
-
-def ensure_pinned_raucle_worktree(worktree: str | os.PathLike[str] | None = None) -> Path:
-    """Return the worktree path, registering it on sys.path if present.
-
-    Used by tests and operators running from a checkout; production users
-    install raucle normally.
-    """
-    path = Path(worktree) if worktree else DEFAULT_RAUCLE_WORKTREE
-    if not path.is_dir():
-        raise FileNotFoundError(f"pinned raucle worktree missing: {path}")
-    os.environ.setdefault("RAUCLE_WORKTREE", str(path))
-    return path
