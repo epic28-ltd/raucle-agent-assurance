@@ -253,4 +253,3 @@ class HttpGateClient:
             latency_us=int(payload.get("latency_us", 0)),
             raw=payload,
         )
-
