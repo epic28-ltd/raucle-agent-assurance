@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """OpenTelemetry sinks bridging the LangGraph gate middleware onto spans (issue 111).
 
-``OtelGateSinks`` implements both middleware callback interfaces —
-``AuditSink.on_gate_event`` and ``SpanAttributeSink.set_tool_attributes`` —
+``OtelGateSinks`` implements both middleware callback interfaces
+(``AuditSink.on_gate_event`` and ``SpanAttributeSink.set_tool_attributes``)
 by duck typing: it consumes the documented gate-event mapping (see
 ``oaa_langgraph_adapter.middleware``) and never imports the adapter package,
 so the instrumentation side stays decoupled from the adapter's dependency
@@ -15,7 +15,7 @@ surface. One instance is wired as both sinks:
 What it exports (metadata only, bounded keys, no prompts or tool arguments):
 
 - one ``oaa.gate.decision`` span per gate event, carrying ``oaa.tool``,
-  ``oaa.call_id``, ``oaa.trace_id`` (the middleware's correlation id — the
+  ``oaa.call_id``, ``oaa.trace_id`` (the middleware's correlation id; the
   signed ``x_gate`` trace id stays authoritative on the correlation plane),
   ``oaa.decision``, ``oaa.reason``, ``oaa.receipt_hash``,
   ``oaa.gate_latency_us``, ``oaa.adapter_latency_us``, ``oaa.agent_id``,
@@ -27,8 +27,8 @@ What it exports (metadata only, bounded keys, no prompts or tool arguments):
 
 Parenting: when the event carries a ``traceparent`` (placed there by the
 adapter's ``w3c_trace_context_getter`` and forwarded by the middleware), the
-decision span is created as a child of that remote parent — canonically
-re-validated here, defence in depth, and dropped when malformed — so the
+decision span is created as a child of that remote parent, canonically
+re-validated here, defence in depth, and dropped when malformed, so the
 enforcement decision joins the caller's trace. Without a header the span
 parents onto whatever context is current, or starts a fresh trace.
 

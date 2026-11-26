@@ -31,7 +31,9 @@ retry, explicit loss counters and a post-recovery marker span.
    adopts a valid header's trace id only when the runtime carried none; an
    existing Raucle trace id always wins, so the gate stays keyed on the
    correlation id the deployment already uses. The middleware forwards the
-   validated raw headers onto the gate event; it never parses them.
+   getter-extracted headers onto the gate event without parsing them:
+   `traceparent` arrives fully validated, `tracestate` length-bounded raw,
+   and the sink re-validates it canonically before parenting.
 3. The instrumentation package owns the canonical parser
    (`w3c_tracecontext`, pure stdlib, importable with the bare CI dependency
    set) and the export path. Telemetry is disabled until
