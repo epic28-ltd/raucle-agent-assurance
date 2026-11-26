@@ -167,10 +167,77 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+
+  inventory-source-services:
+    name: Inventory source service ${{ matrix.id }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: console
+            project: services/console
+          - id: investigation-ui
+            project: services/investigation-ui
+    steps:
+      - name: Check out release tag or pull request commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.sha }}
+
+      - name: Verify authoritative service manifests
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: |
+          set -euo pipefail
+          test -s "$PROJECT/pyproject.toml"
+          test -s "$PROJECT/uv.lock"
+          mkdir -p "evidence/${{ matrix.id }}"
+
+      - name: Generate CycloneDX SBOM from exact service lockfile environment
+        uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
+        with:
+          path: ${{ matrix.project }}
+          format: cyclonedx-json
+          syft-version: v1.57.2
+          output-file: evidence/${{ matrix.id }}/${{ matrix.id }}-service.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Bind service SBOM to exact manifest, lockfile and source commit
+        env:
+          PROJECT: ${{ matrix.project }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || 'pull-request' }}
+        run: |
+          set -euo pipefail
+          SBOM="evidence/${{ matrix.id }}/${{ matrix.id }}-service.cdx.json"
+          test -s "$SBOM"
+          {
+            sha256sum "$PROJECT/pyproject.toml"
+            sha256sum "$PROJECT/uv.lock"
+            sha256sum "$SBOM"
+          } > "evidence/${{ matrix.id }}/${{ matrix.id }}-service-sbom-sha256.txt"
+          {
+            printf 'service=%s\n' "$PROJECT"
+            printf 'release_tag=%s\n' "$RELEASE_TAG"
+            printf 'source_commit=%s\n' "$(git rev-parse HEAD)"
+            printf 'manifest=%s\n' "$PROJECT/pyproject.toml"
+            printf 'lockfile=%s\n' "$PROJECT/uv.lock"
+            printf 'inventory_scope=source-service-directory-and-uv-lockfile\n'
+          } > "evidence/${{ matrix.id }}/${{ matrix.id }}-service-provenance.txt"
+
+      - name: Upload source-service SBOM evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: python-service-evidence-${{ matrix.id }}
+          path: evidence/${{ matrix.id }}/
+          if-no-files-found: error
+          retention-days: 30
+
   publish-release-evidence:
     name: Attach Python distribution SBOM evidence to release
     if: github.event_name == 'release'
-    needs: build-python-distributions
+    needs: [build-python-distributions, inventory-source-services]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -178,7 +245,7 @@ jobs:
       - name: Download all distribution evidence
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: python-dist-evidence-*
+          pattern: python-*-evidence-*
           path: evidence
           merge-multiple: true
 
@@ -189,5 +256,5 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           sbom_count="$(find evidence -type f -name '*.cdx.json' | wc -l)"
-          test "$sbom_count" -eq 12
+          test "$sbom_count" -eq 14
           gh release upload "$RELEASE_TAG" evidence/* --clobber
