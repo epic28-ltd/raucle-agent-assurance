@@ -30,7 +30,11 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 DEMO = REPO_ROOT / "services" / "investigation-ui" / "demo_data"
-RAUCLE_OSS_HOME = pathlib.Path(os.environ.get("RAUCLE_OSS_HOME", "~/Projects/raucle")).expanduser()
+RAUCLE_OSS_HOME = (
+    pathlib.Path(os.environ["RAUCLE_OSS_HOME"]).expanduser()
+    if os.environ.get("RAUCLE_OSS_HOME")
+    else None
+)
 CLOCK = dt.datetime(2026, 11, 5, 12, 0, 0, tzinfo=dt.UTC)
 MANIFEST = "manifest.json"
 
@@ -455,7 +459,8 @@ def test_build_refuses_key_not_in_pinned_snapshot(tmp_path: pathlib.Path) -> Non
 
 
 @pytest.mark.skipif(
-    not RAUCLE_OSS_HOME.is_dir(), reason="RAUCLE_OSS_HOME tree not present on this machine"
+    RAUCLE_OSS_HOME is None or not RAUCLE_OSS_HOME.is_dir(),
+    reason="explicit RAUCLE_OSS_HOME resolver checkout not configured",
 )
 def test_resolved_pack_with_pinned_keys_self_contained(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
@@ -583,9 +588,27 @@ def test_key_snapshot_coverage_guard():
         pack._assert_key_snapshot_covers({"sha256:abc"}, {"sha256:def"})
 
 
-def test_chain_graph_resolver_path_requires_opt_in(monkeypatch):
+def test_chain_graph_resolver_path_requires_explicit_root(monkeypatch, tmp_path):
     monkeypatch.delenv("RAUCLE_OSS_HOME", raising=False)
     assert pack._chain_graph_resolver_path() is None
+
+    invalid = tmp_path / "missing"
+    monkeypatch.setenv("RAUCLE_OSS_HOME", str(invalid))
+    with pytest.raises(FileNotFoundError, match="RAUCLE_OSS_HOME is not a directory"):
+        pack._chain_graph_resolver_path()
+
+    checkout_without_resolver = tmp_path / "checkout-without-resolver"
+    (checkout_without_resolver / "raucle").mkdir(parents=True)
+    monkeypatch.setenv("RAUCLE_OSS_HOME", str(checkout_without_resolver))
+    with pytest.raises(FileNotFoundError, match="chain-graph resolver not found"):
+        pack._chain_graph_resolver_path()
+
+    root = tmp_path / "checkout"
+    resolver = root / "raucle" / "chain_graph.py"
+    resolver.parent.mkdir(parents=True)
+    resolver.write_text("# explicit resolver fixture\\n", encoding="utf-8")
+    monkeypatch.setenv("RAUCLE_OSS_HOME", str(root))
+    assert pack._chain_graph_resolver_path() == resolver.resolve()
 
 
 def test_policy_staging_tolerates_undecodable_store_entry(tmp_path: pathlib.Path) -> None:

@@ -597,20 +597,25 @@ def _stage_policies(
 
 
 def _chain_graph_resolver_path() -> pathlib.Path | None:
-    """Opt-in resolver source: ``RAUCLE_OSS_HOME``, when it ships chain_graph."""
-    # The assurance venv pins raucle 0.23.6 (git 645f5de); the resolver
-    # ships in the OSS tree. Honour RAUCLE_OSS_HOME as an explicit, opt-in
-    # source for the wire-up; without it the pack degrades to the pending
-    # slot - never a fake graph.
-    _oss = os.environ.get("RAUCLE_OSS_HOME")
-    if _oss and pathlib.Path(_oss).is_dir():
-        # The pinned raucle install in the venv may shadow the OSS tree and
-        # ship without chain_graph, so load the resolver straight from the
-        # declared OSS home instead of relying on sys.path order.
-        cand = pathlib.Path(_oss) / "raucle" / "chain_graph.py"
-        if cand.is_file():
-            return cand
-    return None
+    """Resolve only an explicitly configured OSS checkout; never guess a home path.
+
+    An unset RAUCLE_OSS_HOME means the optional resolver is unavailable and
+    the pack records the pending slot. A configured but invalid root is a
+    configuration error, not an implicit skip: this prevents stale paths from
+    silently changing which resolver code is exercised.
+    """
+    configured = os.environ.get("RAUCLE_OSS_HOME")
+    if not configured:
+        return None
+    root = pathlib.Path(configured).expanduser()
+    if not root.is_dir():
+        raise FileNotFoundError(f"RAUCLE_OSS_HOME is not a directory: {root}")
+    candidate = root / "raucle" / "chain_graph.py"
+    if not candidate.is_file():
+        raise FileNotFoundError(
+            f"chain-graph resolver not found under RAUCLE_OSS_HOME: {candidate}"
+        )
+    return candidate.resolve()
 
 
 def _load_chain_graph_module(cg_path: pathlib.Path):

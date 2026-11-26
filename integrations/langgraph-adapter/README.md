@@ -36,6 +36,12 @@ Invariants honoured here (ADR-0001 / EPIC M):
   `fail_open=True` is explicitly set.
 - **no retries in the enforcement path** — one gate call per tool call.
 
+## Runtime gate dependency
+
+The adapter's in-process client imports the installed `raucle` distribution lazily when the client is constructed. Install the reviewed, pinned Raucle distribution into the same Python environment as the adapter before using `InProcessRaucleGate`. The adapter deliberately does not search developer home directories or add a neighbouring source checkout to `sys.path`; missing or incompatible installations fail at construction rather than selecting an ambient checkout.
+
+For deployments that cannot install the engine in-process, use `HttpGateClient` against the configured gate service instead.
+
 ## Security configuration
 
 - Use an `https://` endpoint for every non-local deployment. Plain HTTP is

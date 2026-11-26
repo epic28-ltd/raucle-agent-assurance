@@ -21,7 +21,11 @@ import pytest
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 DEMO = REPO_ROOT / "services" / "investigation-ui" / "demo_data"
-RAUCLE_OSS_HOME = pathlib.Path(os.environ.get("RAUCLE_OSS_HOME", "~/Projects/raucle")).expanduser()
+RAUCLE_OSS_HOME = (
+    pathlib.Path(os.environ["RAUCLE_OSS_HOME"]).expanduser()
+    if os.environ.get("RAUCLE_OSS_HOME")
+    else None
+)
 CLOCK = dt.datetime(2026, 11, 5, 12, 0, 0, tzinfo=dt.UTC)
 
 _spec = importlib.util.spec_from_file_location(
@@ -41,21 +45,32 @@ def pack_dirs(tmp_path_factory) -> dict[str, pathlib.Path]:
     from test_audit_pack import pack  # noqa: PLC0415 - AUD-01 builder by path
 
     root = tmp_path_factory.mktemp("replay-pack")
-    os.environ["RAUCLE_OSS_HOME"] = str(RAUCLE_OSS_HOME)
-    resolved = pack.build_pack(
-        DEMO / "evidence_store.jsonl",
-        DEMO / "trust_roots.jsonl",
-        root / "resolved",
-        clock=CLOCK,
-    )["pack_dir"]
-    os.environ.pop("RAUCLE_OSS_HOME", None)
+    if RAUCLE_OSS_HOME is not None:
+        os.environ["RAUCLE_OSS_HOME"] = str(RAUCLE_OSS_HOME)
+        try:
+            resolved = pack.build_pack(
+                DEMO / "evidence_store.jsonl",
+                DEMO / "trust_roots.jsonl",
+                root / "resolved",
+                clock=CLOCK,
+            )["pack_dir"]
+        finally:
+            os.environ.pop("RAUCLE_OSS_HOME", None)
+    else:
+        os.environ.pop("RAUCLE_OSS_HOME", None)
+        resolved = None
     pending = pack.build_pack(
         DEMO / "evidence_store.jsonl",
         DEMO / "trust_roots.jsonl",
         root / "pending",
         clock=CLOCK,
     )["pack_dir"]
-    return {"resolved": pathlib.Path(resolved), "pending": pathlib.Path(pending)}
+    # Without an explicitly supplied resolver, both views use the honest
+    # pending pack; the graph-specific test below is skipped with a reason.
+    return {
+        "resolved": pathlib.Path(resolved) if resolved else pathlib.Path(pending),
+        "pending": pathlib.Path(pending),
+    }
 
 
 def _first_receipt_hash(pack_dir: pathlib.Path) -> str:
@@ -68,7 +83,7 @@ def _replay(pack_dir: pathlib.Path) -> dict:
 
 
 @pytest.mark.skipif(
-    not RAUCLE_OSS_HOME.is_dir(),
+    RAUCLE_OSS_HOME is None or not RAUCLE_OSS_HOME.is_dir(),
     reason="chain-graph resolver unavailable without the OSS raucle tree (pack degrades to the pending slot)",
 )
 def test_replay_renders_the_decision_and_the_chain(pack_dirs) -> None:

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Skippable integration test against the pinned raucle worktree.
+"""Skippable integration test against the explicitly installed Raucle package.
 
 Runs a REAL allow and a REAL deny through ``RaucleGateway.check_tool_call``
 (v0.23.6, git 645f5de) wrapped by ``InProcessRaucleGate`` and enforced by
-``RaucleGateMiddleware``. Skipped (never failed) when the pinned raucle is
-not importable: set PYTHONPATH to the worktree, or point RAUCLE_WORKTREE at it.
+``RaucleGateMiddleware``. Skipped (never failed) when the pinned distribution
+is not installed in this test environment.
 """
 
 import base64
@@ -15,8 +15,7 @@ import pytest
 
 pytest.importorskip(
     "raucle",
-    reason="raucle (pinned v0.23.6, git 645f5de) not installed — "
-    "PYTHONPATH=~/Projects/oaa-spike-4nov/evd/raucle-645f5de",
+    reason="raucle (pinned v0.23.6, git 645f5de) not installed in this environment",
 )
 
 from oaa_langgraph_adapter import InProcessRaucleGate, RaucleGateMiddleware
