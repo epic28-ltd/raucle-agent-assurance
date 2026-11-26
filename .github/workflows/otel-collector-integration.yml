@@ -1,0 +1,68 @@
+name: OTLP collector integration
+
+on:
+  pull_request:
+    paths:
+      - "packages/instrumentation/**"
+      - "tests/otel/**"
+      - ".github/workflows/otel-collector-integration.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/instrumentation/**"
+      - "tests/otel/**"
+      - ".github/workflows/otel-collector-integration.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  otlp-http-roundtrip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install instrumentation test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pyyaml cryptography opentelemetry-sdk opentelemetry-exporter-otlp-proto-http
+      - name: Start pinned local OpenTelemetry Collector
+        run: |
+          docker run -d --name oaa-otel-collector \
+            -p 4318:4318 -p 13133:13133 \
+            -v "$PWD/tests/otel/collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro" \
+            otel/opentelemetry-collector-contrib:0.120.0 \
+            --config=/etc/otelcol-contrib/config.yaml
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:13133/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs oaa-otel-collector
+          exit 1
+      - name: Export real OTLP spans
+        env:
+          OAA_OTLP_ENDPOINT: http://127.0.0.1:4318/v1/traces
+          PYTHONPATH: packages/instrumentation/src
+        run: pytest -q -s tests/otel/test_otel_collector_integration.py | tee otel-integration.log
+      - name: Assert collector received parented, redacted spans
+        if: always()
+        run: |
+          docker logs oaa-otel-collector > collector.log 2>&1
+          TRACE_ID=$(sed -n 's/^EXPECTED_TRACE_ID=//p' otel-integration.log | tail -1)
+          PARENT_ID=$(sed -n 's/^EXPECTED_PARENT_ID=//p' otel-integration.log | tail -1)
+          test -n "$TRACE_ID"
+          test -n "$PARENT_ID"
+          grep -F "oaa.gate.decision" collector.log
+          grep -F "$TRACE_ID" collector.log
+          grep -F "$PARENT_ID" collector.log
+          grep -F "[REDACTED:bearer_token" collector.log
+          grep -F "[REDACTED:aws_access_key" collector.log
+          ! grep -F "integration-secret-token-value-123456" collector.log
+          ! grep -F "AKIAIOSFODNN7EXAMPLE" collector.log
+      - name: Stop collector
+        if: always()
+        run: docker rm -f oaa-otel-collector || true
