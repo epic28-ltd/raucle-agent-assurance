@@ -111,3 +111,32 @@ jobs:
       - name: Stop collector
         if: always()
         run: docker rm -f oaa-otel-collector || true
+
+  audit-pack-resolver-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out pinned Raucle OSS resolver source
+        uses: actions/checkout@v4
+        with:
+          repository: epic28-ltd/raucle
+          ref: e16d6cd130ce22d118a5388a960c350ca5d31a84
+          path: .raucle-oss
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install audit-pack test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest fastapi httpx
+          pip install "./.raucle-oss[regression]"
+      - name: Exercise the real pinned chain-graph resolver
+        env:
+          RAUCLE_OSS_HOME: ${{ github.workspace }}/.raucle-oss
+          PYTHONPATH: packages/raucle-adapter/src
+        run: |
+          pytest -q -rs \
+            tests/audit-pack/test_audit_pack.py \
+            tests/audit-pack/test_replay_pack.py
