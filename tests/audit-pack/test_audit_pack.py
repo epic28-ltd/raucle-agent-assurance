@@ -597,6 +597,12 @@ def test_chain_graph_resolver_path_requires_explicit_root(monkeypatch, tmp_path)
     with pytest.raises(FileNotFoundError, match="RAUCLE_OSS_HOME is not a directory"):
         pack._chain_graph_resolver_path()
 
+    checkout_without_resolver = tmp_path / "checkout-without-resolver"
+    (checkout_without_resolver / "raucle").mkdir(parents=True)
+    monkeypatch.setenv("RAUCLE_OSS_HOME", str(checkout_without_resolver))
+    with pytest.raises(FileNotFoundError, match="chain-graph resolver not found"):
+        pack._chain_graph_resolver_path()
+
     root = tmp_path / "checkout"
     resolver = root / "raucle" / "chain_graph.py"
     resolver.parent.mkdir(parents=True)
