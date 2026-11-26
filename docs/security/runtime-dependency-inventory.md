@@ -32,7 +32,7 @@ The build workflow currently proves the contents of these six wheel/sdist pairs.
 
 ## Source-based Python services and libraries
 
-These manifests exist in the repository but are not included in the six-distribution build matrix:
+These project manifests exist in the repository but are not included in the six-distribution build matrix:
 
 | Component | Manifest | Declared runtime set | Lockfile | Release/SBOM status |
 |---|---|---|---|---|
@@ -40,7 +40,7 @@ These manifests exist in the repository but are not included in the six-distribu
 | Investigation UI | `services/investigation-ui/pyproject.toml` | `fastapi==0.118.3`, `httpx==0.28.1`; `serve` adds `uvicorn==0.38.0` | `services/investigation-ui/uv.lock` | Source service; no wheel/sdist SBOM job currently. |
 | Quality evaluator | `services/quality/pyproject.toml` | None; manifest and README describe stdlib-only evaluator | None found | Source library; no distribution SBOM job currently. |
 
-The console and investigation UI lockfiles are the authoritative resolved sets for their declared manifests. They should be scanned independently as deployment environments if those services are shipped or installed separately. Their service lockfiles must not be merged into the six distribution SBOMs.
+The console and investigation UI lockfiles are the authoritative resolved sets for their declared manifests. They should be scanned independently as deployment environments if those services are shipped or installed separately. Their service lockfiles must not be merged into the six distribution SBOMs. `tests/security/pyproject.toml` is a nested Ruff-only configuration (no `[project]` metadata or runtime dependencies), not a distributable package or deployment environment.
 
 ## Optional integrations and non-manifest dependencies
 
