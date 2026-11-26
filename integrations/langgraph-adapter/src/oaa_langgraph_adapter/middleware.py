@@ -171,6 +171,15 @@ class RaucleGateMiddleware(MIDDLEWARE_BASE):  # type: ignore[misc,valid-type]
             "agent_id": ctx.agent_id or self.agent_id,
             "source": ctx.source or self.source,
         }
+        # W3C trace-context propagation (issue 111): a trace_context_getter may
+        # place validated raw headers in ``ctx.extra``; they ride the gate
+        # event so an OTel-side sink can parent the decision span onto the
+        # caller's trace. The middleware never parses them and they never
+        # influence the decision; the default getter never populates extra.
+        for header_key in ("traceparent", "tracestate"):
+            raw_header = ctx.extra.get(header_key)
+            if isinstance(raw_header, str) and raw_header:
+                event[header_key] = raw_header
         if decision.error:
             event["error"] = decision.error
         if self.audit_sink is not None:

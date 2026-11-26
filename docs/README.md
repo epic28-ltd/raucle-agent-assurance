@@ -13,6 +13,7 @@ Status: imported planning documents (ARCH-01, 4 Nov 2026, raucle pinned v0.23.5 
 - `threat-model/threat-model-v1.md`: updated asset-centred threat model, STRIDE summary, test-linked mitigations and explicit residual risks.
 - `security/cryptographic-boundaries-and-key-custody.md`: signing/trust-root lifecycle, custody limits, response and evidence matrix.
 - `adr/0004-bypass-detection.md`: independent-vantage model for gate-circumvention detection and custody coverage.
+- `adr/0007-otel-trace-context.md`: W3C trace-context propagation policy, generic OTLP export with visible loss, untrusted-header handling and telemetry fail-independence.
 
 ## Rules carried into the code
 

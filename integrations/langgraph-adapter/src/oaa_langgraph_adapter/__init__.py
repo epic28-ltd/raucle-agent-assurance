@@ -20,6 +20,7 @@ from .runtimes import (
     SpanAttributeSink,
     ToolCallRequest,
 )
+from .w3c_context import w3c_trace_context_getter
 
 __all__ = [
     "MIDDLEWARE_BASE",
@@ -35,4 +36,5 @@ __all__ = [
     "SpanAttributeSink",
     "ToolCallDeniedError",
     "ToolCallRequest",
+    "w3c_trace_context_getter",
 ]

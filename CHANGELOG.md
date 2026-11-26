@@ -5,6 +5,32 @@ Format based on Keep a Changelog; versioning will be semver from 0.1.0.
 
 ## Unreleased
 
+### 2026-11-26: OpenTelemetry trace-context propagation and OTLP export path
+
+- W3C Trace Context now enters through the LangGraph adapter's callback
+  seam: a stdlib-only `w3c_trace_context_getter` validates `traceparent`
+  and `tracestate` in request state (bounded, dropped whole when malformed,
+  never raising, never influencing a decision) and adopts the header's
+  trace id only when the runtime carried no correlation id of its own. The
+  middleware forwards the validated headers onto the gate event; the
+  adapter package still never imports OpenTelemetry.
+- The instrumentation package gains the canonical pure-stdlib parser and
+  formatter (`w3c_tracecontext`), a generic env-configured OTLP/HTTP export
+  path (`otel_export`) that is disabled until `OAA_OTLP_ENDPOINT` is set
+  (independent `OAA_OTEL_DISABLED` kill switch, https-only endpoints with
+  loopback and opt-in rules), and `OtelGateSinks`, which turn gate events
+  into `oaa.gate.decision` spans parented onto the caller's trace.
+- Exporter failure is visible, not silent: bounded attempts with capped
+  exponential backoff, explicit loss counters, and a post-recovery
+  `oaa.telemetry.span_loss` marker span, replacing the stock OTLP
+  exporter's silent drop on connection refused (ADR-0003 P3). The PRIV-01
+  `RedactingSpanExporter` sits inside the retry loop, so every attempt and
+  the marker are scrubbed before export; the gate sinks export metadata
+  only and never raw prompts, tool arguments or gate exception text.
+- Fail-independence is asserted, not assumed: decisions are identical with
+  telemetry up, down or absent, and the signed `x_gate` trace id remains
+  authoritative on the correlation plane (ADR-0007).
+
 ### 2026-11-25: SOC 2 TSC mapping v1
 
 - Added a machine-readable mapping for all 33 Common Criteria and 18 additional Availability, Confidentiality, Processing Integrity and Privacy criteria (51 total). Existing CC7.1, CC7.2 and CC9.1 mappings retain their identifiers and governance-profile compatibility; all other criteria are explicitly UNSUPPORTED until suitable evidence exists.
