@@ -21,9 +21,7 @@ BEAT = Path(os.environ["OAA_PHASE5_BEAT_PATH"]) if os.environ.get("OAA_PHASE5_BE
 RAUCLE_REPO = (
     Path(os.environ["RAUCLE_SOURCE_ROOT"]) if os.environ.get("RAUCLE_SOURCE_ROOT") else None
 )
-CLOUD_REPO = (
-    Path(os.environ["RAUCLE_CLOUD_ROOT"]) if os.environ.get("RAUCLE_CLOUD_ROOT") else None
-)
+CLOUD_REPO = Path(os.environ["RAUCLE_CLOUD_ROOT"]) if os.environ.get("RAUCLE_CLOUD_ROOT") else None
 CLOUD_VENV_PY = (
     Path(os.environ["RAUCLE_CLOUD_PYTHON"])
     if os.environ.get("RAUCLE_CLOUD_PYTHON")
