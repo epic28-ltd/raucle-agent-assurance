@@ -116,12 +116,21 @@ def test_window_filter_single_receipt(built: dict, tmp_path: pathlib.Path) -> No
     assert sub == [ln for ln in lines if lo <= pack._event_time(ln) <= hi]
 
 
-def test_chain_graph_slot_pending(built: dict) -> None:
-    data = json.loads((pathlib.Path(built["pack_dir"]) / "chain_graph.json").read_text())
+def test_chain_graph_slot_pending(tmp_path: pathlib.Path, monkeypatch) -> None:
+    """The resolver-absent contract stays pending even in a resolver-enabled job."""
+    monkeypatch.delenv("RAUCLE_OSS_HOME", raising=False)
+    built = pack.build_pack(
+        DEMO / "evidence_store.jsonl",
+        DEMO / "trust_roots.jsonl",
+        tmp_path / "pending",
+        clock=CLOCK,
+    )
+    pack_dir = pathlib.Path(built["pack_dir"])
+    data = json.loads((pack_dir / "chain_graph.json").read_text())
     assert data["status"] == "pending P1.1a wire-up"
     # additive: the manifest is file-grained, so filling the slot later
     # cannot break other entries.
-    assert json.loads((pathlib.Path(built["pack_dir"]) / "manifest.json").read_text())["files"]
+    assert json.loads((pack_dir / "manifest.json").read_text())["files"]
 
 
 def test_claim_sheet_no_claims_and_guard(built: dict) -> None:
@@ -517,7 +526,10 @@ def test_chain_pack_graph_coverage_check_fails_without_bundle(
     shutil.copytree(pathlib.Path(built["pack_dir"]), d)
     cg = d / "chain_graph.json"
     data = json.loads(cg.read_text())
-    assert data["status"] == "pending P1.1a wire-up"
+    assert data["status"] in {
+        verify_pack.CHAIN_GRAPH_PENDING,
+        verify_pack.CHAIN_GRAPH_RESOLVED,
+    }
     data["status"] = verify_pack.CHAIN_GRAPH_RESOLVED
     data["graphs"] = {
         "sha256:aa" * 1: {"nodes": [{"id": "sha256:" + "aa" * 32, "kind": "receipt"}]}
