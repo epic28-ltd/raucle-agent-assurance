@@ -20,6 +20,7 @@ from oaa_instrumentation.otel_export import (
     MARKER_SPAN_NAME,
     OtelExportConfig,
     RetryingSpanExporter,
+    TracingSetup,
     build_export_pipeline,
     configure_tracing_from_env,
     inject_w3c_headers,
@@ -155,6 +156,7 @@ def test_config_plain_http_non_loopback_requires_opt_in() -> None:
         "https://",
         "http://user:pw@collector.example",
         "https://collector.example/#frag",
+        "https://collector.example:notaport/",
     ],
 )
 def test_config_rejects_bad_endpoints(endpoint: str) -> None:
@@ -302,6 +304,75 @@ def test_empty_batch_delegates_once_without_retry() -> None:
     assert exporter.export([]) == SpanExportResult.SUCCESS
     assert len(delegate.span_calls) == 1
     assert exporter.metrics["retries"] == 0
+
+
+def test_zero_attempts_rejected() -> None:
+    with pytest.raises(ValueError, match="max_attempts"):
+        RetryingSpanExporter(ScriptedDelegate(), max_attempts=0)
+
+
+def test_marker_failure_result_is_counted() -> None:
+    # the marker export returning FAILURE (not raising) is a counted failure too
+    delegate = ScriptedDelegate(
+        [ConnectionRefusedError()] * 4 + [SpanExportResult.SUCCESS, SpanExportResult.FAILURE]
+    )
+    exporter = RetryingSpanExporter(delegate, sleep=SleepRecorder())
+    assert exporter.export([StubSpan("lost")]) == SpanExportResult.SUCCESS
+    assert exporter.export([StubSpan("recovered")]) == SpanExportResult.SUCCESS
+    assert exporter.metrics["marker_export_failures"] == 1
+    assert exporter.metrics["marker_spans_sent"] == 0
+
+
+def test_injected_marker_span_factory_is_used() -> None:
+    markers: list[dict] = []
+
+    def factory(attributes: dict) -> StubSpan:
+        markers.append(dict(attributes))
+        return StubSpan(MARKER_SPAN_NAME)
+
+    delegate = ScriptedDelegate([ConnectionRefusedError()] * 4 + [SpanExportResult.SUCCESS] * 2)
+    exporter = RetryingSpanExporter(delegate, sleep=SleepRecorder(), marker_span_factory=factory)
+    assert exporter.export([StubSpan("lost")]) == SpanExportResult.SUCCESS
+    assert exporter.export([StubSpan("recovered")]) == SpanExportResult.SUCCESS
+    assert len(markers) == 1
+    assert markers[0]["oaa.telemetry.lost_spans"] == 1
+    assert exporter.metrics["marker_spans_sent"] == 1
+
+
+def test_tracing_setup_shutdown_is_best_effort() -> None:
+    class BrokenProvider:
+        def shutdown(self) -> None:
+            raise OSError("teardown broken")
+
+    setup = TracingSetup(
+        config=OtelExportConfig(endpoint="https://collector.example"),
+        provider=BrokenProvider(),  # type: ignore[arg-type]
+        exporter=None,  # type: ignore[arg-type]
+        redacting=None,  # type: ignore[arg-type]
+    )
+    setup.shutdown()  # must not raise
+
+    healthy = build_export_pipeline(
+        OtelExportConfig.from_env({ENV_OTLP_ENDPOINT: "https://collector.example"}),
+        delegate=ScriptedDelegate(),
+        batched=False,
+    )
+    healthy.shutdown()
+    healthy.shutdown()  # idempotent at the call site
+
+
+def test_build_pipeline_rejects_disabled_config() -> None:
+    with pytest.raises(ValueError, match="OtelExportConfig"):
+        build_export_pipeline(OtelExportConfig())
+
+
+def test_inject_skips_span_without_valid_context() -> None:
+    empty_context = NonRecordingSpan(
+        SpanContext(trace_id=0, span_id=0, is_remote=False, trace_flags=otel_trace.TraceFlags(0))
+    )
+    headers: dict[str, str] = {}
+    inject_w3c_headers(headers, empty_context)
+    assert headers == {}
 
 
 # -- pipeline build and configuration ------------------------------------------

@@ -6,6 +6,7 @@ parents the decision span onto the caller's trace.
 
 from __future__ import annotations
 
+import pytest
 from oaa_instrumentation.otel_gate_sinks import OtelGateSinks
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -172,3 +173,31 @@ def test_non_mapping_event_is_counted_not_raised() -> None:
     sinks.on_gate_event(None)  # type: ignore[arg-type]
     sinks.on_gate_event(["not", "a", "dict"])  # type: ignore[arg-type]
     assert sinks.metrics["sink_errors"] == 2
+
+
+def test_non_numeric_latencies_become_zero() -> None:
+    sinks, memory = make_sinks()
+    sinks.on_gate_event(
+        gate_event(
+            gate_latency_us="not-a-number",
+            adapter_latency_us=None,
+            decision="deny",
+            receipt_hash=None,
+        )
+    )
+    attrs = dict(memory.get_finished_spans()[0].attributes)
+    assert attrs["oaa.gate_latency_us"] == 0
+    assert attrs["oaa.adapter_latency_us"] == 0
+
+
+def test_zero_open_span_cap_rejected() -> None:
+    with pytest.raises(ValueError, match="max_open_spans"):
+        OtelGateSinks(make_sinks()[0]._tracer, max_open_spans=0)
+
+
+def test_allow_event_without_call_id_ends_span() -> None:
+    # an attachable allow with no call id has no key to file the span under;
+    # it ends immediately rather than leaking an untracked open span
+    sinks, memory = make_sinks()
+    sinks.on_gate_event(gate_event(call_id=""))
+    assert len(memory.get_finished_spans()) == 1
