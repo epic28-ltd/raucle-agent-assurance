@@ -5,6 +5,51 @@ Format based on Keep a Changelog; versioning will be semver from 0.1.0.
 
 ## Unreleased
 
+### 2026-11-26: release SBOM evidence archive and shipped-lockfile dependency scans
+
+- The repository gains a deterministic, digest-bound evidence archive
+  generator (`tools/evidence_archive/archive.py`) with a `build` and a
+  `verify` CLI. Every SBOM, vulnerability report, component and provenance
+  record is copied byte-identical, its SHA-256 digest recomputed and
+  fail-closed against the declared digest, and the whole set is bound in a
+  canonical `MANIFEST.json` (sorted, no wall-clock timestamps) plus a
+  `MANIFEST.json.sha256` sidecar. 22 tests prove determinism (byte-identical
+  manifests across fresh builds), named-error digest binding (tampered
+  artifact, missing digest, no immutable binding, malformed image digest)
+  and refusal of an unpinned tool run (`latest`, `main`, `nightly` and
+  empty versions are all refused).
+- The release source-SBOM workflow now builds evidence archives: the
+  release SBOM, the exact source archive and the provenance file are bound
+  to the release commit and source-archive digest, verified, uploaded as an
+  Actions artifact, and (on release publishes) the manifest and its digest
+  are attached to the GitHub Release.
+- A new `shipped-dependency-scan` workflow produces SBOM and vulnerability
+  evidence from the exact locked shipped dependency sets of the two source
+  services (console, investigation-ui): `uv export --locked --no-dev
+  --all-extras` of each authoritative `uv.lock` (15 requirements each at
+  scan time), a pinned-Syft CycloneDX SBOM of the exported set, and a live
+  `pip-audit --strict` report, all digest-bound to the lockfile and commit
+  with the pinned tool versions recorded. The audit step is explicitly
+  evidence-only this wave: at scan time it recorded 12 advisory records
+  (6 unique PYSEC ids) against `starlette==0.48.0` (transitive of pinned
+  `fastapi==0.118.3`), and wiring it as a blocking gate needs an owner
+  decision (pinned-set upgrade or an exact-scope approved exception).
+  The strict live CI gate (`pip-audit --local --strict`) is unchanged.
+- Six new tests (`tests/security/test_vulnerability_gate_isolation.py`)
+  prove the synthetic PR #105 fixtures and the live gate stay disjoint: the
+  live audit command takes no exception input, the two run in separate
+  steps and processes, the synthetic evaluator holds no ambient exception
+  state, no workflow feeds any exception or ignore-vuln input to any
+  pip-audit invocation, and the shipped workflow's evidence-only
+  classification is guarded so it cannot silently become suppression.
+- The archive README (`docs/security/evidence-archive.md`) records the
+  pinned tooling (Syft v1.57.2, uv 0.13.10, pip-audit 2.10.1, pinned
+  action SHAs) and names the covered versus uncovered shipped artifacts
+  (unresolved optional integration extras, undecided quality/correlation
+  service shipping, customer overlays scoped out pending an owner
+  decision). The accountable archive owner and the retention periods are
+  recorded as PENDING owner decisions with the exact decision text.
+
 ### 2026-11-26: tracestate grammar conformance and checker fix round
 
 - Post-merge checker minors closed for the OpenTelemetry slice: the
