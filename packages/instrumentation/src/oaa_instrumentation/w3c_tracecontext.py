@@ -21,11 +21,18 @@ Conformance choices (documented, pinned by tests):
   is ignored, per the W3C "future version" rule. Version ``ff`` is reserved
   and rejected. Identifiers must be lowercase hex and non-zero. Surrounding
   whitespace is trimmed; whitespace inside a field is invalid.
-- ``tracestate``: any invalid member invalidates the whole header (the
-  strictest reading; partial adoption of attacker content is worse than
-  dropping it). More than 32 members, keys or values over 256 characters, or
-  a value over 5120 characters in total are dropped. Duplicate keys keep the
-  first occurrence. An empty value is an empty member list.
+- ``tracestate``: keys and values follow the W3C grammar exactly. Any
+  invalid member invalidates the whole header (the strictest reading;
+  partial adoption of attacker content is worse than dropping it), with
+  the one spec carve-out: empty and whitespace-only list members are
+  allowed by the list grammar and are skipped, not fatal. Simple keys
+  start with a lowercase letter; multi-tenant tenant ids may start with
+  a digit. Values are printable ASCII without comma or ``=``; interior
+  spaces are value characters, and edge whitespace around a member is
+  OWS, never part of any value. More than 32 members, a header over
+  5120 characters, or keys or values over 256 characters are dropped.
+  Duplicate keys keep the first occurrence. An empty header is an empty
+  member list.
 - ``traceparent`` validity is independent of ``tracestate``: an invalid
   ``tracestate`` is dropped on its own, and ``tracestate`` without a valid
   ``traceparent`` is meaningless.
@@ -50,12 +57,19 @@ _TRACE_ID_RE = re.compile(r"^[0-9a-f]{32}$")
 _SPAN_ID_RE = re.compile(r"^[0-9a-f]{16}$")
 _FLAGS_RE = re.compile(r"^[0-9a-f]{2}$")
 
-# tracestate key: simple key or multi-tenant key, lowercase alnum plus
-# "_" "-" "*" "/", first character of each part a lowercase letter.
-_TRACESTATE_KEY_RE = re.compile(r"^[a-z][a-z0-9_\-*/]*(@[a-z][a-z0-9_\-*/]*)?$")
-# tracestate value: printable ASCII except the separators "," and "="
-# (commas cannot survive the member split; "=" is excluded here).
-_TRACESTATE_VALUE_RE = re.compile(r"^[\x20-\x3c\x3e-\x7e]+$")
+# tracestate key (W3C key grammar): simple key (lowercase letter first,
+# up to 256 chars) or multi-tenant key (tenant@system; the tenant id may
+# start with a digit and carries up to 241 chars, the system id up to 14).
+# The "@" separator only appears in multi-tenant keys.
+_TRACESTATE_KEY_RE = re.compile(
+    r"^(?:[a-z][a-z0-9_\-*/]{0,255}|[a-z0-9][a-z0-9_\-*/]{0,240}@[a-z][a-z0-9_\-*/]{0,13})$"
+)
+# tracestate value (W3C value = 0*255(chr) nblk-chr): printable ASCII
+# except comma and "="; interior spaces allowed, final char non-blank
+# (no trailing space), one character minimum.
+_TRACESTATE_VALUE_RE = re.compile(
+    r"^[\x20-\x2b\x2d-\x3c\x3e-\x7e]{0,255}[\x21-\x2b\x2d-\x3c\x3e-\x7e]$"
+)
 
 _OWS = " \t"
 
@@ -137,7 +151,10 @@ def parse_tracestate(value: Any) -> list[tuple[str, str]] | None:
     for raw_member in header.split(","):
         member = _strip_ows(raw_member)
         if not member:
-            return None
+            # W3C list grammar: empty and whitespace-only list members are
+            # allowed (some vendors inject whitespace after commas); skip
+            # them rather than invalidating the whole header.
+            continue
         key, separator, member_value = member.partition("=")
         if not separator:
             return None

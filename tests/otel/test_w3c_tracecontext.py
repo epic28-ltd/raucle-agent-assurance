@@ -160,10 +160,7 @@ def test_parse_tracestate_length_bound() -> None:
         "1a=b",  # digit-first key
         "a@b@=v",  # malformed multi-tenant key
         "a b=v",  # space inside key
-        "a=,b=2",  # empty member mid-list
-        "a=1,,b=2",  # empty member
-        ",a=1",  # leading comma
-        "a=1,",  # trailing comma
+        "a=,b=2",  # empty value mid-list (spec: value requires one char)
         "a=b,c",  # second member malformed
         None,
         123,
@@ -173,6 +170,41 @@ def test_parse_tracestate_length_bound() -> None:
 )
 def test_parse_tracestate_invalid_member_drops_whole_header(header: object) -> None:
     assert parse_tracestate(header) is None
+
+
+def test_parse_tracestate_skips_empty_list_members() -> None:
+    # W3C list grammar (list-member = (key "=" value) / OWS): empty and
+    # whitespace-only list members are allowed because some vendors inject
+    # whitespace after commas; they are skipped, not fatal.
+    assert parse_tracestate("a=1,,b=2") == [("a", "1"), ("b", "2")]
+    assert parse_tracestate("a=1, ,b=2") == [("a", "1"), ("b", "2")]
+    assert parse_tracestate(",a=1") == [("a", "1")]
+    assert parse_tracestate("a=1,") == [("a", "1")]
+    assert parse_tracestate(",,") == []
+
+
+def test_parse_tracestate_value_grammar_is_w3c_exact() -> None:
+    # value = 0*255(chr) nblk-chr: an interior space is a value character
+    # and survives parsing; whitespace around a member or the header is
+    # OWS and is ignored. A tab is neither: not a value character.
+    assert parse_tracestate("k=a b") == [("k", "a b")]
+    assert parse_tracestate("k=a b , j=c") == [("k", "a b"), ("j", "c")]
+    assert parse_tracestate("k=a\tb") is None
+
+
+def test_parse_tracestate_multi_tenant_sublengths() -> None:
+    # tenant-id 1 + 0*240; system-id 1 + 0*13 (256 total key cap unchanged).
+    assert parse_tracestate(f"{'k' * 241}@sys=v") is not None
+    assert parse_tracestate(f"{'k' * 242}@sys=v") is None
+    assert parse_tracestate(f"t@{'s' * 14}=v") is not None
+    assert parse_tracestate(f"t@{'s' * 15}=v") is None
+
+
+def test_parse_tracestate_digit_initial_tenant_id() -> None:
+    # tenant-id = ( lcalpha / DIGIT ) ...: digit-initial tenant ids are
+    # valid; simple keys still require a lowercase-letter initial.
+    assert parse_tracestate("0tenant@sys=v") == [("0tenant@sys", "v")]
+    assert parse_tracestate("12@sys=v") == [("12@sys", "v")]
 
 
 def test_parse_tracestate_value_bound() -> None:
@@ -261,7 +293,17 @@ def test_format_tracestate_empty() -> None:
     assert format_tracestate([]) == ""
 
 
-@pytest.mark.parametrize("members", [[("", "v")], [("k", "")], [("a", "b=c")], [("A", "v")]])
+@pytest.mark.parametrize(
+    "members",
+    [
+        [("", "v")],
+        [("k", "")],
+        [("a", "b=c")],
+        [("A", "v")],
+        [("a", "b,c")],  # comma would split the member on the wire
+        [("a", "b ")],  # trailing space: final value char must be non-blank
+    ],
+)
 def test_format_tracestate_rejects_invalid_members(members: list) -> None:
     with pytest.raises(ValueError, match="tracestate"):
         format_tracestate(members)
