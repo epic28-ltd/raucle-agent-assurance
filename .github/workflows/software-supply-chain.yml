@@ -47,5 +47,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff pytest cryptography pyyaml fastapi httpx opentelemetry-sdk
           pip install opentelemetry-exporter-otlp-proto-http jsonschema pip-audit
+      - name: Exercise synthetic vulnerability policy fixtures
+        run: pytest -q tests/security/test_vulnerability_policy.py
       - name: Audit installed Python environment
         run: pip-audit --local --strict --progress-spinner off
