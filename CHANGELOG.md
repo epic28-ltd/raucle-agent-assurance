@@ -5,6 +5,24 @@ Format based on Keep a Changelog; versioning will be semver from 0.1.0.
 
 ## Unreleased
 
+### 2026-11-26: tracestate grammar conformance and checker fix round
+
+- Post-merge checker minors closed for the OpenTelemetry slice: the
+  tracestate value grammar now matches the W3C ABNF exactly (comma was
+  previously permitted in a value, letting the formatter emit a header
+  its own parser drops whole; the final value character is now non-blank),
+  and multi-tenant keys enforce the spec sub-lengths with digit-initial
+  tenant ids accepted (`tests/otel/test_w3c_tracecontext.py` pins each
+  shape; the formatter rejects what it cannot emit).
+- Empty and whitespace-only tracestate list members are skipped instead of
+  invalidating the whole header, as the W3C list grammar requires (some
+  vendors inject whitespace after commas); genuinely malformed members
+  still drop the whole header.
+- House punctuation and claim precision: em dashes removed from the
+  issue-111 docstrings, and the propagation docs now state exactly what
+  rides the gate event (a fully validated `traceparent`, a length-bounded
+  raw `tracestate` re-validated at the sink before parenting).
+
 ### 2026-11-26: OpenTelemetry trace-context propagation and OTLP export path
 
 - W3C Trace Context now enters through the LangGraph adapter's callback

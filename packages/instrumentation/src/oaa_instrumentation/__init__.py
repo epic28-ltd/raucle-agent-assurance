@@ -1,25 +1,25 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Open Agent Assurance — PRIV-01 instrumentation: SDK-side redaction and
+"""Open Agent Assurance PRIV-01 instrumentation: SDK-side redaction and
 collector-side defence-in-depth over span attributes, plus the OTel exporter
 wrappers that install both layers, the W3C trace-context core and the
 generic OTLP export path with OTel sinks for the gate middleware.
 
 Modules:
-- :mod:`oaa_instrumentation.redaction` — deterministic, versioned redactor
+- :mod:`oaa_instrumentation.redaction`: deterministic, versioned redactor
   (``[REDACTED:<class>|len=<n>]`` replacement, NO key-tier metadata
   exemption since RED-031, entropy heuristic) and the collector batch
   scan/quarantine.
-- :mod:`oaa_instrumentation.otel_processor` — ``RedactingSpanExporter``
+- :mod:`oaa_instrumentation.otel_processor`: ``RedactingSpanExporter``
   (redaction at the SDK, before export) and ``QuarantiningSpanExporter``
   (re-scan just before export; violations counted, never logged with content).
-- :mod:`oaa_instrumentation.w3c_tracecontext` — pure-stdlib parse/validate/
+- :mod:`oaa_instrumentation.w3c_tracecontext`: pure-stdlib parse/validate/
   format for ``traceparent``/``tracestate``: untrusted headers are bounded,
   validated and dropped when malformed; never parsed into a decision.
-- :mod:`oaa_instrumentation.otel_export` — env-configured, disabled-by-default
+- :mod:`oaa_instrumentation.otel_export`: env-configured, disabled-by-default
   OTLP/HTTP pipeline: bounded retry, explicit loss counters, post-recovery
   marker span, PRIV-01 redaction inside the retry loop, plus the egress
   helpers that format downstream trace headers.
-- :mod:`oaa_instrumentation.otel_gate_sinks` — duck-typed sinks turning the
+- :mod:`oaa_instrumentation.otel_gate_sinks`: duck-typed sinks turning the
   LangGraph gate middleware's audit/span callbacks into decision spans
   parented onto the caller's W3C trace.
 """

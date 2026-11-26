@@ -20,8 +20,8 @@ Design invariants (binding, issue 111 and ADR-0003 P3):
   (``oaa.telemetry.span_loss``) carrying the lost counts, exported on the
   first successful batch after a loss streak.
 - **Redaction before every byte on the wire.** The PRIV-01
-  ``RedactingSpanExporter`` sits inside the retry loop, so every attempt —
-  and the marker span itself — is scrubbed through the shipped redaction
+  ``RedactingSpanExporter`` sits inside the retry loop, so every attempt
+  and the marker span itself are scrubbed through the shipped redaction
   config before the delegate serialises it.
 - **https posture.** ``https`` endpoints only; plain ``http`` is accepted for
   exact loopback hosts (a local collector), and for other hosts only with an
@@ -184,7 +184,7 @@ class RetryingSpanExporter(SpanExporter):
 
     Retries the delegate up to ``max_attempts`` with exponential backoff
     (capped); when the bound expires the batch is DROPPED and counted, and
-    ``export`` still returns ``SpanExportResult.SUCCESS`` — the drop is this
+    ``export`` still returns ``SpanExportResult.SUCCESS``: the drop is this
     exporter's to account for, and a telemetry outage must never surface as
     an error to code whose only job is enforcement. The first successful
     export after a loss streak emits one marker span carrying the lost
