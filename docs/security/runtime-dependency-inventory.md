@@ -8,10 +8,10 @@
 
 This inventory distinguishes four different things:
 
-1. **Published Python distributions** — dependencies declared in each distribution's `[project]` metadata and the exact wheel/sdist produced by the release workflow.
-2. **Deployable Python services** — dependencies installed to run source-based services, including their optional serving extras and lockfiles.
-3. **Reference container images** — image identities declared in the packaged Compose deployment and resolved to immutable registry digests by the container SBOM workflow.
-4. **Development and CI environments** — tools and packages installed to run tests, linting, fixture generation or SBOM tooling. These are not automatically product runtime dependencies.
+1. **Published Python distributions**: dependencies declared in each distribution's `[project]` metadata and the exact wheel/sdist produced by the release workflow.
+2. **Deployable Python services**: dependencies installed to run source-based services, including their optional serving extras and lockfiles.
+3. **Reference container images**: image identities declared in the packaged Compose deployment and resolved to immutable registry digests by the container SBOM workflow.
+4. **Development and CI environments**: tools and packages installed to run tests, linting, fixture generation or SBOM tooling. These are not automatically product runtime dependencies.
 
 An empty optional extra is not evidence that an integration is dependency-free. Where READMEs describe a pinned worktree or locally installed dependency that is absent from project metadata, this is recorded as a manifest gap rather than silently inferred into a release SBOM.
 
@@ -74,7 +74,7 @@ The optional OTel collector described in `deploy/reference/README.md` is not par
 
 | Dependency surface | Authoritative source | Current evidence | Remaining action |
 |---|---|---|---|
-| Six Python distributions | Each distribution's `pyproject.toml` + built wheel/sdist | Per-file SBOM and digest binding in Python distribution workflow | Keep matrix synchronized with manifest inventory; add runtime extras only when declared and resolved. |
+| Six Python distributions | Each distribution's `pyproject.toml` + built wheel/sdist | Per-file SBOM and digest binding in Python distribution workflow | Keep matrix synchronised with manifest inventory; add runtime extras only when declared and resolved. |
 | Console and investigation UI | Each service `pyproject.toml` + service `uv.lock` | Lockfiles present; not in distribution matrix | Add per-service lockfile SBOM scans to release evidence if these source services are shipped. |
 | OAA quality/correlation services | Their `pyproject.toml` manifests | Declared stdlib-only; no dedicated lockfiles | Confirm whether source deployment is supported; if yes, build/install and scan the exact deployment environment. |
 | Optional OTel runtime | README + currently imperative CI install | No declared extra/lockfile | Declare exact extra constraints, lock it, and scan the resolved extra. |
@@ -92,6 +92,6 @@ Before closing enterprise issue #96, define:
 - a durable, access-controlled archive location and retention period;
 - an accountable operational owner and restore/retrieval procedure;
 - whether release evidence is copied to the archive automatically and verified by digest;
-- explicit treatment of customer-specific overlays and non-reference deployment artifacts.
+- explicit treatment of customer-specific overlays and non-reference deployment artefacts.
 
 This inventory is a manifest-based coverage map. It does not assert that customer environments match the reference deployment, that all optional extras are currently shipped, or that any scanned component is vulnerability-free.
