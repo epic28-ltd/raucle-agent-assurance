@@ -134,9 +134,9 @@ shipped path replaces that with bounded, visible loss (ADR-0003 P3):
 
 Instrumented in this slice:
 
-- `integrations/langgraph-adapter` — W3C ingress extraction
+- `integrations/langgraph-adapter`: W3C ingress extraction
   (`w3c_trace_context_getter`), event forwarding of the validated headers.
-- `packages/instrumentation` — canonical W3C parsing/formatting, the OTLP
+- `packages/instrumentation`: canonical W3C parsing/formatting, the OTLP
   export pipeline with bounded retry and visible loss, and the gate
   decision/verification spans.
 
