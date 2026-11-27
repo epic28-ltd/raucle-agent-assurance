@@ -5,6 +5,36 @@ Format based on Keep a Changelog; versioning will be semver from 0.1.0.
 
 ## Unreleased
 
+### 2026-11-27: supported adapter runtime matrix (issue 114) and LangGraph adapter identity and replay contracts
+
+- New versioned support matrix, `docs/support/adapter-support-matrix.md`
+  (version 1): every shipped assurance adapter (LangGraph gate adapter,
+  evidence adapter, OTel instrumentation, audit evidence chain generator,
+  audit-source normalisers, SIEM webhook exporter, backend placeholder) and
+  every OSS in-process framework handler (langchain, langgraph, crewai,
+  autogen, pydantic-ai, openai-agents, google-adk, AGT PDP, QM harness,
+  audit-source connectors) with supported versions cited from the packages'
+  pins and CI workflows, enforcement point, context propagation and identity
+  handling. The matrix states the house doctrine explicitly: in-process
+  handlers are observability and not a security boundary; the hard boundary
+  is the out-of-process gate plus credential isolation. Transparent
+  interception is claimed ONLY where every relevant traffic path is
+  demonstrably covered, which no row achieves: each shortfall is named in the
+  boundary table, and the roadmap targets (AutoGen, LlamaIndex, Semantic
+  Kernel, Kong, Envoy, cloud API gateways) are evaluated against prioritisation
+  criteria only, with no dates and no invented demand.
+- The LangGraph gate adapter was the one out-of-process enforcement adapter,
+  and it lacked explicit identity and replay contracts. New
+  `integrations/langgraph-adapter/tests/adapter/test_contract_identity_replay.py`
+  binds them at the real seam: an empty configured identity reaches the gate
+  as empty (never fabricated), identity is configuration rather than state
+  the default getter may harvest, getter-supplied identity is forwarded
+  verbatim and lands identically on the audit event, an unverified allow is
+  still a veto, a repeated correlation id issues exactly one further gate
+  call with no local decision or receipt cache, a gate exception is exactly
+  one gate call (no retry in the enforcement path), fail-closed on gate error
+  and explicitly unverified (never signed) under `fail_open=True`.
+
 ### 2026-11-26: release SBOM evidence archive and shipped-lockfile dependency scans
 
 - The repository gains a deterministic, digest-bound evidence archive
