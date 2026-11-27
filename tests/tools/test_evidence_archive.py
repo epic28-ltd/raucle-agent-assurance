@@ -99,7 +99,8 @@ def test_same_inputs_produce_byte_identical_manifests(tmp_path):
     assert sidecar_first == sidecar_second
     assert first.name != second.name
     manifest_text = (first / _ea.MANIFEST_NAME).read_text(encoding="utf-8")
-    assert str(first) not in manifest_text and str(tmp_path) not in manifest_text
+    assert str(first) not in manifest_text
+    assert str(tmp_path) not in manifest_text
     for artifact in json.loads(manifest_text)["artifacts"]:
         assert (first / artifact["stored_as"]).read_bytes() == (
             second / artifact["stored_as"]

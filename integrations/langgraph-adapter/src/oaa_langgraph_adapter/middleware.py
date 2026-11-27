@@ -157,6 +157,33 @@ class RaucleGateMiddleware(MIDDLEWARE_BASE):  # type: ignore[misc,valid-type]
         decision = self._safe_check(tool, args, call_id, ctx)
         elapsed_us = int((time.perf_counter() - started) * 1e6)
 
+        event = self._decision_event(call_id, tool, ctx, decision, elapsed_us)
+        if self.audit_sink is not None:
+            self.audit_sink.on_gate_event(event)
+
+        if decision.decision == "allow" and decision.receipt_hash:
+            self._attach_span_attrs(call_id, decision, event, verification="signed")
+            return execute(request)
+
+        # fail_open=True with a gate error: the call proceeds WITHOUT
+        # verification state — explicitly degraded, never signed.
+        if decision.decision == "allow" and decision.error and self.fail_open:
+            self._attach_span_attrs(call_id, decision, event, verification="unverified")
+            return execute(request)
+
+        # Any other outcome vetoes. Notably an "allow" WITHOUT a receipt also
+        # vetoes: no signed receipt means no verification state to attach, and
+        # an unverified allow is worth exactly as much as a deny.
+        return self._veto(tool, call_id, decision, event)
+
+    def _decision_event(
+        self,
+        call_id: str,
+        tool: str,
+        ctx: GateTraceContext,
+        decision: GateDecision,
+        elapsed_us: int,
+    ) -> dict[str, Any]:
         event = {
             "event": "gate_decision",
             "tool": tool,
@@ -182,23 +209,7 @@ class RaucleGateMiddleware(MIDDLEWARE_BASE):  # type: ignore[misc,valid-type]
                 event[header_key] = raw_header
         if decision.error:
             event["error"] = decision.error
-        if self.audit_sink is not None:
-            self.audit_sink.on_gate_event(event)
-
-        if decision.decision == "allow" and decision.receipt_hash:
-            self._attach_span_attrs(call_id, decision, event, verification="signed")
-            return execute(request)
-
-        # fail_open=True with a gate error: the call proceeds WITHOUT
-        # verification state — explicitly degraded, never signed.
-        if decision.decision == "allow" and decision.error and self.fail_open:
-            self._attach_span_attrs(call_id, decision, event, verification="unverified")
-            return execute(request)
-
-        # Any other outcome vetoes. Notably an "allow" WITHOUT a receipt also
-        # vetoes: no signed receipt means no verification state to attach, and
-        # an unverified allow is worth exactly as much as a deny.
-        return self._veto(tool, call_id, decision, event)
+        return event
 
     def _attach_span_attrs(
         self, call_id: str, decision: Any, event: dict[str, Any], verification: str

@@ -42,7 +42,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Any
 
 #: Hard caps on every externally supplied header dimension.
@@ -187,7 +187,16 @@ def parse_context(traceparent: Any, tracestate: Any = None) -> W3CTraceContext |
     members = parse_tracestate(tracestate)
     if members is None:
         members = []
-    return replace(context, tracestate=tuple(members))
+    # Constructed directly rather than via dataclasses.replace(): the frozen
+    # dataclass is rebuilt with identical field values, which keeps the
+    # function's declared return type (W3CTraceContext | None) exact.
+    return W3CTraceContext(
+        version=context.version,
+        trace_id=context.trace_id,
+        parent_span_id=context.parent_span_id,
+        trace_flags=context.trace_flags,
+        tracestate=tuple(members),
+    )
 
 
 def _require(condition: bool, message: str) -> None:
