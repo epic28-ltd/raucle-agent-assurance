@@ -69,7 +69,7 @@
       "owner": "owner-pending Craig",
       "evidence_freshness": {
         "verified_at": "2026-11-27",
-        "evidence_commit": "68d02aae2e96ff46f9661964a2db71b4baecf47a"
+        "evidence_commit": "a278beb459f064d03441f2d089cc749b6ce91c96"
       },
       "system_version_scope": {
         "repository": "epic28-ltd/raucle-agent-assurance",
@@ -389,7 +389,7 @@
       "owner": "owner-pending Craig",
       "evidence_freshness": {
         "verified_at": "2026-11-27",
-        "evidence_commit": "68d02aae2e96ff46f9661964a2db71b4baecf47a"
+        "evidence_commit": "a278beb459f064d03441f2d089cc749b6ce91c96"
       },
       "system_version_scope": {
         "repository": "epic28-ltd/raucle-agent-assurance",
@@ -701,7 +701,7 @@
       "owner": "owner-pending Craig",
       "evidence_freshness": {
         "verified_at": "2026-11-27",
-        "evidence_commit": "68d02aae2e96ff46f9661964a2db71b4baecf47a"
+        "evidence_commit": "a278beb459f064d03441f2d089cc749b6ce91c96"
       },
       "system_version_scope": {
         "repository": "epic28-ltd/raucle-agent-assurance",
@@ -923,7 +923,7 @@
       "owner": "owner-pending Craig",
       "evidence_freshness": {
         "verified_at": "2026-11-27",
-        "evidence_commit": "68d02aae2e96ff46f9661964a2db71b4baecf47a"
+        "evidence_commit": "a278beb459f064d03441f2d089cc749b6ce91c96"
       },
       "system_version_scope": {
         "repository": "epic28-ltd/raucle-agent-assurance",
