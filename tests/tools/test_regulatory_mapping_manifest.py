@@ -27,7 +27,8 @@ def _load_module():
     spec = importlib.util.spec_from_file_location(
         "mapping_manifest", REPO / "tools" / "grc_export" / "mapping_manifest.py"
     )
-    assert spec is not None and spec.loader is not None
+    assert spec is not None
+    assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -223,7 +224,8 @@ def test_evidence_freshness_commit_matches_the_artifacts_last_commit() -> None:
         fresh = row["evidence_freshness"]
         assert set(fresh) >= {"verified_at", "evidence_commit"}, row["control_id"]
         commit = fresh["evidence_commit"]
-        assert len(commit) == 40 and all(c in "0123456789abcdef" for c in commit), row["control_id"]
+        assert len(commit) == 40, row["control_id"]
+        assert all(c in "0123456789abcdef" for c in commit), row["control_id"]
         if is_shallow:
             continue
         proc = subprocess.run(
