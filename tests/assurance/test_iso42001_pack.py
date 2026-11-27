@@ -34,26 +34,32 @@ PACK_DOC = REPO_ROOT / "docs" / "compliance" / "iso-42001-pack-v1.md"
 COMPLIANCE_INDEX = REPO_ROOT / "docs" / "compliance" / "README.md"
 
 FOCUS_AREAS = {
-    "AIMS context, leadership and AI policy (Clause 4, Clause 5, A.2, A.3)": {
+    "AIMS context, leadership, policy and resources (Clause 4, Clause 5, A.1, A.2, A.3, A.4)": {
         "Clause 4.3 AIMS scope",
+        "A.1 general",
         "A.2.2 AI policy",
         "A.3.2 AI roles and responsibilities",
+        "A.4.2 AI system inventory",
     },
     "AI risk assessment and treatment (Clause 6, A.5)": {
         "A.5.3 documentation of AI system impact assessments",
         "Clause 6.1.3 AI risk treatment",
     },
-    "support and AI system operation (Clause 7, Clause 8, A.6)": {
+    "support, data, documentation and AI system operation (Clause 7, Clause 8, A.6, A.7, A.8)": {
         "Clause 7.2 competence",
         "Clause 7.5 documented information",
         "A.6.2.4 AI system verification and validation",
         "A.6.2.6 AI system operation and monitoring",
         "A.6.2.8 AI system recording of event logs",
+        "A.7 data for AI systems",
+        "A.8.2 AI system documentation and information for users",
     },
-    "performance evaluation and improvement (Clause 9, Clause 10)": {
+    "performance evaluation, improvement, responsible use and suppliers (Clause 9, Clause 10, A.9, A.10)": {
         "Clause 9.1 monitoring, measurement and evaluation",
         "Clause 9.2 internal audit",
         "Clause 10.2 continual improvement",
+        "A.9.4 intended use of the AI system and prevention of out-of-scope use",
+        "A.10.3 suppliers",
     },
 }
 

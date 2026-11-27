@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "description": "Governance crosswalk: framework controls mapped to the raucle evidence that satisfies them. evidence_field is a dotted path into the agent assurance packet (see docs/roadmap/overnight-sprint-backlog.md OV-1 shape); basis cites the repo artifact that backs it. UNSUPPORTED means nothing in the current raucle evidence plane satisfies the control: the validator surfaces this honestly rather than claiming coverage.",
+  "version": 2,
+  "description": "Governance crosswalk: framework controls mapped to the raucle evidence that satisfies them. evidence_field is a dotted path into the agent assurance packet (see docs/roadmap/overnight-sprint-backlog.md OV-1 shape); basis cites the repo artifact that backs it. UNSUPPORTED means nothing in the current raucle evidence plane satisfies the control: the validator surfaces this honestly rather than claiming coverage. Evidence mappings v2: every ISO 42001, NIST AI RMF and EU AI Act row additionally carries a disposition (mapped / gap / not-applicable), an owner slot that is a PENDING assignment written as 'owner-pending Craig' (a named unfilled slot, never an invented person), an evidence_freshness (verified_at date plus the git commit of the cited artifact at main, null for gaps), a system_version_scope (the artifact's repository and the raucle release its artifacts ship in, raucle v0.23.9, verified from raucle CHANGELOG and pyproject), and a verification_status (independent offline verification versus engineering-authored only). ISO 42001 rows cover clauses A.1 through A.10: out-of-scope organisational clauses are marked not-applicable or gap with reasons. EU AI Act rows carry an applicability_status: applicability determinations are legal review inputs, not determinations by this repository. This mapping is evidence, not certification, regulatory conformity or an independent audit, and the deterministic, digest-bound export of it is tools/grc_export/mapping_manifest.py (grc_export --profile manifest).",
   "statuses": {
     "SUPPORTED": "The cited packet evidence field carries real, verifiable evidence for the control.",
     "PARTIAL": "Some evidence exists but it is scoped or informal; the claim is narrower than the control.",
@@ -37,7 +37,26 @@
       "title": "Automatic logging of events over the lifetime of the AI system",
       "evidence_field": "receipt_chain.verified_count",
       "status": "SUPPORTED",
-      "basis": "Receipt chain over gated tool calls with tamper-evident hashes and independent verification; missing/invalid receipts are first-class findings (SEC-001, SEC-002), never silent."
+      "basis": "Receipt chain over gated tool calls with tamper-evident hashes and independent verification; missing/invalid receipts are first-class findings (SEC-001, SEC-002), never silent.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "3653e7d2ff95d75fdbcb72632a2a31e9db81526a"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "independent offline verification (verifier / red-run suites re-execute the control)",
+      "evidence_artifact": "tools/verifier/verify_pack.py",
+      "applicability_status": "not determined: legal review input (this document does not decide applicability)"
     },
     {
       "framework": "EU AI Act",
@@ -45,7 +64,26 @@
       "title": "Robustness, accuracy and cybersecurity of high-risk AI systems",
       "evidence_field": "risk_annotations",
       "status": "PARTIAL",
-      "basis": "Red-run findings (policy fuzz, tamper, forge suites) and denial-rate/bypass rules measure attack resistance, but there is no formal accuracy standard or robustness certificate in the evidence plane."
+      "basis": "Red-run findings (policy fuzz, tamper, forge suites) and denial-rate/bypass rules measure attack resistance, but there is no formal accuracy standard or robustness certificate in the evidence plane.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "68d02aae2e96ff46f9661964a2db71b4baecf47a"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "independent offline verification (verifier / red-run suites re-execute the control)",
+      "evidence_artifact": "services/rules/src/oaa_rules/core.py",
+      "applicability_status": "not determined: legal review input (this document does not decide applicability)"
     },
     {
       "framework": "EU AI Act",
@@ -53,7 +91,26 @@
       "title": "Human oversight measures for high-risk AI systems",
       "evidence_field": null,
       "status": "UNSUPPORTED",
-      "unsat_reason": "No oversight-operator roles, approval workflows or human-in-the-loop evidence fields exist in the packet schema or repo."
+      "unsat_reason": "No oversight-operator roles, approval workflows or human-in-the-loop evidence fields exist in the packet schema or repo.",
+      "disposition": "gap",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": null
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": null,
+      "applicability_status": "not determined: legal review input (this document does not decide applicability)"
     },
     {
       "framework": "EU AI Act",
@@ -61,7 +118,26 @@
       "title": "Transparency and provision of information to deployers",
       "evidence_field": "policy_proof_refs",
       "status": "PARTIAL",
-      "basis": "Signed policies and policy-proof references declare exactly which tools the agent may run and under what rules, and receipts evidence what it actually did; however, no deployer-facing technical documentation, instructions-for-use artefact or capability-summary document is produced by the evidence plane."
+      "basis": "Signed policies and policy-proof references declare exactly which tools the agent may run and under what rules, and receipts evidence what it actually did; however, no deployer-facing technical documentation, instructions-for-use artefact or capability-summary document is produced by the evidence plane.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "0c38d7119edc2a158ecfc6b8959969d24f8f7296"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": "docs/adr/0002-event-contract.md",
+      "applicability_status": "not determined: legal review input (this document does not decide applicability)"
     },
     {
       "framework": "EU AI Act",
@@ -69,7 +145,107 @@
       "title": "Transparency obligations towards users (disclosure of AI interaction)",
       "evidence_field": null,
       "status": "UNSUPPORTED",
-      "unsat_reason": "The evidence plane proves what the agent did at gate and receipt level, but nothing in the packet schema or repo evidences that end users were informed they were interacting with an AI system; no disclosure or labelling artefact exists."
+      "unsat_reason": "The evidence plane proves what the agent did at gate and receipt level, but nothing in the packet schema or repo evidences that end users were informed they were interacting with an AI system; no disclosure or labelling artefact exists.",
+      "disposition": "gap",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": null
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": null,
+      "applicability_status": "not determined: legal review input (this document does not decide applicability)"
+    },
+    {
+      "framework": "EU AI Act",
+      "control_id": "Art 11 technical documentation",
+      "title": "Technical documentation of the AI system kept up to date (relevant to high-risk AI systems)",
+      "evidence_field": "receipt_chain.verified_count",
+      "status": "PARTIAL",
+      "basis": "The offline audit pack (ops/audit-pack/pack.py) builds a reproducible, digest-bound technical document of the gateway plane's control evidence (claims.md plus a manifest.json of per-file sha256 digests) and tools/verifier/verify_pack.py re-verifies it offline. It documents the gateway control plane only, not a full AI system technical file in the Art 11 sense. Whether an engagement makes the plane part of a provider's high-risk technical file is a legal review input.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "80ba3bd46a3dfd132efe9b69db82b00cc9ab4fea"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "independent offline verification (verifier / red-run suites re-execute the control)",
+      "evidence_artifact": "ops/audit-pack/pack.py",
+      "applicability_status": "not determined: legal review input (this document does not decide applicability)"
+    },
+    {
+      "framework": "EU AI Act",
+      "control_id": "Art 10 data governance",
+      "title": "Data governance and bias management for training, validation and testing data sets (relevant to high-risk AI systems)",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "Out of the evidence plane's scope: the gateway governs inference-time tool calls; training, validation and testing data sets never enter it, so no data-governance or bias-management artefact exists in the repository. Also relevance is conditional: the Art 10 obligations attach to high-risk AI systems, and whether a deployment is high-risk is a legal review input - undetermined here, recorded honestly.",
+      "disposition": "not-applicable",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": null
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": null,
+      "applicability_status": "not determined: legal review input (this document does not decide applicability)"
+    },
+    {
+      "framework": "EU AI Act",
+      "control_id": "Art 4 AI literacy",
+      "title": "AI literacy of providers' and deployers' staff and other persons operating AI systems on their behalf",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "Out of the evidence plane's scope: AI literacy is an organisational training and awareness obligation resting on the deploying organisation's staff; the evidence plane produces receipts, findings and audit documents and has no notion of personnel competence, so no literacy artefact exists in the repository. Recorded honestly as a deployment-organisation obligation.",
+      "disposition": "not-applicable",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": null
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": null,
+      "applicability_status": "not determined: legal review input (this document does not decide applicability)"
     },
     {
       "framework": "EU AI Act",
@@ -77,7 +253,26 @@
       "title": "Record-keeping: providers and deployers keep automatically generated logs",
       "evidence_field": "receipt_chain.verified_count",
       "status": "PARTIAL",
-      "basis": "Receipts over gated tool calls are staged as bytes into the offline audit pack (ops/audit-pack/pack.py) and re-verified outside the production plane, so records can be kept and independently checked; no retention policy or retention-period control (e.g. the six-month default) exists in the repo."
+      "basis": "Receipts over gated tool calls are staged as bytes into the offline audit pack (ops/audit-pack/pack.py) and re-verified outside the production plane, so records can be kept and independently checked; no retention policy or retention-period control (e.g. the six-month default) exists in the repo.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "80ba3bd46a3dfd132efe9b69db82b00cc9ab4fea"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "independent offline verification (verifier / red-run suites re-execute the control)",
+      "evidence_artifact": "ops/audit-pack/pack.py",
+      "applicability_status": "not determined: legal review input (this document does not decide applicability)"
     },
     {
       "framework": "ISO 42001",
@@ -85,7 +280,25 @@
       "title": "Determining the scope of the AI management system",
       "evidence_field": "governance.ISO 42001",
       "status": "PARTIAL",
-      "basis": "ADRs (docs/adr/0001-0005) and the governance profiles (ops/assurance-profiles) declare the deliberately narrow scope of the evidence plane, and the packet carries the ISO 42001 mapping slot the firm fills; no organisation-level AIMS scope statement or interested-parties analysis exists in the repo."
+      "basis": "ADRs (docs/adr/0001-0005) and the governance profiles (ops/assurance-profiles) declare the deliberately narrow scope of the evidence plane, and the packet carries the ISO 42001 mapping slot the firm fills; no organisation-level AIMS scope statement or interested-parties analysis exists in the repo.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "183627411145917d8f33be0c9a967a9177e923ef"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": "docs/adr/0001-trust-model-and-evidence-plane.md"
     },
     {
       "framework": "ISO 42001",
@@ -93,7 +306,25 @@
       "title": "AI policy",
       "evidence_field": null,
       "status": "UNSUPPORTED",
-      "unsat_reason": "No organisational AI policy artefact exists in the repo: the signed gate policies bind tool calls, they are not a top-management-approved AI policy communicated across an organisation."
+      "unsat_reason": "No organisational AI policy artefact exists in the repo: the signed gate policies bind tool calls, they are not a top-management-approved AI policy communicated across an organisation.",
+      "disposition": "not-applicable",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": null
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": null
     },
     {
       "framework": "ISO 42001",
@@ -101,7 +332,25 @@
       "title": "AI roles and responsibilities",
       "evidence_field": null,
       "status": "UNSUPPORTED",
-      "unsat_reason": "No AIMS roles, responsibilities or reporting lines exist in the evidence plane: there are no oversight-operator roles or approval workflows (the same gap the EU AI Act pack records for Art 14 human oversight)."
+      "unsat_reason": "No AIMS roles, responsibilities or reporting lines exist in the evidence plane: there are no oversight-operator roles or approval workflows (the same gap the EU AI Act pack records for Art 14 human oversight).",
+      "disposition": "not-applicable",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": null
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": null
     },
     {
       "framework": "ISO 42001",
@@ -109,7 +358,25 @@
       "title": "Documentation of AI system impact assessments",
       "evidence_field": "risk_annotations",
       "status": "PARTIAL",
-      "basis": "The GOV-01 scoped assurance report (ops/assurance/generate_report.py, structural no-claim guard) and documented legal-compliance boundary provide assessment inputs, but no formal impact-assessment artefact is produced."
+      "basis": "The GOV-01 scoped assurance report (ops/assurance/generate_report.py, structural no-claim guard) and documented legal-compliance boundary provide assessment inputs, but no formal impact-assessment artefact is produced.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "e9dd7a808e61a681caeb19b67ec32029d924e1d8"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": "ops/assurance/generate_report.py"
     },
     {
       "framework": "ISO 42001",
@@ -117,7 +384,25 @@
       "title": "AI risk treatment",
       "evidence_field": "policy_proof_refs",
       "status": "PARTIAL",
-      "basis": "Enforced, signed policies plus deterministic rules (services/rules SEC-001..SEC-011) treat the evidence plane's identified risks (unauthorised tool calls, tampered receipts, capability drift); no organisation-level AI risk register or treatment plan artefact exists."
+      "basis": "Enforced, signed policies plus deterministic rules (services/rules SEC-001..SEC-011) treat the evidence plane's identified risks (unauthorised tool calls, tampered receipts, capability drift); no organisation-level AI risk register or treatment plan artefact exists.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "68d02aae2e96ff46f9661964a2db71b4baecf47a"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "independent offline verification (verifier / red-run suites re-execute the control)",
+      "evidence_artifact": "services/rules/src/oaa_rules/core.py"
     },
     {
       "framework": "ISO 42001",
@@ -125,7 +410,25 @@
       "title": "Competence",
       "evidence_field": null,
       "status": "UNSUPPORTED",
-      "unsat_reason": "No competence, training or awareness artefact for AI-related personnel exists in the repo; competence is an organisational control the evidence plane cannot produce."
+      "unsat_reason": "No competence, training or awareness artefact for AI-related personnel exists in the repo; competence is an organisational control the evidence plane cannot produce.",
+      "disposition": "not-applicable",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": null
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": null
     },
     {
       "framework": "ISO 42001",
@@ -133,7 +436,25 @@
       "title": "Documented information",
       "evidence_field": "receipt_chain.verified_count",
       "status": "PARTIAL",
-      "basis": "Receipt bytes are staged into the offline audit pack (ops/audit-pack/pack.py) and re-verified outside the production plane, so the AIMS's technical records can be kept and independently checked; no retention-period, archival or destruction lifecycle control exists in the repo."
+      "basis": "Receipt bytes are staged into the offline audit pack (ops/audit-pack/pack.py) and re-verified outside the production plane, so the AIMS's technical records can be kept and independently checked; no retention-period, archival or destruction lifecycle control exists in the repo.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "80ba3bd46a3dfd132efe9b69db82b00cc9ab4fea"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "independent offline verification (verifier / red-run suites re-execute the control)",
+      "evidence_artifact": "ops/audit-pack/pack.py"
     },
     {
       "framework": "ISO 42001",
@@ -141,7 +462,25 @@
       "title": "AI system verification and validation",
       "evidence_field": "risk_annotations",
       "status": "PARTIAL",
-      "basis": "Red-run suites (policy fuzz, gateway HTTP/MCP, tamper, forge) and the offline verifier exercise and verify control behaviour with receipted outcomes; no verification of an AI model against its requirements exists, the agent tool plane is the only verified surface."
+      "basis": "Red-run suites (policy fuzz, gateway HTTP/MCP, tamper, forge) and the offline verifier exercise and verify control behaviour with receipted outcomes; no verification of an AI model against its requirements exists, the agent tool plane is the only verified surface.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "95638a8ab53dfcb55b5e9f0819c6714b7149879d"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "independent offline verification (verifier / red-run suites re-execute the control)",
+      "evidence_artifact": "tests/verifier/test_verify_pack_tamper.py"
     },
     {
       "framework": "ISO 42001",
@@ -149,7 +488,25 @@
       "title": "AI system operation and monitoring",
       "evidence_field": "coverage.gate_covered_tools",
       "status": "SUPPORTED",
-      "basis": "Custody-coverage map (ops/assurance/config/coverage.yaml, ADR-0004) plus deterministic security rules (services/rules SEC-001..SEC-011) monitor every gated tool call continuously."
+      "basis": "Custody-coverage map (ops/assurance/config/coverage.yaml, ADR-0004) plus deterministic security rules (services/rules SEC-001..SEC-011) monitor every gated tool call continuously.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "95381159ad751f63d8557e509b1123faad81130b"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "independent offline verification (verifier / red-run suites re-execute the control)",
+      "evidence_artifact": "ops/assurance/config/coverage.yaml"
     },
     {
       "framework": "ISO 42001",
@@ -157,7 +514,25 @@
       "title": "AI system recording of event logs",
       "evidence_field": "receipt_chain.verified_count",
       "status": "SUPPORTED",
-      "basis": "Every gated tool call produces a sha256-pinned, tamper-evident receipt (receipts.jsonl, ADR-0001/0002); the chain is independently re-verified offline and missing or invalid receipts are first-class findings (SEC-001, SEC-002)."
+      "basis": "Every gated tool call produces a sha256-pinned, tamper-evident receipt (receipts.jsonl, ADR-0001/0002); the chain is independently re-verified offline and missing or invalid receipts are first-class findings (SEC-001, SEC-002).",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "3653e7d2ff95d75fdbcb72632a2a31e9db81526a"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "independent offline verification (verifier / red-run suites re-execute the control)",
+      "evidence_artifact": "tools/verifier/verify_pack.py"
     },
     {
       "framework": "ISO 42001",
@@ -165,7 +540,25 @@
       "title": "Monitoring, measurement, analysis and evaluation",
       "evidence_field": "coverage.gate_covered_tools",
       "status": "PARTIAL",
-      "basis": "The custody-coverage map and its receipted-share coverage metric plus deterministic findings rules continuously measure the evidence plane's technical performance; no AIMS-wide performance-evaluation programme exists."
+      "basis": "The custody-coverage map and its receipted-share coverage metric plus deterministic findings rules continuously measure the evidence plane's technical performance; no AIMS-wide performance-evaluation programme exists.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "95381159ad751f63d8557e509b1123faad81130b"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "independent offline verification (verifier / red-run suites re-execute the control)",
+      "evidence_artifact": "ops/assurance/config/coverage.yaml"
     },
     {
       "framework": "ISO 42001",
@@ -173,7 +566,25 @@
       "title": "Internal audit",
       "evidence_field": null,
       "status": "UNSUPPORTED",
-      "unsat_reason": "No internal AIMS audit programme, audit schedule or management review exists in the repo; the offline pack verifier re-verifies technical evidence, it does not audit a management system."
+      "unsat_reason": "No internal AIMS audit programme, audit schedule or management review exists in the repo; the offline pack verifier re-verifies technical evidence, it does not audit a management system.",
+      "disposition": "not-applicable",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": null
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": null
     },
     {
       "framework": "ISO 42001",
@@ -181,7 +592,181 @@
       "title": "Continual improvement",
       "evidence_field": null,
       "status": "UNSUPPORTED",
-      "unsat_reason": "Findings are produced and evidenced (SEC-001..SEC-011 findings, red-run findings) but no documented continual-improvement or corrective-action process over the management system exists in the repo."
+      "unsat_reason": "Findings are produced and evidenced (SEC-001..SEC-011 findings, red-run findings) but no documented continual-improvement or corrective-action process over the management system exists in the repo.",
+      "disposition": "not-applicable",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": null
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": null
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "A.4.2 AI system inventory",
+      "title": "AI system inventory: record and keep current the AI systems the organisation develops, procures or uses",
+      "evidence_field": "agent_identity.agents",
+      "status": "PARTIAL",
+      "basis": "The assurance packet inventorises every agent the gateway governs (canonical packet field agent_identity.agents with the agent's capability_chain; services/assurance_packet/packet.py, tests pin the shape) and the custody-coverage map inventories the gated tool surface per agent. This is an inventory mechanism for gateway-governed agents only - it is not the deploying organisation's register of all AI systems in development or production.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "2daa622c785ed755493f2228a2efc278da998b83"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": "services/assurance_packet/packet.py"
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "A.7 data for AI systems",
+      "title": "Data for AI systems (area objective: provenance, quality, preparation, protection and PII for development data)",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "Out of the evidence plane's scope: the gateway governs inference-time tool calls and produces tamper-evident receipts for them; it neither trains, fine-tunes nor evaluates models, so no development-data provenance, quality, preparation or training-data PII artefact exists in the repository. Development-data controls belong to the deploying organisation's AIMS; recorded honestly rather than claimed.",
+      "disposition": "not-applicable",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": null
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": null
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "A.8.2 AI system documentation and information for users",
+      "title": "System documentation and information for users of the AI system, including its behaviour and limits",
+      "evidence_field": "policy_proof_refs",
+      "status": "PARTIAL",
+      "basis": "The repository documents the control plane for its users and auditors: auditor-quickstart.md, the ADR set (docs/adr/0001-0007) and the offline audit pack's digest-bound claims.md + manifest.json of per-file sha256 digests give deployers information they carry into their own user documentation. The plane documents itself and its controls; it produces no per-AI-system user documentation or model explainability material for the deployed AI system.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "cf8aca83471c40ba8cfcc27f042c25b4eae6c250"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": "docs/auditor-quickstart.md"
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "A.9.4 intended use of the AI system and prevention of out-of-scope use",
+      "title": "Intended use of the AI system, and prevention or guidance against out-of-scope use",
+      "evidence_field": "policy_proof_refs",
+      "status": "PARTIAL",
+      "basis": "Signed, versioned gate policies pin each agent's intended tool scope (policy_proof_refs) and the deterministic rules layer (services/rules SEC-001..SEC-011) denies receipt-less or unverified-tool invocations, with uncovered tools fail-visible (ADR-0004, SEC-006), so out-of-scope tool use is prevented and evidenced at the point of use. The declared scope covers the agent tool plane, not the AI system's application-domain intended use, which remains the operator's declaration.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "68d02aae2e96ff46f9661964a2db71b4baecf47a"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "independent offline verification (verifier / red-run suites re-execute the control)",
+      "evidence_artifact": "services/rules/src/oaa_rules/core.py"
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "A.10.3 suppliers",
+      "title": "Suppliers: assessment, contractual AI terms and ongoing monitoring of third-party AI providers",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "Out of the evidence plane's scope: supplier assessment, contractual terms and organisational monitoring are procurement controls no deployment artefact can substitute. The plane does pin its own upstream dependency provenance technically (RAUCLE_DISTRIBUTION_PIN in packages/raucle-adapter/src/oaa_raucle_adapter/evidence_plane.py, tripwired by tests/conformance/test_pin_tripwire.py), but that is a dependency-provenance record for one in-repo supplier relationship, not supplier management; the packet carries no supplier field.",
+      "disposition": "not-applicable",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": null
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": null
+    },
+    {
+      "framework": "ISO 42001",
+      "control_id": "A.1 general",
+      "title": "General: consider and justify each Annex A control in an organisational statement of applicability",
+      "evidence_field": null,
+      "status": "UNSUPPORTED",
+      "unsat_reason": "Out of the evidence plane's scope rather than a per-control artefact: Annex A item A.1 directs that each Annex A control be considered and justified in an organisational statement of applicability, an AIMS document the repository does not produce and does not own. The A.2 to A.10 rows above are the technical slice this deployed agentic-gateway control plane can evidence; the organisational justification belongs to the deploying organisation's AIMS.",
+      "disposition": "not-applicable",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": null
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": null
     },
     {
       "framework": "SOC 2",
@@ -229,7 +814,25 @@
       "title": "Legal and regulatory requirements involving AI are documented",
       "evidence_field": "governance.NIST AI RMF",
       "status": "PARTIAL",
-      "basis": "ADRs, the runbook and the compliance-honest reporting boundary document requirements handling; the packet carries mapping slots but no requirements register."
+      "basis": "ADRs, the runbook and the compliance-honest reporting boundary document requirements handling; the packet carries mapping slots but no requirements register.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "5a2272ad12c7e4e14b0147b0f9073e5d27bae33b"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": "ops/assurance-profiles/profiles.yaml"
     },
     {
       "framework": "NIST AI RMF",
@@ -237,7 +840,25 @@
       "title": "Mechanisms are in place to inventory AI systems",
       "evidence_field": "coverage.gate_covered_tools",
       "status": "PARTIAL",
-      "basis": "The custody-coverage map is an inventory mechanism for the agent's tool surface, fail-visible when a tool is not under gate custody (ADR-0004, SEC-006); it inventories tools per agent, not the organisation's AI systems, and is not resourced against organisation risk priorities."
+      "basis": "The custody-coverage map is an inventory mechanism for the agent's tool surface, fail-visible when a tool is not under gate custody (ADR-0004, SEC-006); it inventories tools per agent, not the organisation's AI systems, and is not resourced against organisation risk priorities.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "95381159ad751f63d8557e509b1123faad81130b"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "independent offline verification (verifier / red-run suites re-execute the control)",
+      "evidence_artifact": "ops/assurance/config/coverage.yaml"
     },
     {
       "framework": "NIST AI RMF",
@@ -245,7 +866,25 @@
       "title": "Roles and responsibilities for AI risk are documented and clear",
       "evidence_field": null,
       "status": "UNSUPPORTED",
-      "unsat_reason": "No AI risk-management roles, responsibilities or lines of communication are documented in the evidence plane; no oversight-operator or accountability-role artefact exists (the same gap the EU AI Act pack records for Art 14)."
+      "unsat_reason": "No AI risk-management roles, responsibilities or lines of communication are documented in the evidence plane; no oversight-operator or accountability-role artefact exists (the same gap the EU AI Act pack records for Art 14).",
+      "disposition": "not-applicable",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": null
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": null
     },
     {
       "framework": "NIST AI RMF",
@@ -253,7 +892,25 @@
       "title": "Targeted application scope is specified and documented",
       "evidence_field": "policy_proof_refs",
       "status": "PARTIAL",
-      "basis": "Signed, versioned policies pin each agent's targeted tool scope and constraints, and receipts evidence what actually ran inside it; the documented scope covers the agent tool plane only, not the system's intended application context, benefits or costs."
+      "basis": "Signed, versioned policies pin each agent's targeted tool scope and constraints, and receipts evidence what actually ran inside it; the documented scope covers the agent tool plane only, not the system's intended application context, benefits or costs.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "0c38d7119edc2a158ecfc6b8959969d24f8f7296"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": "docs/adr/0002-event-contract.md"
     },
     {
       "framework": "NIST AI RMF",
@@ -261,7 +918,25 @@
       "title": "Internal risk controls for components of the AI system are identified and documented",
       "evidence_field": "capability_chain",
       "status": "PARTIAL",
-      "basis": "Enforced policies and deterministic rules (services/rules SEC-001..SEC-011) are identified, documented risk controls for the agent tool plane (ADRs 0001-0005); no controls for non-tool components such as the model layer or third-party AI technologies are identified in the evidence plane."
+      "basis": "Enforced policies and deterministic rules (services/rules SEC-001..SEC-011) are identified, documented risk controls for the agent tool plane (ADRs 0001-0005); no controls for non-tool components such as the model layer or third-party AI technologies are identified in the evidence plane.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "68d02aae2e96ff46f9661964a2db71b4baecf47a"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "independent offline verification (verifier / red-run suites re-execute the control)",
+      "evidence_artifact": "services/rules/src/oaa_rules/core.py"
     },
     {
       "framework": "NIST AI RMF",
@@ -269,7 +944,25 @@
       "title": "Appropriateness of AI metrics and effectiveness of existing controls are regularly assessed and updated",
       "evidence_field": "risk_annotations",
       "status": "SUPPORTED",
-      "basis": "Red-run suites measure control efficacy directly: policy fuzz, gateway HTTP, mcp, tamper and forge attempts are receipted, counted and ingested as findings."
+      "basis": "Red-run suites measure control efficacy directly: policy fuzz, gateway HTTP, mcp, tamper and forge attempts are receipted, counted and ingested as findings.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "8b9d66aa5b0b4e13c1801e292acc315688b6f120"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "independent offline verification (verifier / red-run suites re-execute the control)",
+      "evidence_artifact": "tests/scenarios/test_run_scenarios.py"
     },
     {
       "framework": "NIST AI RMF",
@@ -277,7 +970,25 @@
       "title": "The AI system to be deployed is demonstrated to be valid and reliable",
       "evidence_field": null,
       "status": "UNSUPPORTED",
-      "unsat_reason": "No validity or reliability measurement of an AI system exists in the evidence plane: red-run suites measure attack resistance of the gate's controls (the MEASURE 1.2 and MEASURE 2.7 rows), not model validity, accuracy or generalisability."
+      "unsat_reason": "No validity or reliability measurement of an AI system exists in the evidence plane: red-run suites measure attack resistance of the gate's controls (the MEASURE 1.2 and MEASURE 2.7 rows), not model validity, accuracy or generalisability.",
+      "disposition": "gap",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": null
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": null
     },
     {
       "framework": "NIST AI RMF",
@@ -285,7 +996,25 @@
       "title": "AI system security and resilience are evaluated and documented",
       "evidence_field": "risk_annotations",
       "status": "PARTIAL",
-      "basis": "Red-run tamper, forge and policy-fuzz suites evaluate the gate's attack resistance and are ingested as documented findings; resilience beyond attack resistance (fail-safe behaviour, graceful degradation of the agent as a whole) is not evaluated."
+      "basis": "Red-run tamper, forge and policy-fuzz suites evaluate the gate's attack resistance and are ingested as documented findings; resilience beyond attack resistance (fail-safe behaviour, graceful degradation of the agent as a whole) is not evaluated.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "95638a8ab53dfcb55b5e9f0819c6714b7149879d"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "independent offline verification (verifier / red-run suites re-execute the control)",
+      "evidence_artifact": "tests/verifier/test_verify_pack_tamper.py"
     },
     {
       "framework": "NIST AI RMF",
@@ -293,7 +1022,25 @@
       "title": "Privacy risk of the AI system is examined and documented",
       "evidence_field": null,
       "status": "UNSUPPORTED",
-      "unsat_reason": "Findings never carry content (INDEX-PLANE only) and no privacy-risk examination or disclosure-scanning control exists in the evidence plane (the same gap the crosswalk records for OWASP LLM06)."
+      "unsat_reason": "Findings never carry content (INDEX-PLANE only) and no privacy-risk examination or disclosure-scanning control exists in the evidence plane (the same gap the crosswalk records for OWASP LLM06).",
+      "disposition": "gap",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": null
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": null
     },
     {
       "framework": "NIST AI RMF",
@@ -301,7 +1048,25 @@
       "title": "Procedures are followed to respond to and recover from a previously unknown risk when it is identified",
       "evidence_field": null,
       "status": "UNSUPPORTED",
-      "unsat_reason": "Findings are produced and evidenced but no remediation workflow, response or recovery procedures or ticketing integration exists in the repo; detection is honest, response is out of scope."
+      "unsat_reason": "Findings are produced and evidenced but no remediation workflow, response or recovery procedures or ticketing integration exists in the repo; detection is honest, response is out of scope.",
+      "disposition": "gap",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": null
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "engineering-authored only (documented and CI-tested in-repo; not independently re-verified offline)",
+      "evidence_artifact": null
     },
     {
       "framework": "NIST AI RMF",
@@ -309,7 +1074,25 @@
       "title": "AI risks and benefits from third-party resources are regularly monitored, and risk controls are applied and documented",
       "evidence_field": "coverage.unverified_tools",
       "status": "PARTIAL",
-      "basis": "Per-tool custody coverage observes tool-side calls with uncovered tools reported fail-visible (ADR-0004, SEC-006), monitoring the third-party tool surface; no supplier risk assessment or third-party AI technology register exists in the repo."
+      "basis": "Per-tool custody coverage observes tool-side calls with uncovered tools reported fail-visible (ADR-0004, SEC-006), monitoring the third-party tool surface; no supplier risk assessment or third-party AI technology register exists in the repo.",
+      "disposition": "mapped",
+      "owner": "owner-pending Craig",
+      "evidence_freshness": {
+        "verified_at": "2026-11-27",
+        "evidence_commit": "95381159ad751f63d8557e509b1123faad81130b"
+      },
+      "system_version_scope": {
+        "repository": "epic28-ltd/raucle-agent-assurance",
+        "repository_commit": "c48919a597cda18e6f8f0ce09786a782c916c6bb",
+        "ships_in": "raucle v0.23.9",
+        "raucle_release_verified_from": [
+          "raucle CHANGELOG \"## 0.23.9 (2026-11-24)\"",
+          "raucle pyproject.toml version = \"0.23.9\""
+        ],
+        "conformance_pin": "RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'"
+      },
+      "verification_status": "independent offline verification (verifier / red-run suites re-execute the control)",
+      "evidence_artifact": "ops/assurance/config/coverage.yaml"
     },
     {
       "framework": "OWASP LLM Top 10",

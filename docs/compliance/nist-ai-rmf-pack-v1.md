@@ -30,6 +30,21 @@ titles are descriptive, not verbatim quotes. The subcategory numbers carry
 the mapping; confirm wording against the NIST publication before any formal
 use.
 
+Evidence-mapping metadata (crosswalk v2): every NIST AI RMF row in the
+crosswalk now also carries a `disposition` (mapped / gap / not-applicable),
+an owner slot written as `owner-pending Craig` (a named, unfilled assignment
+pending Craig - never an invented person), an `evidence_freshness`
+(`verified_at` date plus the git commit of the cited artifact at main; null
+for unmet gaps), a `system_version_scope` (repository
+epic28-ltd/raucle-agent-assurance, artifacts shipping in raucle v0.23.9,
+verified from raucle CHANGELOG "## 0.23.9 (2026-11-24)" and raucle pyproject
+`version = "0.23.9"`), and a `verification_status` (independent offline
+verification versus engineering-authored only). The deterministic,
+digest-bound export of the whole mapping table is
+`tools/grc_export/mapping_manifest.py` (run as `--profile manifest`). An
+evidence mapping is not certification, regulatory conformity or an
+independent audit; this pack makes no such claim.
+
 ## Related mappings (existing, not invented here)
 
 - The same crosswalk already carries an OWASP LLM Top 10 slice (LLM01,
