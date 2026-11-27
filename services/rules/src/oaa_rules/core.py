@@ -634,54 +634,72 @@ class _CustodyViolation:
         issued = [e for e in custody_events if e.action == "lease_issued"]
         revoked = [e for e in custody_events if e.action == "lease_revoked"]
 
-        def covered_by_lease(use: Event) -> bool:
-            for lease in issued:
-                if lease.at > use.at or lease.credential_id != use.credential_id:
-                    continue
-                if use.lease_id is not None and lease.lease_id != use.lease_id:
-                    continue
-                if use.agent_id is not None and lease.agent_id != use.agent_id:
-                    continue
-                if use.tool is not None and lease.tool != use.tool:
-                    continue
-                if use.release_id is not None and lease.release_id != use.release_id:
-                    continue
-                if lease.lease_id is not None and any(
-                    event.lease_id == lease.lease_id
-                    and event.credential_id == lease.credential_id
-                    and event.action == "lease_revoked"
-                    and event.at <= use.at
-                    for event in revoked
-                ):
-                    continue
-                return True
-            return False
-
         for e in _sort(events):
-            if (
-                e.kind == "custody"
-                and e.action == "use"
-                and e.credential_id
-                and e.tool in config.custody_covered_tools
-                and not covered_by_lease(e)
-            ):
-                findings.append(
-                    Finding(
-                        rule_id=self.id,
-                        rule_version=self.version,
-                        severity="critical",
-                        confidence="high",
-                        evidence_refs=(e.ref or "",),
-                        explanation=(
-                            f"credential {e.credential_id!r} consumed for "
-                            f"custody-covered tool {e.tool!r} without a "
-                            f"matching prior, non-revoked lease — custody "
-                            f"violation (ADR-0004 high-confidence signal)"
-                        ),
-                        subject=e.agent_id or e.credential_id,
-                    )
-                )
+            if self._violates_custody(e, config, issued, revoked):
+                findings.append(self._finding(e))
         return findings
+
+    def _violates_custody(
+        self, e: Event, config: RulesConfig, issued: list[Event], revoked: list[Event]
+    ) -> bool:
+        """A custody-covered tool consumed a credential with no valid lease."""
+        return (
+            e.kind == "custody"
+            and e.action == "use"
+            and bool(e.credential_id)
+            and e.tool in config.custody_covered_tools
+            and not self._covered_by_lease(issued, revoked, e)
+        )
+
+    def _covered_by_lease(self, issued: list[Event], revoked: list[Event], use: Event) -> bool:
+        for lease in issued:
+            if lease.at > use.at or lease.credential_id != use.credential_id:
+                continue
+            if not self._lease_identifiers_match(lease, use):
+                continue
+            if not self._lease_revoked_before_use(lease, revoked, use):
+                return True
+        return False
+
+    @staticmethod
+    def _lease_identifiers_match(lease: Event, use: Event) -> bool:
+        # Missing identifiers never widen a match: each optional use field
+        # must equal the lease's field whenever the use carries one.
+        if use.lease_id is not None and lease.lease_id != use.lease_id:
+            return False
+        if use.agent_id is not None and lease.agent_id != use.agent_id:
+            return False
+        if use.tool is not None and lease.tool != use.tool:
+            return False
+        return not (use.release_id is not None and lease.release_id != use.release_id)
+
+    @staticmethod
+    def _lease_revoked_before_use(lease: Event, revoked: list[Event], use: Event) -> bool:
+        if lease.lease_id is None:
+            return False
+        return any(
+            event.lease_id == lease.lease_id
+            and event.credential_id == lease.credential_id
+            and event.action == "lease_revoked"
+            and event.at <= use.at
+            for event in revoked
+        )
+
+    def _finding(self, e: Event) -> Finding:
+        return Finding(
+            rule_id=self.id,
+            rule_version=self.version,
+            severity="critical",
+            confidence="high",
+            evidence_refs=(e.ref or "",),
+            explanation=(
+                f"credential {e.credential_id!r} consumed for "
+                f"custody-covered tool {e.tool!r} without a "
+                f"matching prior, non-revoked lease — custody "
+                f"violation (ADR-0004 high-confidence signal)"
+            ),
+            subject=e.agent_id or e.credential_id,
+        )
 
 
 class _ProducerIdentityAnomaly:
