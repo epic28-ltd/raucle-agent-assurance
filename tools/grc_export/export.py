@@ -340,11 +340,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--profile",
         default="graph",
-        choices=("graph", "aiuc1"),
+        choices=("graph", "aiuc1", "manifest"),
         help=(
             "aiuc1 exports the AIUC-1 crosswalk rows as workpapers/v1"
-            " (sibling module grc_export/workpaper.py); graph is the default"
-            " grc_evidence_graph/v1 export."
+            " (sibling module grc_export/workpaper.py); manifest exports the"
+            " ISO 42001 / NIST AI RMF / EU AI Act evidence mappings as a"
+            " deterministic regulatory_mapping_manifest/v1 with per-row and"
+            " table sha256 digests (sibling module grc_export/"
+            "mapping_manifest.py); graph is the default grc_evidence_graph/v1"
+            " export."
         ),
     )
     parser.add_argument("--out", type=pathlib.Path, default=None, help="default: stdout")
@@ -359,13 +363,24 @@ def main(argv: list[str] | None = None) -> int:
             packet = _load_json_file(args.packet, "packet")
             if not isinstance(packet, dict):
                 raise ExportError("packet must be a JSON object")
+        manifest_mod = None
         if args.profile == "aiuc1":
             if str(MODULE_DIR) not in sys.path:
                 sys.path.insert(0, str(MODULE_DIR))
             import workpaper as workpaper_mod  # noqa: PLC0415 - profile-selected module
+        elif args.profile == "manifest":
+            if str(MODULE_DIR) not in sys.path:
+                sys.path.insert(0, str(MODULE_DIR))
+            import mapping_manifest as manifest_mod  # noqa: PLC0415 - profile-selected module
+
+            workpaper_mod = None
         else:
             workpaper_mod = None
-        if workpaper_mod is not None:
+        if manifest_mod is not None:
+            doc = manifest_mod.build_manifest(crosswalk, args.crosswalk.read_bytes())
+            text = manifest_mod.render(doc)
+            summary = f"mapping manifest: {doc['inputs']['row_count']} rows"
+        elif workpaper_mod is not None:
             doc = workpaper_mod.build_workpapers(crosswalk, packet, _dotted_lookup)
             text = workpaper_mod.render(doc)
             summary = f"workpapers: {doc['inputs']['workpaper_count']}"

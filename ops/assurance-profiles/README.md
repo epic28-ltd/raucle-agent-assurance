@@ -18,6 +18,16 @@ offline-verifiable raucle evidence, or stating honestly that none exists.
   why nothing in the current evidence plane satisfies the control. These are
   honest gaps, never padded green. The pack docs that read out framework
   slices live in `docs/compliance/`.
+- Evidence-mapping metadata (crosswalk v2, ISO 42001 / NIST AI RMF / EU AI
+  Act rows): `disposition` (mapped / gap / not-applicable), `owner`
+  (`owner-pending Craig` - a named, unfilled pending slot),
+  `evidence_freshness` (`verified_at` date plus the cited artifact's git
+  commit at main), `system_version_scope` (the artifact's repository and the
+  raucle release it ships in, raucle v0.23.9), `verification_status` (independent offline
+  verification versus engineering-authored only), and - EU AI Act rows only -
+  `applicability_status` ("not determined: legal review input"). The
+  deterministic, digest-bound export of these rows is
+  `tools/grc_export/mapping_manifest.py` (`--profile manifest`).
 - `validator.py`: validate(packet, profile) -> PASS/PARTIAL/FAIL with a
   machine-readable diff (every unsatisfied check with expected/actual/note).
 

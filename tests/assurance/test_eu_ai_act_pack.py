@@ -36,6 +36,7 @@ FOCUS_AREAS = [
     "transparency",
     "human oversight",
     "robustness",
+    "AI system technical documentation, data governance and AI literacy",
 ]
 
 # EU AI Act control ids in the pack tables: Article references.
@@ -66,6 +67,14 @@ def test_focus_areas_are_each_covered_by_crosswalk_rows() -> None:
     } <= rows.keys(), "transparency rows missing"
     assert "Art 14 human oversight" in rows, "human oversight row missing"
     assert "Art 15(1) robustness and accuracy" in rows, "robustness row missing"
+    # focus area 5 (issue 113): technical documentation, data governance and
+    # AI literacy rows must be present and honestly disposed
+    for new_row in (
+        "Art 11 technical documentation",
+        "Art 10 data governance",
+        "Art 4 AI literacy",
+    ):
+        assert new_row in rows, f"focus-area-5 row missing: {new_row}"
 
 
 def test_pack_cited_controls_match_crosswalk_rows() -> None:

@@ -35,6 +35,50 @@ Format based on Keep a Changelog; versioning will be semver from 0.1.0.
   one gate call (no retry in the enforcement path), fail-closed on gate error
   and explicitly unverified (never signed) under `fail_open=True`.
 
+### 2026-11-27: deterministic regulatory mapping export manifest (tools/grc_export)
+### 2026-11-27: regulatory evidence mappings for ISO/IEC 42001, NIST AI RMF and EU AI Act (issue 113)
+
+- The governance crosswalk (`ops/assurance-profiles/crosswalk.json`, version
+  2) now carries per-row evidence-mapping metadata on every ISO 42001, NIST
+  AI RMF and EU AI Act row: a `disposition` (mapped / gap / not-applicable),
+  an owner slot written as `owner-pending Craig` (a named, unfilled
+  assignment pending Craig - never an invented person), an
+  `evidence_freshness` (`verified_at` 2026-11-27 plus the git commit of the
+  cited artifact at main, null for unmet gaps), a `system_version_scope`
+  (repository epic28-ltd/raucle-agent-assurance, artifacts shipping in
+  raucle v0.23.9, verified from raucle CHANGELOG "## 0.23.9 (2026-11-24)"
+  and raucle pyproject `version = "0.23.9"`; the repo's conformance pin
+  `RAUCLE_DISTRIBUTION_PIN = 'raucle 0.23.6 (git 645f5de)'` recorded beside
+  it), and a `verification_status` (independent offline verification versus
+  engineering-authored only). Mapped rows cite a specific artifact that was
+  verified to exist at main; gap rows name the specific missing evidence.
+- ISO/IEC 42001 coverage now spans every Annex A area A.1 to A.10: six new
+  rows (`A.1 general`, `A.4.2 AI system inventory`, `A.7 data for AI
+  systems`, `A.8.2 AI system documentation and information for users`,
+  `A.9.4 intended use of the AI system and prevention of out-of-scope use`,
+  `A.10.3 suppliers`) with out-of-scope organisational controls marked
+  not-applicable with reasons. Three new EU AI Act rows (`Art 11 technical
+  documentation` PARTIAL, `Art 10 data governance` and `Art 4 AI literacy`
+  out-of-scope with reasons); EU rows carry an `applicability_status` of
+  "not determined: legal review input" - applicability determinations are
+  legal review inputs, not determinations by this repository. The ISO, NIST
+  and EU AI Act pack documents (docs/compliance/) read out the extended
+  rows, and the packs' headers state plainly that an evidence mapping is not
+  certification, regulatory conformity or an independent audit.
+- Deterministic, digest-bound export: `tools/grc_export/mapping_manifest.py`
+  emits a `regulatory_mapping_manifest/v1` JSON manifest with a per-row
+  sha256 over the row's exact source content, a `table_sha256` binding the
+  rows over themselves, crosswalk-file digest inputs, and a
+  `manifest_content_sha256` added after the digest (OV-1 pattern); wired as
+  `grc_export --profile manifest`. New tests
+  (`tests/tools/test_regulatory_mapping_manifest.py`, 13 tests) prove
+  determinism (module- and CLI-level byte identity), digest binding (a
+  tampered row moves its row digest and the table digest; tampered
+  dispositions, owner slots or missing EU applicability markers fail closed),
+  artifact existence at main, evidence-freshness commits re-verified against
+  `git log`, ISO A.1-A.10 area coverage, and the no-certification guard.
+>>>>>>> origin/main
+
 ### 2026-11-26: release SBOM evidence archive and shipped-lockfile dependency scans
 
 - The repository gains a deterministic, digest-bound evidence archive

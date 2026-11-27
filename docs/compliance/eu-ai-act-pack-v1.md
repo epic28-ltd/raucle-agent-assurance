@@ -2,12 +2,39 @@
 
 > **Scope disclaimer.** This pack is a *mapping* of the raucle-agent-assurance
 > evidence plane to EU AI Act articles relevant to AI agents (transparency,
-> logging and record-keeping, human oversight, robustness). It is not, and
-> must never be presented as, legal advice, a conformity assessment, EU AI Act
-> certification, or any other claim of compliance. Every statement below is
-> phrased as "mapped to": the mapping says what repository evidence exists and
-> how far it goes - no further. Rows marked UNSUPPORTED are honest gaps, kept
-> visible on purpose (the repo's compliance-honest invariant).
+> logging and record-keeping, human oversight, robustness, technical
+> documentation, data governance, AI literacy). It is not, and must never be
+> presented as, legal advice, a conformity assessment, EU AI Act
+> certification, or any other claim of compliance: an evidence mapping is not
+> certification, regulatory conformity or an independent audit. Every
+> statement below is phrased as "mapped to": the mapping says what repository
+> evidence exists and how far it goes - no further. Rows marked UNSUPPORTED
+> are honest gaps (or, where the obligation is outside the evidence plane's
+> remit, not-applicable entries with reasons), kept visible on purpose (the
+> repo's compliance-honest invariant).
+>
+> **Legal review inputs.** Applicability determinations for EU AI Act
+> obligations in this pack - which articles attach to a given deployment, and
+> whether an engagement makes the plane part of a provider's or deployer's
+> regulated system - are LEGAL REVIEW INPUTS, not determinations. This
+> repository records evidence and honestly reports where evidence is missing;
+> every EU AI Act row also carries an `applicability_status` of "not
+> determined: legal review input" in the crosswalk. Only qualified legal
+> review can determine applicability, role (provider/deployer) and risk
+> class.
+>
+> **Evidence-mapping metadata (crosswalk v2).** Every EU AI Act row in the
+> crosswalk now carries a `disposition` (mapped / gap / not-applicable), an
+> owner slot written as `owner-pending Craig` (a named, unfilled assignment
+> pending Craig - never an invented person), an `evidence_freshness`
+> (`verified_at` date plus the git commit of the cited artifact at main; null
+> for unmet gaps), a `system_version_scope` (repository
+> epic28-ltd/raucle-agent-assurance, artifacts shipping in raucle v0.23.9,
+> verified from raucle CHANGELOG "## 0.23.9 (2026-11-24)" and raucle pyproject
+> `version = "0.23.9"`), and a `verification_status` (independent offline
+> verification versus engineering-authored only). The deterministic,
+> digest-bound export of the whole mapping table is
+> `tools/grc_export/mapping_manifest.py` (run as `--profile manifest`).
 
 ## What this pack is
 
@@ -19,8 +46,9 @@ honest `status` (SUPPORTED / PARTIAL / UNSUPPORTED), and a `basis` (or
 `unsat_reason`) anchoring the claim to the repo artefact that backs it.
 
 This pack reads out the EU AI Act slice of that crosswalk as a v1 compliance
-pack, organised by the four focus areas, and names the export format a firm
-can produce it with.
+pack, organised into five focus areas (the original four plus a technical
+documentation, data governance and AI literacy area), and names the export
+format a firm can produce it with.
 
 ## Focus area 1: logging and record-keeping
 
@@ -47,6 +75,14 @@ can produce it with.
 | Crosswalk control | Article mapping | Status | Evidence |
 | --- | --- | --- | --- |
 | `Art 15(1) robustness and accuracy` | Art 15(1) - robustness, accuracy, cybersecurity | PARTIAL | `risk_annotations`: red-run findings (policy fuzz, tamper, forge suites) and denial-rate/bypass rules measure attack resistance. No formal accuracy standard or robustness certificate exists in the evidence plane. |
+
+## Focus area 5: AI system technical documentation, data governance and AI literacy
+
+| Crosswalk control | Article mapping | Status | Evidence |
+| --- | --- | --- | --- |
+| `Art 11 technical documentation` | Art 11 - technical documentation of the AI system kept up to date | PARTIAL | `receipt_chain.verified_count`: the offline audit pack (`ops/audit-pack/pack.py`) builds a reproducible, digest-bound technical document of the gateway plane's control evidence (claims.md plus a manifest.json of per-file sha256) and `tools/verifier/verify_pack.py` re-verifies it offline. It documents the gateway control plane only, not a full AI system technical file in the Art 11 sense. |
+| `Art 10 data governance` | Art 10 - data governance and bias management for training, validation and testing data sets | UNSUPPORTED | Out of the evidence plane's scope: the gateway governs inference-time tool calls; training, validation and testing data sets never enter it, so no data-governance or bias-management artefact exists in the repository. Relevance is conditional (the Art 10 obligations attach to high-risk AI systems) and any such determination is a legal review input, undetermined here. |
+| `Art 4 AI literacy` | Art 4 - AI literacy of staff and other persons operating AI systems on providers'/deployers' behalf | UNSUPPORTED | Out of the evidence plane's scope: AI literacy is an organisational training and awareness obligation resting on the deploying organisation's staff; the plane produces receipts, findings and audit documents and has no notion of personnel competence. Recorded honestly as a deployment-organisation obligation. |
 
 ## Evidence-export format reference
 

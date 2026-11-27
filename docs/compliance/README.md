@@ -30,6 +30,15 @@ deployment.
 The machine-readable rows behind every pack live in the governance crosswalk
 (`ops/assurance-profiles/crosswalk.json`); the deterministic, vendor-neutral
 export is the `grc_evidence_graph/v1` document from
-`tools/grc_export/export.py`. Pack-to-crosswalk consistency is enforced by
+`tools/grc_export/export.py`. The ISO/IEC 42001, NIST AI RMF and EU AI Act
+slices additionally carry per-row evidence-mapping metadata (disposition,
+owner-pending Craig slots, evidence freshness, system and raucle v0.23.9
+version scope, verification status) whose deterministic, digest-bound export
+is the `regulatory_mapping_manifest/v1` document from
+`tools/grc_export/mapping_manifest.py` (run as `--profile manifest`). Every
+mapping here is an evidence mapping: it is not certification, regulatory
+conformity or an independent audit, and EU AI Act applicability
+determinations are legal review inputs, decided by qualified legal review
+only. Pack-to-crosswalk consistency is enforced by
 the tests in `tests/assurance/`, and packs are validated against governance
 profiles by `ops/assurance-profiles/validator.py`.
