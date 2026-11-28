@@ -5,6 +5,38 @@ Format based on Keep a Changelog; versioning will be semver from 0.1.0.
 
 ## Unreleased
 
+### 2026-11-27: durable evidence archive home under docs/security/evidence/
+
+- The evidence archive now has a durable, retention-owned home in this
+  repository, supplementing the CI artifacts (which continue unchanged on
+  their usual workflows with GitHub's default retention; 30 days here,
+  90 days on the raucle SBOM workflow). Two archives are committed:
+  `docs/security/evidence/raucle-release-sbom-v0239/`, built with the
+  existing deterministic tooling from the raucle `sbom` run 45466748310 on
+  tag `v0.23.9` (SBOM digest `96080a4c...e8fe2b`, bound to the PyPI-published
+  raucle 0.23.9 sdist, whose API digest and downloaded bytes agree) and
+  `docs/security/evidence/assurance-source-sbom-45986347562/`, this
+  repository's own `release-sbom.yml` CI-built archive from run 45986347562
+  (manifest digest `b560ff64...86875f`, byte-reproduced locally from the
+  committed build inputs).
+- `docs/security/evidence/ARCHIVE-INDEX.md` is the dated inventory: for each
+  archive it names the release or tag, the repository, the SBOM digest, the
+  source run with its finished time, the build input file, and the manifest
+  digest. `docs/security/evidence/RETENTION.md` records the owner decision of
+  2026-11-27: minimum retention 12 months, a monthly review (verify every
+  committed archive, reconcile the index, archive any release missing an
+  entry, append to the review log), immutable entries kept indefinitely, and
+  point-in-time advisory evidence re-derived rather than accumulated.
+- `docs/security/evidence-archive.md` carries a dated addendum recording the
+  two owner decisions (accountable owner; retention period and procedure)
+  that the file previously recorded as pending; the historical text of the
+  pending section is deliberately left untouched.
+- New `tests/tools/test_evidence_archive_home.py` (5 tests) guards the home:
+  every committed archive verifies with `tools/evidence_archive/archive.py`,
+  binds a release tag and a source commit, declares pinned tool runs for its
+  SBOM entries, and the index page and retention policy stay reconciled with
+  the committed manifests.
+
 ### 2026-11-27: supported adapter runtime matrix (issue 114) and LangGraph adapter identity and replay contracts
 
 - New versioned support matrix, `docs/support/adapter-support-matrix.md`

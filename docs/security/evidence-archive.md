@@ -100,6 +100,16 @@ Both of the following remain recorded decisions that have NOT been made. No pers
 
 Recorded facts this work changes nothing on: the retention figures above are quoted from the current workflows (`retention-days: 30`) and the existing release attachment mechanics; they are measurements of the present state, not a policy.
 
+## Owner decisions recorded (2026-11-27): durable archive home live under docs/security/evidence/
+
+The two pending decisions above were decided by the owner on 2026-11-27 and are now recorded, in the retention policy and the index page that the durable home carries:
+
+- `docs/security/evidence/RETENTION.md`: accountable owner (Craig Allan-McWilliams, epic28-ltd); the durable archive is owned by this repository and **supplements the CI artifacts** (30 days on this repository's workflows, 90 days on the raucle SBOM workflow); minimum retention 12 months; a monthly review ritual (verify every committed archive, reconcile the index, archive any release missing an entry, append to the review log); SBOMs, manifests, digests and provenance are kept indefinitely as immutable entries, while point-in-time advisory evidence may be re-derived rather than accumulated; retrieval is a git read plus `archive.py verify`.
+- `docs/security/evidence/ARCHIVE-INDEX.md`: the dated inventory (release or tag, repository, archive directory, source run, recorded time, digests). Two archives were committed with it: `raucle-release-sbom-v0239` (raucle run 45466748310 on tag `v0.23.9`, plus the PyPI-published raucle 0.23.9 sdist, manifest sha256 `6cee20b8a1ea503f691a05f6145e70d0d051a30a8796a97608986ce7f482c83b`) and `assurance-source-sbom-45986347562` (this repository's `release-sbom.yml` run 45986347562, committed verbatim from the CI `build-evidence-archive` job, manifest sha256 `b560ff6450ad4b31ac674566eba2e7f7b1652e669d4b9fc1ce3868432286875f`, which a local rebuild of the same input file byte-reproduced).
+- `tests/tools/test_evidence_archive_home.py` guards the home: every committed archive verifies with the tooling, binds a release tag and a source commit, declares pinned tool runs for SBOM entries, and both index page and retention policy stay reconciled with the manifests.
+
+The historical sections above were left untouched on purpose: they record the state before the owner decisions, and the addendum above, not a silent edit, supersedes them.
+
 ## Honest limitations
 
 - The archive generator and its gates are implemented and unit-tested; the release-archive job has not yet been observed on a real release event (it runs on pull_request events in CI and on every future release publish; the first real release will be its first live run at tag time).

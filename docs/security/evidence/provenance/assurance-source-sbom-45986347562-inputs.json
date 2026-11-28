@@ -1,0 +1,36 @@
+{
+  "archive_id": "release-source-sbom",
+  "release_tag": "pull-request",
+  "source_commit_sha": "d8b2fb5a8896866806538316959c737e6d755834",
+  "artifacts": [
+    {
+      "id": "source-sbom",
+      "kind": "sbom",
+      "path": "evidence-bundle/sbom.cdx.json",
+      "sha256": "e8e2498849842a3ca4aca1a43dfbbd74cf243b0181717e3f01fa696fafe25296",
+      "tools": [
+        {
+          "name": "syft",
+          "version": "v1.57.2"
+        }
+      ],
+      "bindings": {
+        "component_name": "raucle-agent-assurance-source-release",
+        "component_version": "pull-request",
+        "component_sha256": "9e5d2bd04fc87d9fc938f710325b6b9259cbe81f5e726a72dc045caceda036e1"
+      }
+    },
+    {
+      "id": "source-release-component",
+      "kind": "component",
+      "path": "evidence-bundle/source-release.tar.gz",
+      "sha256": "9e5d2bd04fc87d9fc938f710325b6b9259cbe81f5e726a72dc045caceda036e1"
+    },
+    {
+      "id": "release-provenance",
+      "kind": "provenance",
+      "path": "evidence-bundle/release-sbom-provenance.txt",
+      "sha256": "6ec9bb6659f6c9ccc25459adf4968e6a69971b67952b5b76440d955ed5925a33"
+    }
+  ]
+}
