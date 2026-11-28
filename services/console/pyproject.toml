@@ -9,7 +9,8 @@ description = "Raucle Console - EPIC-N single-page application shell for the Rau
 requires-python = ">=3.11"
 license = "Apache-2.0"
 dependencies = [
-  "fastapi==0.118.3",
+  "fastapi==0.120.1",  # floor raised so starlette can move past 0.48.0
+  "starlette==0.49.1",  # security fix: CVE-2025-62727 (GHSA-7f5h-v6xp-fcq8); fastapi 0.118.3 capped starlette <0.49.0
   "httpx==0.28.1",  # fastapi TestClient transport
 ]
 [project.optional-dependencies]
